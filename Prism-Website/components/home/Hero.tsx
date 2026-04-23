@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useSpring } from "framer-motion";
 import Link from "next/link";
-import { Play, Sparkles, ArrowRight } from "lucide-react";
+import Image from "next/image";
+import { Zap, ArrowRight, Play, Sparkles, ChevronRight } from "lucide-react";
 import { DASHBOARD_URL } from "../../lib/config";
 
 /* ---------- Particle System ---------- */
@@ -15,13 +16,14 @@ function ParticleCanvas() {
     if (!ctx) return;
     let w = canvas.width = canvas.offsetWidth;
     let h = canvas.height = canvas.offsetHeight;
-    const particles: { x: number; y: number; vx: number; vy: number; size: number; opacity: number }[] = [];
-    for (let i = 0; i < 50; i++) {
+    const particles: { x: number; y: number; vx: number; vy: number; size: number; opacity: number; hue: number }[] = [];
+    for (let i = 0; i < 60; i++) {
       particles.push({
         x: Math.random() * w, y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25,
-        size: Math.random() * 1.2 + 0.3,
-        opacity: Math.random() * 0.4 + 0.05,
+        vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
+        size: Math.random() * 1.5 + 0.2,
+        opacity: Math.random() * 0.5 + 0.05,
+        hue: Math.random() < 0.6 ? 265 : 190, // violet or cyan
       });
     }
     let raf: number;
@@ -31,8 +33,7 @@ function ParticleCanvas() {
       for (const p of particles) {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        const colors = ['173,235,179','255,133,122','235,174,230','107,64,60'];
-        ctx.fillStyle = `rgba(${colors[Math.floor(p.opacity * colors.length) % colors.length]},${p.opacity})`;
+        ctx.fillStyle = `hsla(${p.hue}, 70%, 70%, ${p.opacity})`;
         ctx.fill();
         p.x += p.vx; p.y += p.vy;
         if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
@@ -48,15 +49,40 @@ function ParticleCanvas() {
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />;
 }
 
-/* ---------- Animated Widget Panel ---------- */
+/* ---------- Live Counter ---------- */
+function LiveCounter() {
+  const [count, setCount] = useState(2847);
+  useEffect(() => {
+    const id = setInterval(() => setCount(c => c + Math.floor(Math.random() * 3)), 2800);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 1.0 }}
+      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-6"
+      style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.25)', color: '#A78BFA' }}
+    >
+      <span className="relative flex h-2 w-2">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: '#22D3EE' }} />
+        <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: '#22D3EE' }} />
+      </span>
+      <span className="tabular-nums font-mono" style={{ color: '#22D3EE' }}>{count.toLocaleString()}</span>
+      <span>sessions guided today</span>
+    </motion.div>
+  );
+}
+
+/* ---------- AI Chat Widget ---------- */
 const chatMessages = [
-  { role: "agent", text: "Welcome! I'm here to guide you through setup.", delay: 0.8 },
-  { role: "user", text: "Ok, where do I start?", delay: 1.8 },
-  { role: "agent", text: "Click Settings → Integrations → Add source", delay: 2.6, action: true },
+  { role: "agent", text: "Hi! I'll guide you through your onboarding. Ready?", delay: 0.8 },
+  { role: "user", text: "Yes, where do I start?", delay: 1.8 },
+  { role: "agent", text: "Click Settings → Integrations → Connect your first data source", delay: 2.6, action: true },
 ];
 
-function WidgetPanel({ mouse }: { mouse: { x: number; y: number } }) {
-  const [visibleMessages, setVisibleMessages] = useState(0);
+function ChatWidget({ mouse }: { mouse: { x: number; y: number } }) {
+  const [visible, setVisible] = useState(0);
   const [typing, setTyping] = useState(false);
 
   useEffect(() => {
@@ -64,95 +90,104 @@ function WidgetPanel({ mouse }: { mouse: { x: number; y: number } }) {
     chatMessages.forEach((msg, i) => {
       timers.push(setTimeout(() => {
         setTyping(true);
-        setTimeout(() => { setVisibleMessages(i + 1); setTyping(false); }, 600);
+        setTimeout(() => { setVisible(i + 1); setTyping(false); }, 600);
       }, msg.delay * 1000));
     });
     return () => timers.forEach(clearTimeout);
   }, []);
 
-  const tiltX = (mouse.y - 0.5) * -8;
-  const tiltY = (mouse.x - 0.5) * 8;
+  const tiltX = (mouse.y - 0.5) * -10;
+  const tiltY = (mouse.x - 0.5) * 10;
 
   return (
     <motion.div
-      animate={{ y: [0, -10, 0] }}
-      transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
-      style={{ perspective: "800px" }}
-      className="relative"
+      animate={{ y: [0, -12, 0] }}
+      transition={{ repeat: Infinity, duration: 7, ease: "easeInOut" }}
+      style={{ perspective: "900px" }}
     >
       <motion.div
         style={{ rotateX: tiltX, rotateY: tiltY, transformStyle: "preserve-3d" }}
-        transition={{ type: "spring", stiffness: 80, damping: 20 }}
+        transition={{ type: "spring", stiffness: 70, damping: 18 }}
         className="relative w-full max-w-sm mx-auto"
       >
-        <div className="absolute -inset-10 bg-brand/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative rounded-2xl overflow-hidden shadow-lg" style={{ background: 'rgba(253,250,246,0.85)', backdropFilter: 'blur(20px)', border: '1px solid rgba(107,64,60,0.10)' }}>
-          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(107,64,60,0.08)', background: 'rgba(253,250,246,0.5)' }}>
+        {/* Glow halo */}
+        <div className="absolute -inset-12 rounded-full blur-3xl pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.3) 0%, transparent 70%)' }} />
+
+        {/* Widget card */}
+        <div className="relative rounded-2xl overflow-hidden" style={{ background: 'rgba(13,13,24,0.85)', backdropFilter: 'blur(20px)', border: '1px solid rgba(139,92,246,0.25)', boxShadow: '0 0 40px rgba(139,92,246,0.2), 0 20px 60px rgba(0,0,0,0.5)' }}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(139,92,246,0.12)', background: 'rgba(139,92,246,0.06)' }}>
             <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-brand/80 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#8B5CF6,#22D3EE)' }}>
                 <Sparkles className="w-3.5 h-3.5 text-white" />
               </div>
               <div>
-                <p className="text-sm font-semibold" style={{ color: '#6B403C' }}>Prism</p>
-                <p className="text-[11px]" style={{ color: '#9B6560' }}>Step 2 of 4: Connect your data source</p>
+                <p className="text-sm font-semibold text-white">Prism AI</p>
+                <p className="text-[11px]" style={{ color: '#94A3B8' }}>Step 2 of 4: Connect data source</p>
               </div>
             </div>
             <div className="flex gap-1.5">
               {[0, 1, 2, 3].map((i) => (
-                <div key={i} className={`h-1.5 w-1.5 rounded-full ${i < 2 ? "bg-brand" : "bg-white/20"}`} />
+                <div key={i} className={`h-1.5 w-1.5 rounded-full`} style={{ background: i < 2 ? '#8B5CF6' : 'rgba(255,255,255,0.15)' }} />
               ))}
             </div>
           </div>
-          <div className="h-0.5" style={{ background: 'rgba(107,64,60,0.06)' }}>
-            <div className="h-full w-1/2" style={{ background: 'linear-gradient(to right, #FF857A, #EBAEE6)' }} />
+          {/* Progress bar */}
+          <div className="h-0.5" style={{ background: 'rgba(139,92,246,0.1)' }}>
+            <div className="h-full w-1/2" style={{ background: 'linear-gradient(to right, #8B5CF6, #22D3EE)' }} />
           </div>
+          {/* Chat */}
           <div className="p-4 space-y-3 min-h-[200px]">
-            {chatMessages.slice(0, visibleMessages).map((msg, i) => (
-              <div key={i} className={`chat-bubble-animate flex ${msg.role === "user" ? "justify-end" : "justify-start"}`} style={{ animationDelay: `${i * 0.05}s` }}>
+            {chatMessages.slice(0, visible).map((msg, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
                 {msg.role === "agent" && (
-                  <div className="w-6 h-6 rounded-full bg-brand/30 border border-brand/50 flex items-center justify-center mr-2 mt-0.5 flex-shrink-0">
-                    <Sparkles className="w-3 h-3 text-brand-light" />
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center mr-2 mt-0.5 flex-shrink-0" style={{ background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)' }}>
+                    <Sparkles className="w-3 h-3" style={{ color: '#A78BFA' }} />
                   </div>
                 )}
-                <div className={`max-w-[75%] rounded-xl px-3 py-2 leading-relaxed ${
-                  msg.role === "agent"
-                    ? msg.action ? "border text-sm leading-relaxed" : "text-sm" 
-                    : "text-white text-sm"
-                  }`}
-                  style={msg.role === "agent" 
-                    ? msg.action 
-                      ? { background: 'rgba(255,133,122,0.12)', borderColor: 'rgba(255,133,122,0.25)', color: '#6B403C' }
-                      : { background: 'rgba(107,64,60,0.06)', color: '#6B403C' }
-                    : { background: 'linear-gradient(135deg,#FF857A,#EBAEE6)', color: '#3d1008' }
-                  }>
-                  {msg.action && <span className="text-[10px] text-brand-light uppercase tracking-wide block mb-1 font-medium">Action</span>}
+                <div
+                  className="max-w-[75%] rounded-xl px-3 py-2 text-sm leading-relaxed"
+                  style={msg.role === "agent"
+                    ? msg.action
+                      ? { background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#e2d9f3' }
+                      : { background: 'rgba(255,255,255,0.06)', color: '#e2d9f3' }
+                    : { background: 'linear-gradient(135deg,#8B5CF6,#6366F1)', color: '#fff' }
+                  }
+                >
+                  {msg.action && <span className="text-[10px] uppercase tracking-wide block mb-1 font-medium" style={{ color: '#A78BFA' }}>Action</span>}
                   {msg.text}
                 </div>
-              </div>
+              </motion.div>
             ))}
             {typing && (
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-brand/30 border border-brand/50 flex items-center justify-center">
-                  <Sparkles className="w-3 h-3 text-brand-light" />
+                <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)' }}>
+                  <Sparkles className="w-3 h-3" style={{ color: '#A78BFA' }} />
                 </div>
-                <div className="bg-white/8 rounded-xl px-4 py-3 flex gap-1">
-                  <span className="typing-dot w-1.5 h-1.5 rounded-full bg-slate-400 inline-block" />
-                  <span className="typing-dot w-1.5 h-1.5 rounded-full bg-slate-400 inline-block" />
-                  <span className="typing-dot w-1.5 h-1.5 rounded-full bg-slate-400 inline-block" />
+                <div className="rounded-xl px-4 py-3 flex gap-1" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <span className="typing-dot w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#8B5CF6' }} />
+                  <span className="typing-dot w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#8B5CF6' }} />
+                  <span className="typing-dot w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#8B5CF6' }} />
                 </div>
               </div>
             )}
           </div>
-          {visibleMessages >= 3 && (
+          {visible >= 3 && (
             <div className="px-4 pb-4">
               <motion.button
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.3, type: "spring" }}
-                className="w-full relative overflow-hidden rounded-xl bg-brand text-white text-sm font-semibold py-3 group"
+                className="w-full relative overflow-hidden rounded-xl text-white text-sm font-semibold py-3"
+                style={{ background: 'linear-gradient(135deg,#8B5CF6,#22D3EE)', boxShadow: '0 0 20px rgba(139,92,246,0.4)' }}
               >
                 <span className="relative z-10 flex items-center justify-center gap-2">
-                  <ArrowRight className="w-4 h-4" /> Add source
+                  <ArrowRight className="w-4 h-4" /> Connect source
                 </span>
                 <motion.div
                   animate={{ x: ["-100%", "200%"] }}
@@ -168,61 +203,34 @@ function WidgetPanel({ mouse }: { mouse: { x: number; y: number } }) {
   );
 }
 
-/* ---------- Wavy Underline ---------- */
-function WavyUnderline() {
-  return (
-    <span className="relative wavy-underline">
-      fixes it
-      <svg className="absolute -bottom-2 left-0 w-full overflow-visible" height="12" viewBox="0 0 200 12" preserveAspectRatio="none">
-        <path d="M0,6 C20,2 40,10 60,6 C80,2 100,10 120,6 C140,2 160,10 180,6 C190,4 196,5 200,6"
-          fill="none" stroke="#FF857A" strokeWidth="2.5" strokeLinecap="round"
-        />
-      </svg>
-    </span>
-  );
-}
-
-/* ---------- Live Session Counter ---------- */
-function LiveCounter() {
-  const [count, setCount] = useState(1247);
-  useEffect(() => {
-    const id = setInterval(() => setCount(c => c + Math.floor(Math.random() * 3)), 3000);
-    return () => clearInterval(id);
-  }, []);
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 1.0 }}
-      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-6" style={{ border: '1px solid rgba(107,64,60,0.15)', background: 'rgba(107,64,60,0.05)', color: '#9B6560' }}
-    >
-      <span className="relative flex h-2 w-2">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
-      </span>
-      <span className="tabular-nums font-mono" style={{ color: '#FF857A' }}>{count.toLocaleString()}</span>
-      <span style={{ color: '#9B6560' }}>sessions guided today</span>
-    </motion.div>
-  );
-}
-
 /* ---------- Hero ---------- */
 export default function Hero() {
   const [mouse, setMouse] = useState({ x: 0.5, y: 0.5 });
 
   return (
     <section
-      className="relative min-h-screen flex items-center overflow-hidden pt-16" style={{ background: 'linear-gradient(160deg, #FDFAF6 0%, #F5F0E8 40%, #fff5f4 100%)' }}
+      className="relative min-h-screen flex items-center overflow-hidden pt-16"
+      style={{ background: '#030306' }}
       onMouseMove={(e) => setMouse({ x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight })}
     >
-      {/* Grid background */}
+      {/* Grid */}
       <div className="absolute inset-0 bg-grid" />
 
-      {/* Aurora gradient blobs — Stripe-level */}
-      <div className="mesh-orb absolute top-[-10%] right-[-5%] w-[55vw] h-[55vw] rounded-full blur-[120px] pointer-events-none" style={{ background: 'rgba(173,235,179,0.35)' }} />
-      <div className="mesh-orb-b absolute bottom-[-15%] left-[-10%] w-[50vw] h-[50vw] rounded-full blur-[100px] pointer-events-none" style={{ background: 'rgba(255,133,122,0.22)' }} />
-      <div className="mesh-orb-c absolute top-[30%] left-[20%] w-[35vw] h-[35vw] rounded-full blur-[90px] pointer-events-none" style={{ background: 'rgba(235,174,230,0.20)' }} />
-      <div className="mesh-orb absolute bottom-[10%] right-[25%] w-[25vw] h-[25vw] rounded-full blur-[80px] pointer-events-none" style={{ background: 'rgba(107,64,60,0.08)' }} />
+      {/* Radial gradient center glow */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(139,92,246,0.35) 0%, transparent 70%)' }} />
+
+      {/* Ambient orbs */}
+      <div className="mesh-orb absolute top-[-15%] right-[-5%] w-[60vw] h-[60vw] rounded-full blur-[140px] pointer-events-none" style={{ background: 'rgba(139,92,246,0.18)' }} />
+      <div className="mesh-orb-b absolute bottom-[-20%] left-[-10%] w-[55vw] h-[55vw] rounded-full blur-[120px] pointer-events-none" style={{ background: 'rgba(34,211,238,0.1)' }} />
+      <div className="mesh-orb-c absolute top-[35%] left-[15%] w-[30vw] h-[30vw] rounded-full blur-[100px] pointer-events-none" style={{ background: 'rgba(217,70,239,0.1)' }} />
+
+      {/* 3D floating shapes (decorative) */}
+      <div className="absolute top-16 right-[8%] w-28 h-28 opacity-60 float-y pointer-events-none hidden lg:block asset-glow" style={{ animationDelay: '0s' }}>
+        <Image src="/3d-floats.png" alt="" fill style={{ objectFit: 'contain' }} />
+      </div>
+      <div className="absolute bottom-[20%] left-[5%] w-20 h-20 opacity-50 float-x pointer-events-none hidden lg:block asset-glow-cyan" style={{ animationDelay: '2s' }}>
+        <Image src="/3d-floats.png" alt="" fill style={{ objectFit: 'contain', transform: 'scaleX(-1) rotate(45deg)' }} />
+      </div>
 
       {/* Particles */}
       <ParticleCanvas />
@@ -230,45 +238,43 @@ export default function Hero() {
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-24 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-16 lg:gap-8 items-center w-full">
         {/* Left column */}
         <div className="max-w-2xl">
-          {/* Live counter badge */}
+          {/* Live counter */}
           <LiveCounter />
 
-          {/* Free tier badge */}
+          {/* NEW badge */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium mb-8" style={{ border: '1px solid rgba(255,133,122,0.30)', background: 'rgba(255,133,122,0.08)', color: '#FF857A' }}
+            className="badge-new mb-8"
+            style={{ display: 'inline-flex' }}
           >
-            <span className="text-brand">✦</span>
-            Free tier — no credit card required
+            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-sm mr-0.5" style={{ background: '#8B5CF6', color: '#fff' }}>NEW</span>
+            Autonomous ReAct agent — just shipped
           </motion.div>
 
           {/* Headline */}
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="font-heading text-5xl md:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tight mb-6" style={{ color: '#6B403C' }}
+            transition={{ duration: 0.7, delay: 0.1 }}
+            className="font-heading text-5xl md:text-6xl lg:text-7xl font-black leading-[1.04] tracking-tight mb-6 text-white"
           >
-            Your users are
-            <br />dropping off.
+            Your users are{" "}
+            <br />dropping off.{" "}
             <br />
-            <span className="text-brand">Prism shows you where</span>
-            <br />
-            — and{" "}
-            <WavyUnderline />
-            .
+            <span className="gradient-text">Prism fixes it.</span>
           </motion.h1>
 
-          {/* Sub */}
+          {/* Subline */}
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.25 }}
-            className="text-xl leading-relaxed mb-10 max-w-xl" style={{ color: '#9B6560' }}
+            className="text-xl leading-relaxed mb-10 max-w-xl"
+            style={{ color: '#94A3B8' }}
           >
-            Embed an AI agent in your SaaS in 2 lines of code. It guides users through onboarding in real time — clicks buttons, fills forms, answers questions. You watch it all from a dashboard that shows you exactly where users get stuck.
+            Embed an AI agent in your SaaS in 2 lines of code. It guides users through onboarding in real time — clicks buttons, fills forms, answers questions autonomously.
           </motion.p>
 
           {/* CTAs */}
@@ -280,49 +286,59 @@ export default function Hero() {
           >
             <Link
               href={`${DASHBOARD_URL}/register`}
-              className="inline-flex items-center gap-2 px-8 py-4 font-bold text-lg rounded-xl transition-all duration-200 hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg,#FF857A,#EBAEE6)', color: '#3d1008', boxShadow: '0 12px 40px rgba(255,133,122,0.28)' }}
+              className="inline-flex items-center gap-2 px-8 py-4 font-bold text-lg rounded-xl transition-all duration-200 hover:scale-[1.03] text-white"
+              style={{ background: 'linear-gradient(135deg,#8B5CF6,#22D3EE)', boxShadow: '0 0 40px rgba(139,92,246,0.4), 0 8px 24px rgba(0,0,0,0.3)' }}
             >
               Start for free
               <ArrowRight className="w-5 h-5" />
             </Link>
-            <button className="inline-flex items-center gap-2 px-8 py-4 font-semibold text-lg rounded-xl transition-all duration-200 group" style={{ border: '1px solid rgba(107,64,60,0.2)', color: '#6B403C', background: 'transparent' }} onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(107,64,60,0.06)'; }} onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-              <div className="w-9 h-9 rounded-full flex items-center justify-center transition-colors" style={{ background: 'rgba(107,64,60,0.08)', border: '1px solid rgba(107,64,60,0.15)' }}>
-                <Play className="w-4 h-4 fill-current ml-0.5" />
+            <button
+              className="inline-flex items-center gap-2 px-8 py-4 font-semibold text-lg rounded-xl transition-all duration-200 group"
+              style={{ border: '1px solid rgba(139,92,246,0.3)', color: '#A78BFA', background: 'rgba(139,92,246,0.06)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,92,246,0.12)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(139,92,246,0.5)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,92,246,0.06)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(139,92,246,0.3)'; }}
+            >
+              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.15)' }}>
+                <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
               </div>
               Watch 3-min demo
             </button>
           </motion.div>
 
-          {/* Micro-copy */}
+          {/* Trust micro-copy */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
-            className="text-sm flex flex-wrap gap-x-4 gap-y-1" style={{ color: '#9B6560' }}
+            className="text-sm flex flex-wrap gap-x-5 gap-y-1"
+            style={{ color: '#475569' }}
           >
-            {["Free forever", "3 agents", "100 MTU", "No credit card"].map((item, i) => (
+            {["Free forever plan", "3 agents included", "100 MTU/mo", "No credit card"].map((item, i) => (
               <span key={i} className="flex items-center gap-1.5">
-                <span className="w-1 h-1 rounded-full bg-brand inline-block" />
+                <span className="w-1 h-1 rounded-full inline-block" style={{ background: '#8B5CF6' }} />
                 {item}
               </span>
             ))}
           </motion.p>
         </div>
 
-        {/* Right column — Widget */}
+        {/* Right column — chat widget with 3D orb behind */}
         <motion.div
           initial={{ opacity: 0, x: 40 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="w-full lg:w-[420px] xl:w-[480px]"
+          className="w-full lg:w-[420px] xl:w-[480px] relative"
         >
-          <WidgetPanel mouse={mouse} />
+          {/* 3D Orb behind the widget */}
+          <div className="absolute -inset-16 -top-24 pointer-events-none opacity-40 hidden lg:block">
+            <Image src="/3d-orb.png" alt="" fill style={{ objectFit: 'contain' }} />
+          </div>
+          <ChatWidget mouse={mouse} />
         </motion.div>
       </div>
 
       {/* Bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none" style={{ background: 'linear-gradient(to top, #F5F0E8, transparent)' }} />
+      <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none" style={{ background: 'linear-gradient(to top, #030306, transparent)' }} />
     </section>
   );
 }

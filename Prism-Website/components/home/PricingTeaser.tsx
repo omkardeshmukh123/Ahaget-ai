@@ -15,15 +15,15 @@ export default function PricingTeaser() {
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section className="py-24" ref={ref} style={{ background: 'var(--cream)' }}>
+    <section className="py-24" ref={ref} style={{ background: '#07070d', borderTop: '1px solid rgba(139,92,246,0.1)' }}>
       <div className="max-w-5xl mx-auto px-6">
         <div className="text-center mb-14">
           <motion.p initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5 }} className="eyebrow mb-4">
             Pricing
           </motion.p>
-          <motion.h2 initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.1 }} className="text-4xl md:text-5xl font-bold" style={{ color: '#6B403C' }}>
+          <motion.h2 initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.1 }} className="text-4xl md:text-5xl font-bold text-white mb-4">
             Start free. Pay when you scale.
-            <br /><span className="font-normal" style={{ color: '#9B6560' }}>No &ldquo;Contact Sales.&rdquo; No surprises.</span>
+            <br /><span className="font-normal" style={{ color: '#475569' }}>No &ldquo;Contact Sales.&rdquo; No surprises.</span>
           </motion.h2>
         </div>
 
@@ -37,14 +37,11 @@ export default function PricingTeaser() {
                 plan.active
                   ? "shadow-brand-sm"
                   : ""
-              }
-              style={!plan.active ? { border: '1px solid rgba(107,64,60,0.15)' } : {}}
               }`}
-              style={plan.active ? { border: '1px solid rgba(255,133,122,0.5)', background: 'rgba(255,133,122,0.06)' } : {}}
+              style={plan.active ? { border: '1px solid rgba(139,92,246,0.5)', background: 'rgba(139,92,246,0.08)' } : { border: '1px solid rgba(139,92,246,0.15)' }}
             >
-              <p className={`text-sm font-semibold mb-2`} style={{ color: plan.active ? '#FF857A' : '#6B403C' }}>{plan.name}</p>
-              <p className="text-3xl font-black mb-1" style={{ color: '#6B403C' }}>${plan.price}<span className="text-base font-normal" style={{ color: '#9B6560' }}>/mo</span></p>
-              <p className="text-xs mb-1" style={{ color: '#9B6560' }}>{plan.agents}</p>
+              <p className={`text-sm font-semibold mb-2`} style={{ color: plan.active ? '#A78BFA' : '#94A3B8' }}>{plan.name}</p>
+              <p className="text-3xl font-black mb-1 text-white">${plan.price}<span className="text-base font-normal" style={{ color: '#475569' }}>/mo</span></p>
               <p className="text-xs" style={{ color: '#9B6560' }}>{plan.mtu}</p>
               {plan.active && <div className="mt-3 w-full h-0.5 bg-brand/20 rounded-full" />}
             </motion.div>

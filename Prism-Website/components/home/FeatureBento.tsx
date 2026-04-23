@@ -22,17 +22,17 @@ function LiveActionsCard() {
   const stepDone = step >= 3;
 
   return (
-    <div className="bento-card md:col-span-2 rounded-3xl border border-slate-200 bg-white overflow-hidden relative group hover:border-brand/40 hover:shadow-2xl">
+    <div className="bento-card md:col-span-2 rounded-3xl overflow-hidden relative group" style={{ background: 'var(--bg-card)', border: '1px solid rgba(139,92,246,0.15)' }}>
       {/* Gradient accent */}
-      <div className="absolute bottom-0 right-0 w-80 h-80 bg-gradient-to-tl from-brand/25 via-purple-500/12 to-transparent blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-80 h-80 blur-3xl pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 70%)' }} />
 
       <div className="relative z-10 p-8">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-brand mb-3">Live Actions</p>
-        <h3 className="text-2xl md:text-3xl font-black text-slate-900 mb-2 leading-tight">
+        <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: '#8B5CF6' }}>Live Actions</p>
+        <h3 className="text-2xl md:text-3xl font-black mb-2 leading-tight text-white">
           The AI doesn&apos;t just talk.
-          <br /><span className="text-brand">It acts.</span>
+          <br /><span style={{ color: '#A78BFA' }}>It acts.</span>
         </h3>
-        <p className="text-slate-400 text-sm mb-7 max-w-md">
+        <p className="text-sm mb-7 max-w-md" style={{ color: '#94A3B8' }}>
           Fills forms, clicks buttons, highlights UI elements — in the user&apos;s live browser. 8 self-healing fallback strategies when selectors break.
         </p>
 
@@ -129,18 +129,18 @@ function LiveActionsCard() {
 ───────────────────────────────────────── */
 function InsightsCard() {
   return (
-    <div className="bento-card md:col-span-1 rounded-3xl border border-slate-200 bg-white overflow-hidden relative group hover:border-rose-200 hover:shadow-xl">
+    <div className="bento-card md:col-span-1 rounded-3xl overflow-hidden relative group" style={{ background: 'var(--bg-card)', border: '1px solid rgba(239,68,68,0.15)' }}>
       <div className="absolute bottom-0 right-0 w-52 h-52 bg-gradient-to-tl from-rose-400/20 via-pink-500/10 to-transparent blur-3xl pointer-events-none" />
 
       <div className="relative z-10 p-7">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-rose-500 mb-3 flex items-center gap-1.5">
+        <p className="text-[11px] font-bold uppercase tracking-widest mb-3 flex items-center gap-1.5" style={{ color: '#F87171' }}>
           <Lightbulb className="w-3 h-3" /> Insights
         </p>
-        <h3 className="text-xl font-black text-slate-900 mb-2 leading-snug">
+        <h3 className="text-xl font-black mb-2 leading-snug text-white">
           Issues flagged. Gaps suggested.{" "}
-          <span className="text-rose-500">Automatically.</span>
+          <span style={{ color: '#F87171' }}>Automatically.</span>
         </h3>
-        <p className="text-slate-400 text-sm mb-5">
+        <p className="text-sm mb-5" style={{ color: '#94A3B8' }}>
           Prism surfaces blockers and knowledge gaps from real conversations — no manual tagging.
         </p>
 
@@ -181,18 +181,18 @@ function InsightsCard() {
 ───────────────────────────────────────── */
 function QuestionsCard() {
   return (
-    <div className="bento-card md:col-span-1 rounded-3xl border border-slate-200 bg-white overflow-hidden relative group hover:border-emerald-200 hover:shadow-xl">
+    <div className="bento-card md:col-span-1 rounded-3xl overflow-hidden relative group" style={{ background: 'var(--bg-card)', border: '1px solid rgba(34,197,94,0.15)' }}>
       <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-tl from-emerald-400/20 via-green-500/10 to-transparent blur-3xl pointer-events-none" />
 
       <div className="relative z-10 p-7">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-500 mb-3 flex items-center gap-1.5">
+        <p className="text-[11px] font-bold uppercase tracking-widest mb-3 flex items-center gap-1.5" style={{ color: '#4ADE80' }}>
           <MessageSquare className="w-3 h-3" /> Questions
         </p>
-        <h3 className="text-xl font-black text-slate-900 mb-2 leading-snug">
+        <h3 className="text-xl font-black mb-2 leading-snug text-white">
           Every question users ask,{" "}
-          <span className="text-emerald-600">in their own words.</span>
+          <span style={{ color: '#4ADE80' }}>in their own words.</span>
         </h3>
-        <p className="text-slate-400 text-sm mb-5">
+        <p className="text-sm mb-5" style={{ color: '#94A3B8' }}>
           Clustered by intent. Gaps revealed before they become churn.
         </p>
 
@@ -226,14 +226,14 @@ function QuestionsCard() {
 ───────────────────────────────────────── */
 function KnowledgeCard() {
   return (
-    <div className="bento-card md:col-span-1 rounded-3xl border border-slate-200 bg-white overflow-hidden relative group hover:border-violet-200 hover:shadow-xl">
+    <div className="bento-card md:col-span-1 rounded-3xl overflow-hidden relative group" style={{ background: 'var(--bg-card)', border: '1px solid rgba(139,92,246,0.2)' }}>
       <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-tl from-violet-500/20 via-purple-500/10 to-transparent blur-3xl pointer-events-none" />
 
       <div className="relative z-10 p-7">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-violet-500 mb-3">Knowledge Base</p>
-        <h3 className="text-xl font-black text-slate-900 mb-5 leading-snug">
+        <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: '#A78BFA' }}>Knowledge Base</p>
+        <h3 className="text-xl font-black mb-5 leading-snug text-white">
           The AI knows your product,{" "}
-          <span className="text-violet-600">not just buttons.</span>
+          <span style={{ color: '#A78BFA' }}>not just buttons.</span>
         </h3>
 
         <div className="rounded-2xl bg-[#0d1117] border border-white/5 p-4 space-y-3">
@@ -293,16 +293,16 @@ const connectors = [
 
 function MCPCard() {
   return (
-    <div className="bento-card md:col-span-1 rounded-3xl border border-slate-200 bg-white overflow-hidden relative group hover:border-sky-200 hover:shadow-xl">
+    <div className="bento-card md:col-span-1 rounded-3xl overflow-hidden relative group" style={{ background: 'var(--bg-card)', border: '1px solid rgba(34,211,238,0.15)' }}>
       <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-tl from-sky-400/15 via-cyan-500/8 to-transparent blur-3xl pointer-events-none" />
 
       <div className="relative z-10 p-7">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-sky-500 mb-3">MCP Connectors</p>
-        <h3 className="text-xl font-black text-slate-900 mb-2 leading-snug">
+        <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: '#22D3EE' }}>MCP Connectors</p>
+        <h3 className="text-xl font-black mb-2 leading-snug text-white">
           Give the AI tools,{" "}
-          <span className="text-sky-600">not just prompts.</span>
+          <span style={{ color: '#22D3EE' }}>not just prompts.</span>
         </h3>
-        <p className="text-slate-400 text-sm mb-6">
+        <p className="text-sm mb-6" style={{ color: '#94A3B8' }}>
           Live API calls during onboarding — verify integrations, create resources, check state in real time.
         </p>
 
@@ -322,9 +322,9 @@ function MCPCard() {
           ))}
         </div>
 
-        <p className="text-slate-400 text-xs">
+        <p className="text-xs" style={{ color: '#94A3B8' }}>
           Built on the{" "}
-          <span className="text-slate-300 font-semibold">Model Context Protocol</span>
+          <span className="font-semibold text-white">Model Context Protocol</span>
           {" "}— connect any internal API in minutes.
         </p>
       </div>
@@ -340,7 +340,7 @@ export default function FeatureBento() {
   const inView = useInView(ref, { once: true, margin: "-60px" });
 
   return (
-    <section className="py-28 bg-[#f8fafc]" ref={ref}>
+    <section className="py-28" ref={ref} style={{ background: '#07070d', borderTop: '1px solid rgba(139,92,246,0.1)' }}>
       <div className="max-w-7xl mx-auto px-6">
         {/* Section heading — Stripe left-align style */}
         <motion.div
@@ -350,10 +350,10 @@ export default function FeatureBento() {
           className="mb-14"
         >
           <p className="eyebrow mb-3">Everything you need</p>
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 leading-tight">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight text-white">
             A complete platform
             <br />
-            <span className="text-slate-400 font-normal text-3xl md:text-4xl">for AI-powered onboarding.</span>
+            <span className="font-normal text-3xl md:text-4xl" style={{ color: '#475569' }}>for AI-powered onboarding.</span>
           </h2>
         </motion.div>
 
