@@ -44,14 +44,14 @@ export default function MCPConnectors() {
                   : "border-white/5 bg-white/3 hover:bg-white/6 hover:border-brand/30"
               }`}
             >
-              <div className={`w-12 h-12 rounded-xl mb-4 flex items-center justify-center ${c.custom ? "bg-white/5" : "bg-brand/10 group-hover:bg-brand/20 transition-colors"}`}>
-                <c.icon className={`w-5 h-5 ${c.custom ? "text-brand/50" : "text-brand"}`} />
+              <div className={`w-12 h-12 rounded-xl mb-4 flex items-center justify-center ${c.custom ? "bg-white/5" : "bg-violet-500/10 group-hover:bg-violet-500/20 transition-colors"}`}>
+                <c.icon className={`w-5 h-5 ${c.custom ? "text-violet-400" : "text-violet-400"}`} />
               </div>
               <h3 className={`font-semibold mb-1 ${c.custom ? "text-slate-500" : "text-white"}`}>{c.name}</h3>
               <p className={`text-sm ${c.custom ? "text-slate-600" : "text-slate-400"}`}>{c.desc}</p>
               {c.custom && (
                 <div className="mt-4">
-                  <span className="text-brand text-sm font-medium group-hover:text-brand-light transition-colors">→ Configure</span>
+                  <span className="text-sm font-medium group-hover:text-violet-300 transition-colors" style={{ color: '#8B5CF6' }}>→ Configure</span>
                 </div>
               )}
             </motion.div>
