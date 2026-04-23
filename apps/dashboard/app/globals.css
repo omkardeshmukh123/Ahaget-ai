@@ -2,6 +2,164 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body { @apply bg-slate-50 text-slate-900 antialiased; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ─── Obsidian Prism — Design System Tokens ───────────────────────────────── */
+:root {
+  /* Surfaces (tonal layers — no borders, use bg shift for separation) */
+  --surface:                 #111319;
+  --surface-dim:             #111319;
+  --surface-low:             #191b22;
+  --surface-container:       #1e1f26;
+  --surface-container-high:  #282a30;
+  --surface-container-high2: #33343b;
+  --surface-bright:          #373940;
+  --surface-lowest:          #0c0e14;
+
+  /* Primary — Indigo */
+  --primary:           #c0c1ff;
+  --primary-container: #8083ff;
+  --primary-dim:       #6366f1;
+
+  /* Text */
+  --on-surface:         #e2e2eb;
+  --on-surface-variant: #c7c4d7;
+  --on-primary:         #07006c;
+  --muted:              #64748b;
+
+  /* Outline */
+  --outline:         #908fa0;
+  --outline-variant: #464554;
+
+  /* Status */
+  --success:  #34d399;
+  --warning:  #ffb783;
+  --error:    #ffb4ab;
+
+  /* Indigo gradient (CTA / glow) */
+  --grad-primary: linear-gradient(135deg, var(--primary), var(--primary-container));
+
+  /* Radius */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+
+  /* Ambient shadow (no pure black) */
+  --shadow-glow: 0 0 32px 0 rgba(99, 102, 241, 0.08);
+  --shadow-card: 0 8px 24px 0 rgba(99, 102, 241, 0.06);
 }
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--outline-variant); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--outline); }
+
+/* ─── Typography scale ──────────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: 700; letter-spacing: -0.02em; color: var(--on-surface); }
+h1 { font-size: 1.5rem;  }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 1rem;    }
+p  { margin: 0; }
+a  { color: var(--primary); text-decoration: none; }
+a:hover { color: var(--primary-container); }
+
+/* ─── Utility: Ghost border ─────────────────────────────────────────────────── */
+.ghost-border {
+  border: 1px solid rgba(70, 69, 84, 0.15);
+}
+
+/* ─── Button primitives ─────────────────────────────────────────────────────── */
+button { cursor: pointer; font-family: inherit; border: none; outline: none; }
+
+.btn-primary {
+  background: var(--grad-primary);
+  color: var(--on-primary);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: var(--r-sm);
+  transition: opacity 0.15s, transform 0.1s;
+  box-shadow: 0 0 20px rgba(192, 193, 255, 0.12);
+}
+.btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--on-surface-variant);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid rgba(70, 69, 84, 0.25);
+  transition: background 0.15s, color 0.15s;
+}
+.btn-ghost:hover { background: var(--surface-container); color: var(--on-surface); }
+
+/* ─── Card ──────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface-container);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+  /* Subtle luminous rim — top edge glow */
+  outline: 0.5px solid rgba(192, 193, 255, 0.07);
+}
+
+/* ─── Input ─────────────────────────────────────────────────────────────────── */
+input, textarea, select {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--on-surface);
+  background: var(--surface-low);
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  outline: none;
+  transition: box-shadow 0.15s;
+  width: 100%;
+}
+input::placeholder, textarea::placeholder { color: var(--on-surface-variant); }
+input:focus, textarea:focus {
+  box-shadow: 0 0 0 1px rgba(192, 193, 255, 0.20), 0 0 12px rgba(99, 102, 241, 0.05);
+}
+
+/* ─── Badge / pill ──────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+}
+.badge-primary { background: rgba(99, 102, 241, 0.15); color: var(--primary); }
+.badge-success { background: rgba(52, 211, 153, 0.12); color: var(--success); }
+.badge-warning { background: rgba(255, 183, 131, 0.12); color: var(--warning); }
+
+/* ─── Sidebar nav active state ──────────────────────────────────────────────── */
+.nav-active {
+  background: rgba(99, 102, 241, 0.14);
+  color: var(--primary) !important;
+  border-radius: var(--r-sm);
+}
+.nav-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; border-radius: var(--r-sm);
+  color: var(--on-surface-variant);
+  font-size: 13px; font-weight: 500;
+  transition: background 0.12s, color 0.12s;
+  cursor: pointer;
+}
+.nav-item:hover:not(.nav-active) { background: var(--surface-container); color: var(--on-surface); }

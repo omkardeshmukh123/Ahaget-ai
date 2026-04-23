@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api, OverviewStats, TimelinePoint, EndUserSummary, Insight, OnboardingStatus } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 
@@ -32,7 +32,6 @@ export default function DashboardPage() {
 
   if (loading) return <PageSkeleton />;
 
-
   const totalMessages = overview
     ? Math.round((overview.avgMessagesPerConv ?? 0) * (overview.totalConversations ?? 0))
     : 0;
@@ -44,43 +43,62 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-1">Overview of your AI assistant usage</p>
+      {/* Page header */}
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--on-surface)' }}>
+          Dashboard
+        </h1>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
+          Overview of your platform performance
+        </p>
       </div>
 
-      {/* Onboarding checklist card — shown until all steps done */}
+      {/* Onboarding checklist — only while incomplete */}
       {onboarding && !onboarding.allDone && (
-        <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100 rounded-2xl p-5 mb-8">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <p className="text-sm font-bold text-indigo-900">Getting started with Prism</p>
-              <p className="text-xs text-indigo-600 mt-0.5">
-                {onboarding.completedCount} of {onboarding.totalCount} steps complete
-              </p>
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.14), rgba(128,131,255,0.09))',
+          borderRadius: 14,
+          padding: '18px 20px',
+          marginBottom: 24,
+          outline: '0.5px solid rgba(192,193,255,0.10)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c0c1ff" strokeWidth={2} strokeLinecap="round">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)' }}>Complete Setup</span>
             </div>
-            <div className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-full">
-              {Math.round((onboarding.completedCount / onboarding.totalCount) * 100)}%
-            </div>
+            <span style={{ fontSize: 11, color: 'var(--on-surface-variant)' }}>
+              {Math.round((onboarding.completedCount / onboarding.totalCount) * 100)}% Completed
+            </span>
           </div>
+          <p style={{ fontSize: 12, color: 'var(--on-surface-variant)', marginBottom: 10 }}>
+            You're almost ready to go live. Complete these steps.
+          </p>
           {/* Progress bar */}
-          <div className="h-1.5 bg-indigo-100 rounded-full mb-4 overflow-hidden">
-            <div
-              className="h-full bg-indigo-600 rounded-full transition-all"
-              style={{ width: `${(onboarding.completedCount / onboarding.totalCount) * 100}%` }}
-            />
+          <div style={{ height: 4, background: 'rgba(192,193,255,0.12)', borderRadius: 9999, marginBottom: 14, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              background: 'linear-gradient(90deg, #c0c1ff, #8083ff)',
+              borderRadius: 9999,
+              width: `${(onboarding.completedCount / onboarding.totalCount) * 100}%`,
+              transition: 'width 0.6s ease',
+            }} />
           </div>
-          <div className="space-y-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {onboarding.steps.map((step) => (
-              <div key={step.id} className="flex items-center gap-2.5">
-                <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${step.done ? 'bg-indigo-600' : 'bg-white border-2 border-indigo-200'}`}>
-                  {step.done && (
-                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
+              <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 18, height: 18, borderRadius: '50%',
+                  background: step.done ? 'linear-gradient(135deg, #c0c1ff, #8083ff)' : 'rgba(192,193,255,0.10)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                  outline: step.done ? 'none' : '1px solid rgba(192,193,255,0.18)',
+                }}>
+                  {step.done && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#07006c" strokeWidth={3.5} strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>}
                 </div>
-                <span className={`text-xs ${step.done ? 'text-indigo-400 line-through' : 'text-indigo-800 font-medium'}`}>
+                <span style={{ fontSize: 12, color: step.done ? 'var(--muted)' : 'var(--on-surface-variant)', textDecoration: step.done ? 'line-through' : 'none' }}>
                   {step.label}
                 </span>
               </div>
@@ -89,161 +107,204 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Top metrics */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <StatCard
-          label="Total Users"
-          value={users?.total ?? overview?.activeUsers ?? 0}
-          checkmark
-        />
-        <StatCard
-          label="Conversations"
-          value={overview?.totalConversations ?? 0}
-          checkmark
-        />
-        <StatCard
-          label="Messages"
-          value={totalMessages}
-        />
+      {/* Metric cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+        {[
+          { label: 'Total Users',    value: users?.total ?? overview?.activeUsers ?? 0,    icon: <UsersIcon />,   delta: '+16%' },
+          { label: 'Conversations',  value: overview?.totalConversations ?? 0,              icon: <ChatIcon />,    delta: '+9%'  },
+          { label: 'Messages',       value: totalMessages,                                   icon: <MsgIcon />,     delta: '+3%'  },
+        ].map(({ label, value, icon, delta }) => (
+          <div key={label} className="card" style={{ padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
+            {/* Ambient glow spot */}
+            <div style={{
+              position: 'absolute', top: -20, right: -20,
+              width: 80, height: 80, borderRadius: '50%',
+              background: 'rgba(192,193,255,0.06)',
+              filter: 'blur(20px)',
+              pointerEvents: 'none',
+            }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>{label}</span>
+              <span style={{ color: 'var(--on-surface-variant)', opacity: 0.5 }}>{icon}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--on-surface)' }}>
+                {value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toLocaleString()}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--success)', background: 'rgba(52,211,153,0.10)', padding: '1px 6px', borderRadius: 999 }}>
+                {delta}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Usage over time chart */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">
-          Usage over time
-        </p>
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={chartData} margin={{ top: 4, right: 16, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: 11, fill: '#94a3b8' }}
-              tickLine={false}
-              axisLine={false}
-              interval="preserveStartEnd"
-            />
-            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
-            <Tooltip
-              contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }}
-              labelStyle={{ color: '#475569', fontWeight: 600 }}
-            />
-            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-            <Line
-              type="monotone"
-              dataKey="Conversations"
-              stroke="#6366f1"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+      {/* Chart + Recent Users (two-column) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 }}>
+        {/* Chart */}
+        <div className="card" style={{ padding: '20px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--on-surface)' }}>Usage over time</span>
+            <span style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--surface-container-high)', padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(70,69,84,0.2)' }}>
+              Last 30 Days ▾
+            </span>
+          </div>
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#c0c1ff" />
+                    <stop offset="100%" stopColor="#8083ff" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" stroke="rgba(70,69,84,0.25)" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10, fill: '#64748b' }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    background: 'var(--surface-container-high)',
+                    border: '1px solid rgba(70,69,84,0.3)',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    color: 'var(--on-surface)',
+                  }}
+                  labelStyle={{ color: 'var(--on-surface-variant)', fontWeight: 600 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="Conversations"
+                  stroke="url(#lineGrad)"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 4, fill: '#c0c1ff', strokeWidth: 0 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <p style={{ fontSize: 13, color: 'var(--muted)' }}>No data yet — install the snippet to start tracking</p>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Users */}
+        <div className="card" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--on-surface)' }}>Recent Users</span>
+            <Link href="/users" style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 500 }}>View All</Link>
+          </div>
+
+          {/* Table header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '8px 12px', marginBottom: 8 }}>
+            {['NAME', 'STATUS', 'ACTIVITY'].map((h) => (
+              <span key={h} style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em' }}>{h}</span>
+            ))}
+          </div>
+
+          {(users?.users.length ?? 0) === 0 ? (
+            <p style={{ fontSize: 12, color: 'var(--muted)', paddingTop: 16 }}>No users yet. Install the widget to start tracking.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {users?.users.slice(0, 5).map((u) => {
+                const displayId = u.externalId ?? u.id.slice(0, 8);
+                return (
+                  <div
+                    key={u.id}
+                    style={{
+                      display: 'grid', gridTemplateColumns: '1fr auto auto',
+                      alignItems: 'center', gap: '8px 12px',
+                      padding: '9px 8px',
+                      borderRadius: 8,
+                      transition: 'background 0.12s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-container-high)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <div style={{
+                        width: 26, height: 26, borderRadius: '50%',
+                        background: 'linear-gradient(135deg, rgba(192,193,255,0.2), rgba(128,131,255,0.2))',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 10, fontWeight: 700, color: 'var(--primary)',
+                        flexShrink: 0,
+                      }}>
+                        {displayId[0]?.toUpperCase() ?? '?'}
+                      </div>
+                      <span style={{ fontSize: 12, color: 'var(--on-surface)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {displayId}
+                      </span>
+                    </div>
+                    <span className="badge badge-success" style={{ fontSize: 10 }}>Active</span>
+                    <span style={{ fontSize: 11, color: 'var(--muted)' }}>—</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Top insight card */}
       {topInsight && (
-        <div className={`rounded-xl border p-5 mb-6 flex items-start gap-4 ${
-          topInsight.severity === 'high' ? 'border-red-200 bg-red-50' :
-          topInsight.severity === 'medium' ? 'border-amber-200 bg-amber-50' :
-          'border-slate-200 bg-slate-50'
-        }`}>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                topInsight.severity === 'high' ? 'bg-red-100 text-red-700' :
-                topInsight.severity === 'medium' ? 'bg-amber-100 text-amber-700' :
-                'bg-slate-100 text-slate-600'
-              }`}>{topInsight.severity}</span>
-              <span className="text-xs text-slate-400 font-medium">Top insight</span>
-            </div>
-            <p className="text-sm font-semibold text-slate-800">{topInsight.title}</p>
-            <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{topInsight.description}</p>
+        <div style={{
+          marginTop: 16,
+          padding: '14px 18px',
+          borderRadius: 12,
+          background: topInsight.severity === 'high'
+            ? 'rgba(255,180,171,0.08)' : topInsight.severity === 'medium'
+            ? 'rgba(255,183,131,0.08)' : 'var(--surface-container)',
+          outline: '0.5px solid rgba(192,193,255,0.07)',
+          display: 'flex', alignItems: 'center', gap: 14,
+        }}>
+          <span style={{
+            fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, letterSpacing: '0.06em', textTransform: 'uppercase',
+            background: topInsight.severity === 'high' ? 'rgba(255,180,171,0.15)' : topInsight.severity === 'medium' ? 'rgba(255,183,131,0.15)' : 'rgba(192,193,255,0.10)',
+            color: topInsight.severity === 'high' ? 'var(--error)' : topInsight.severity === 'medium' ? 'var(--warning)' : 'var(--primary)',
+          }}>
+            {topInsight.severity}
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--on-surface)', marginBottom: 2 }}>{topInsight.title}</p>
+            <p style={{ fontSize: 12, color: 'var(--muted)' }}>{topInsight.description}</p>
           </div>
-          <Link href="/insights" className="flex-shrink-0 text-xs font-semibold text-indigo-600 hover:underline whitespace-nowrap">
-            View all →
-          </Link>
+          <Link href="/insights" style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600, flexShrink: 0 }}>View all →</Link>
         </div>
       )}
-
-      {/* Users table */}
-      <div className="bg-white rounded-xl border border-slate-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <p className="text-sm font-semibold text-slate-700">Users</p>
-          <Link href="/users" className="text-xs text-indigo-600 hover:underline font-medium">
-            View all
-          </Link>
-        </div>
-        {(users?.users.length ?? 0) === 0 ? (
-          <div className="px-6 py-10 text-center text-sm text-slate-400">
-            No users yet. Install the widget to start tracking.
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
-                <th className="text-left text-xs font-medium text-slate-400 px-6 py-3">User</th>
-                <th className="text-right text-xs font-medium text-slate-400 px-4 py-3">Sessions</th>
-                <th className="text-right text-xs font-medium text-slate-400 px-4 py-3">Completed</th>
-                <th className="text-right text-xs font-medium text-slate-400 px-6 py-3">Messages</th>
-                <th className="px-6 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {users?.users.map((u) => {
-                const displayId = u.externalId ?? u.id.slice(0, 8);
-                return (
-                  <tr key={u.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-3 font-medium text-slate-700 truncate max-w-[180px]">
-                      {displayId}
-                    </td>
-                    <td className="px-4 py-3 text-right text-slate-600">{u.totalSessions}</td>
-                    <td className="px-4 py-3 text-right text-slate-600">{u.completedSessions}</td>
-                    <td className="px-6 py-3 text-right text-slate-400">—</td>
-                    <td className="px-6 py-3 text-right">
-                      <Link
-                        href={`/users`}
-                        className="text-xs text-indigo-600 hover:underline"
-                      >
-                        View sessions
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
     </div>
   );
 }
 
-function StatCard({ label, value, checkmark }: { label: string; value: number; checkmark?: boolean }) {
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6">
-      <div className="flex items-center gap-1.5 mb-3">
-        {checkmark && (
-          <svg className="w-3.5 h-3.5 text-slate-400" viewBox="0 0 12 12" fill="none">
-            <circle cx="6" cy="6" r="5.5" stroke="currentColor" />
-            <path d="M3.5 6l1.5 1.5 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
-        <p className="text-xs text-slate-500">{label}</p>
-      </div>
-      <p className="text-3xl font-bold text-slate-900">{value.toLocaleString()}</p>
-    </div>
-  );
+/* ─── Micro icons ───────────────────────────────────────────────────────────── */
+function UsersIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>;
+}
+function ChatIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
+}
+function MsgIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}><path d="M8 9h8M8 13h6"/><path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z"/></svg>;
 }
 
 function PageSkeleton() {
   return (
-    <div className="animate-pulse space-y-6">
-      <div className="h-8 w-40 bg-slate-200 rounded" />
-      <div className="grid grid-cols-3 gap-4">
-        {[...Array(3)].map((_, i) => <div key={i} className="h-28 bg-slate-200 rounded-xl" />)}
+    <div style={{ animation: 'pulse 1.5s infinite' }}>
+      <div style={{ height: 28, width: 160, background: 'var(--surface-container)', borderRadius: 8, marginBottom: 24 }} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+        {[...Array(3)].map((_, i) => (
+          <div key={i} style={{ height: 96, background: 'var(--surface-container)', borderRadius: 12 }} />
+        ))}
       </div>
-      <div className="h-64 bg-slate-200 rounded-xl" />
-      <div className="h-48 bg-slate-200 rounded-xl" />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 }}>
+        <div style={{ height: 280, background: 'var(--surface-container)', borderRadius: 12 }} />
+        <div style={{ height: 280, background: 'var(--surface-container)', borderRadius: 12 }} />
+      </div>
     </div>
   );
 }
