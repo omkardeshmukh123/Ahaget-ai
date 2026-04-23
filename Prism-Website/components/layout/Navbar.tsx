@@ -42,7 +42,7 @@ export default function Navbar() {
         {/* Top violet accent line */}
         <div className="h-px w-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(124,58,237,.5), rgba(3,181,211,.3), transparent)' }} />
 
-        <nav className="container flex items-center h-16 gap-8">
+        <nav className="container flex items-center h-16 gap-6">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -55,13 +55,13 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-1 flex-1">
+          <div className="hidden md:flex items-center gap-0.5 flex-1 justify-center">
             {navLinks.map(link => (
               <Link key={link.label} href={link.href}
-                className="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150"
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 whitespace-nowrap"
                 style={{ color: '#958da1' }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#e4e1e9', e.currentTarget.style.background = 'rgba(31,31,37,.6)')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#958da1', e.currentTarget.style.background = 'transparent')}
+                onMouseEnter={e => { e.currentTarget.style.color = '#e4e1e9'; e.currentTarget.style.background = 'rgba(31,31,37,.6)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = '#958da1'; e.currentTarget.style.background = 'transparent'; }}
               >
                 {link.label}
               </Link>
