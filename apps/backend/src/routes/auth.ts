@@ -1,12 +1,17 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import crypto from 'crypto';
 import { prisma } from '../lib/prisma';
 import { signToken } from '../lib/jwt';
 import { generateApiKey } from '../lib/apiKey';
-import { sendWelcomeEmail } from '../lib/email';
+import { sendWelcomeEmail, sendMagicLinkEmail } from '../lib/email';
 
 const router = Router();
+
+// ─── In-memory magic-link token store (TTL 15 minutes) ──────────────────────
+// In production swap for Redis. Acceptable for MVP.
+const magicTokenStore = new Map<string, { email: string; expiresAt: number }>();
 
 // ─── Schema validation ──────────────────────────────────────────────────────
 
@@ -22,8 +27,11 @@ const LoginSchema = z.object({
   password: z.string().min(1),
 });
 
+const MagicLinkSendSchema = z.object({
+  email: z.string().email(),
+});
+
 // ─── POST /api/v1/auth/register ─────────────────────────────────────────────
-// Creates a new Organization + owner User in one step
 router.post('/register', async (req: Request, res: Response) => {
   const body = RegisterSchema.parse(req.body);
 
@@ -36,15 +44,10 @@ router.post('/register', async (req: Request, res: Response) => {
   const passwordHash = await bcrypt.hash(body.password, 12);
   const apiKey = generateApiKey();
 
-  // Create org + user in a transaction so both succeed or both fail
   const { user, organization } = await prisma.$transaction(async (tx) => {
     const organization = await tx.organization.create({
-      data: {
-        name: body.orgName,
-        apiKey,
-      },
+      data: { name: body.orgName, apiKey },
     });
-
     const user = await tx.user.create({
       data: {
         email: body.email,
@@ -54,7 +57,6 @@ router.post('/register', async (req: Request, res: Response) => {
         organizationId: organization.id,
       },
     });
-
     return { user, organization };
   });
 
@@ -64,18 +66,21 @@ router.post('/register', async (req: Request, res: Response) => {
     role: user.role,
   });
 
-  // Fire-and-forget — don't block the response if email fails
-  sendWelcomeEmail({
-    to: body.email,
-    name: body.name,
-    orgName: body.orgName,
-    apiKey,
-  }).catch((err) => console.error('[email] welcome email failed:', err));
+  sendWelcomeEmail({ to: body.email, name: body.name, orgName: body.orgName, apiKey }).catch(
+    (err) => console.error('[email] welcome email failed:', err),
+  );
 
   res.status(201).json({
     token,
     user: { id: user.id, email: user.email, name: user.name, role: user.role },
-    organization: { id: organization.id, name: organization.name, apiKey: organization.apiKey },
+    organization: {
+      id: organization.id,
+      name: organization.name,
+      apiKey: organization.apiKey,
+      onboardingComplete: organization.onboardingComplete,
+      onboardingStep: organization.onboardingStep,
+    },
+    requiresOnboarding: true,
   });
 });
 
@@ -99,11 +104,7 @@ router.post('/login', async (req: Request, res: Response) => {
     return;
   }
 
-  // Update last login
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { lastLoginAt: new Date() },
-  });
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
   const token = signToken({
     userId: user.id,
@@ -119,6 +120,77 @@ router.post('/login', async (req: Request, res: Response) => {
       name: user.organization.name,
       apiKey: user.organization.apiKey,
       planType: user.organization.planType,
+      onboardingComplete: user.organization.onboardingComplete,
+      onboardingStep: user.organization.onboardingStep,
+    },
+  });
+});
+
+// ─── POST /api/v1/auth/magic-link/send ──────────────────────────────────────
+router.post('/magic-link/send', async (req: Request, res: Response) => {
+  const { email } = MagicLinkSendSchema.parse(req.body);
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (user) {
+    const tokenStr = crypto.randomBytes(32).toString('hex');
+    magicTokenStore.set(tokenStr, { email, expiresAt: Date.now() + 15 * 60 * 1000 });
+
+    const DASHBOARD_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    const magicUrl = `${DASHBOARD_URL}/auth/magic-link/verify?token=${tokenStr}`;
+
+    sendMagicLinkEmail({ to: email, magicUrl, name: user.name ?? email }).catch(
+      (err) => console.error('[email] magic-link email failed:', err),
+    );
+  }
+
+  res.json({ sent: true });
+});
+
+// ─── GET /api/v1/auth/magic-link/verify ─────────────────────────────────────
+router.get('/magic-link/verify', async (req: Request, res: Response) => {
+  const tokenStr = req.query.token as string;
+  if (!tokenStr) {
+    res.status(400).json({ error: 'Token required' });
+    return;
+  }
+
+  const entry = magicTokenStore.get(tokenStr);
+  if (!entry || entry.expiresAt < Date.now()) {
+    magicTokenStore.delete(tokenStr);
+    res.status(401).json({ error: 'Invalid or expired magic link' });
+    return;
+  }
+
+  magicTokenStore.delete(tokenStr);
+
+  const user = await prisma.user.findUnique({
+    where: { email: entry.email },
+    include: { organization: true },
+  });
+
+  if (!user) {
+    res.status(401).json({ error: 'User not found' });
+    return;
+  }
+
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+
+  const jwt = signToken({
+    userId: user.id,
+    organizationId: user.organizationId,
+    role: user.role,
+  });
+
+  res.json({
+    token: jwt,
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    organization: {
+      id: user.organization.id,
+      name: user.organization.name,
+      apiKey: user.organization.apiKey,
+      planType: user.organization.planType,
+      onboardingComplete: user.organization.onboardingComplete,
+      onboardingStep: user.organization.onboardingStep,
     },
   });
 });

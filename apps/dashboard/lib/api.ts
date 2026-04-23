@@ -59,6 +59,17 @@ export const api = {
         body: JSON.stringify(data),
         auth: false,
       }),
+    sendMagicLink: (email: string) =>
+      apiFetch<{ sent: boolean }>('/api/v1/auth/magic-link/send', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+        auth: false,
+      }),
+    verifyMagicLink: (token: string) =>
+      apiFetch<{ token: string; user: User; organization: Org }>(
+        `/api/v1/auth/magic-link/verify?token=${encodeURIComponent(token)}`,
+        { auth: false },
+      ),
   },
 
   conversations: {
@@ -89,6 +100,20 @@ export const api = {
 
   onboarding: {
     status: () => apiFetch<OnboardingStatus>('/api/v1/onboarding/status'),
+    wizardState: () => apiFetch<{ wizardState: WizardState }>('/api/v1/onboarding/wizard-state'),
+    updateWizard: (data: { websiteUrl?: string; attribution?: string; step?: string }) =>
+      apiFetch<{ org: WizardState }>('/api/v1/onboarding/wizard', {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    createWorkspace: (description: string) =>
+      apiFetch<{ workspace: { id: string; name: string; apiKey: string } }>('/api/v1/onboarding/workspace', {
+        method: 'POST',
+        body: JSON.stringify({ description }),
+      }),
+    getSnippet: () => apiFetch<{ snippet: string; apiKey: string; domain: string }>('/api/v1/onboarding/snippet'),
+    installStatus: () => apiFetch<{ installed: boolean; eventCount: number }>('/api/v1/onboarding/install-status'),
+    complete: () => apiFetch<{ done: boolean }>('/api/v1/onboarding/complete', { method: 'POST' }),
   },
 
   checklist: {
@@ -341,10 +366,21 @@ export interface Org {
   name: string;
   apiKey: string;
   planType: string;
+  onboardingComplete?: boolean;
+  onboardingStep?: string;
 }
 
 export interface OrgConfig extends Org {
   customInstructions: string | null;
+}
+
+export interface WizardState {
+  websiteUrl: string | null;
+  attribution: string | null;
+  onboardingStep: string;
+  onboardingComplete: boolean;
+  customInstructions: string | null;
+  apiKey: string;
 }
 
 export interface Conversation {

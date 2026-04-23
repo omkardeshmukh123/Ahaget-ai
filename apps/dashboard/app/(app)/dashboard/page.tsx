@@ -2,13 +2,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { api, OverviewStats, TimelinePoint, EndUserSummary, Insight } from '@/lib/api';
+import { api, OverviewStats, TimelinePoint, EndUserSummary, Insight, OnboardingStatus } from '@/lib/api';
+import { useAuthStore } from '@/store/auth';
 
 export default function DashboardPage() {
+  const { org } = useAuthStore();
   const [overview, setOverview] = useState<OverviewStats | null>(null);
   const [timeline, setTimeline] = useState<TimelinePoint[]>([]);
   const [users, setUsers] = useState<{ users: EndUserSummary[]; total: number } | null>(null);
   const [topInsight, setTopInsight] = useState<Insight | null>(null);
+  const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,15 +20,18 @@ export default function DashboardPage() {
       api.analytics.timeline(30),
       api.users.list({ limit: 10 }),
       api.insights.list().catch(() => null),
-    ]).then(([o, t, u, ins]) => {
+      api.onboarding.status().catch(() => null),
+    ]).then(([o, t, u, ins, ob]) => {
       setOverview(o);
       setTimeline(t);
       setUsers(u);
       if (ins && ins.insights.length > 0) setTopInsight(ins.insights[0]);
+      if (ob) setOnboarding(ob);
     }).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <PageSkeleton />;
+
 
   const totalMessages = overview
     ? Math.round((overview.avgMessagesPerConv ?? 0) * (overview.totalConversations ?? 0))
@@ -42,6 +48,46 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
         <p className="text-slate-500 text-sm mt-1">Overview of your AI assistant usage</p>
       </div>
+
+      {/* Onboarding checklist card — shown until all steps done */}
+      {onboarding && !onboarding.allDone && (
+        <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100 rounded-2xl p-5 mb-8">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <p className="text-sm font-bold text-indigo-900">Getting started with Prism</p>
+              <p className="text-xs text-indigo-600 mt-0.5">
+                {onboarding.completedCount} of {onboarding.totalCount} steps complete
+              </p>
+            </div>
+            <div className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-full">
+              {Math.round((onboarding.completedCount / onboarding.totalCount) * 100)}%
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div className="h-1.5 bg-indigo-100 rounded-full mb-4 overflow-hidden">
+            <div
+              className="h-full bg-indigo-600 rounded-full transition-all"
+              style={{ width: `${(onboarding.completedCount / onboarding.totalCount) * 100}%` }}
+            />
+          </div>
+          <div className="space-y-2">
+            {onboarding.steps.map((step) => (
+              <div key={step.id} className="flex items-center gap-2.5">
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${step.done ? 'bg-indigo-600' : 'bg-white border-2 border-indigo-200'}`}>
+                  {step.done && (
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <span className={`text-xs ${step.done ? 'text-indigo-400 line-through' : 'text-indigo-800 font-medium'}`}>
+                  {step.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Top metrics */}
       <div className="grid grid-cols-3 gap-4 mb-8">

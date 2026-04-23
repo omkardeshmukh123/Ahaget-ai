@@ -7,6 +7,58 @@ const resend = process.env.RESEND_API_KEY
 const FROM = 'Prism <hello@useprism.ai>';
 const DASHBOARD_URL = process.env.FRONTEND_URL ?? 'https://app.useprism.ai';
 
+export async function sendMagicLinkEmail(params: {
+  to: string;
+  name: string;
+  magicUrl: string;
+}) {
+  if (!resend) {
+    console.warn('[email] RESEND_API_KEY not set — skipping magic-link email');
+    console.info(`[email] Magic link (dev): ${params.magicUrl}`);
+    return;
+  }
+
+  await resend.emails.send({
+    from: FROM,
+    to: params.to,
+    subject: 'Sign in to Prism',
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+        <tr>
+          <td style="background:#6366f1;padding:28px 40px;">
+            <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">Prism</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:36px 40px;">
+            <p style="margin:0 0 8px;color:#1e293b;font-size:16px;font-weight:600;">Hi ${params.name},</p>
+            <p style="margin:0 0 28px;color:#475569;font-size:15px;line-height:1.6;">
+              Click the button below to sign in to your Prism account. This link expires in 15 minutes.
+            </p>
+            <a href="${params.magicUrl}" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+              Sign in to Prism →
+            </a>
+            <p style="margin:24px 0 0;color:#94a3b8;font-size:12px;">
+              If you didn't request this, you can safely ignore this email.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  });
+}
+
+
+
 export async function sendWelcomeEmail(params: {
   to: string;
   name: string;
@@ -128,7 +180,7 @@ export async function sendContactEmail(params: {
   await resend.emails.send({
     from: FROM,
     to: 'hello@useprism.ai',
-    replyTo: params.email,
+    reply_to: params.email,
     subject: `Contact: ${params.name}${params.company ? ` (${params.company})` : ''}`,
     html: `
 <p><strong>From:</strong> ${params.name} &lt;${params.email}&gt;</p>

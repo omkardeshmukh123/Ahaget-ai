@@ -30,7 +30,8 @@ export default function RegisterPage() {
     try {
       const res = await api.auth.register(data);
       setAuth(res.token, res.user, res.organization);
-      router.push('/dashboard');
+      // New users always go through the onboarding wizard
+      router.push('/getting-started/workspace');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Registration failed');
     }
