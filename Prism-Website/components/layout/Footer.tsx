@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { Zap, Github, Twitter, Linkedin } from "lucide-react";
+import { Zap, Globe, MessageCircle, Briefcase } from "lucide-react";
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
 
@@ -49,9 +49,9 @@ export default function Footer() {
             </p>
             <div className="flex gap-3">
               {[
-                { icon: Github, href: "https://github.com" },
-                { icon: Twitter, href: "https://twitter.com" },
-                { icon: Linkedin, href: "https://linkedin.com" },
+                { icon: Globe, href: "https://github.com" },
+                { icon: MessageCircle, href: "https://twitter.com" },
+                { icon: Briefcase, href: "https://linkedin.com" },
               ].map(({ icon: Icon, href }) => (
                 <a key={href} href={href} target="_blank" rel="noopener noreferrer"
                   className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
