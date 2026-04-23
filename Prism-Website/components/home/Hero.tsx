@@ -1,344 +1,258 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { motion, useMotionValue, useSpring } from "framer-motion";
+import { useRef, useEffect, useState } from "react";
+import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import { ArrowRight, Play, Sparkles, Zap, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
-import { Zap, ArrowRight, Play, Sparkles, ChevronRight } from "lucide-react";
-import { DASHBOARD_URL } from "../../lib/config";
 
-/* ---------- Particle System ---------- */
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
+
+/* ─── Ambient particle canvas ─────────────────────────────── */
 function ParticleCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    let w = canvas.width = canvas.offsetWidth;
-    let h = canvas.height = canvas.offsetHeight;
-    const particles: { x: number; y: number; vx: number; vy: number; size: number; opacity: number; hue: number }[] = [];
-    for (let i = 0; i < 60; i++) {
-      particles.push({
-        x: Math.random() * w, y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
-        size: Math.random() * 1.5 + 0.2,
-        opacity: Math.random() * 0.5 + 0.05,
-        hue: Math.random() < 0.6 ? 265 : 190, // violet or cyan
-      });
-    }
+    const canvas = canvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d")!;
     let raf: number;
-    function draw() {
-      if (!ctx) return;
-      ctx.clearRect(0, 0, w, h);
-      for (const p of particles) {
+    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
+    resize(); window.addEventListener("resize", resize);
+
+    const particles = Array.from({ length: 60 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.5 + .3,
+      dx: (Math.random() - .5) * .3,
+      dy: (Math.random() - .5) * .3,
+      opacity: Math.random() * .5 + .1,
+      color: Math.random() > .5 ? "124,58,237" : "3,181,211",
+    }));
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.x += p.dx; p.y += p.dy;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${p.hue}, 70%, 70%, ${p.opacity})`;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${p.color},${p.opacity})`;
         ctx.fill();
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
-        if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
-      }
+      });
       raf = requestAnimationFrame(draw);
-    }
+    };
     draw();
-    const ro = new ResizeObserver(() => { w = canvas.width = canvas.offsetWidth; h = canvas.height = canvas.offsetHeight; });
-    ro.observe(canvas);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
   }, []);
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />;
 }
 
-/* ---------- Live Counter ---------- */
-function LiveCounter() {
-  const [count, setCount] = useState(2847);
-  useEffect(() => {
-    const id = setInterval(() => setCount(c => c + Math.floor(Math.random() * 3)), 2800);
-    return () => clearInterval(id);
-  }, []);
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 1.0 }}
-      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-6"
-      style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.25)', color: '#A78BFA' }}
-    >
-      <span className="relative flex h-2 w-2">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: '#22D3EE' }} />
-        <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: '#22D3EE' }} />
-      </span>
-      <span className="tabular-nums font-mono" style={{ color: '#22D3EE' }}>{count.toLocaleString()}</span>
-      <span>sessions guided today</span>
-    </motion.div>
-  );
-}
-
-/* ---------- AI Chat Widget ---------- */
-const chatMessages = [
-  { role: "agent", text: "Hi! I'll guide you through your onboarding. Ready?", delay: 0.8 },
-  { role: "user", text: "Yes, where do I start?", delay: 1.8 },
-  { role: "agent", text: "Click Settings → Integrations → Connect your first data source", delay: 2.6, action: true },
+/* ─── Live AI Widget mockup ────────────────────────────────── */
+const chatMsgs = [
+  { role: "ai", text: "Hi! I'll guide you through setting up Prism. Let's start with installing the snippet." },
+  { role: "user", text: "Done! Pasted the script tag." },
+  { role: "ai", text: "Perfect — I can see it's live. Now let's connect your first data source." },
+  { role: "action", text: "→ Navigating to Settings → Integrations..." },
 ];
 
-function ChatWidget({ mouse }: { mouse: { x: number; y: number } }) {
-  const [visible, setVisible] = useState(0);
-  const [typing, setTyping] = useState(false);
+function AIWidget() {
+  const [step, setStep] = useState(0);
+  const [typed, setTyped] = useState("");
+  const [msgIdx, setMsgIdx] = useState(0);
+  const steps = ["Install snippet", "Connect data", "Build flow", "Go live"];
 
   useEffect(() => {
-    const timers: NodeJS.Timeout[] = [];
-    chatMessages.forEach((msg, i) => {
-      timers.push(setTimeout(() => {
-        setTyping(true);
-        setTimeout(() => { setVisible(i + 1); setTyping(false); }, 600);
-      }, msg.delay * 1000));
-    });
-    return () => timers.forEach(clearTimeout);
-  }, []);
+    const t = setTimeout(() => setMsgIdx(i => Math.min(i + 1, chatMsgs.length - 1)), 1800);
+    return () => clearTimeout(t);
+  }, [msgIdx]);
 
-  const tiltX = (mouse.y - 0.5) * -10;
-  const tiltY = (mouse.x - 0.5) * 10;
+  useEffect(() => {
+    const t = setInterval(() => setStep(s => (s + 1) % 4), 3000);
+    return () => clearInterval(t);
+  }, []);
 
   return (
     <motion.div
-      animate={{ y: [0, -12, 0] }}
-      transition={{ repeat: Infinity, duration: 7, ease: "easeInOut" }}
-      style={{ perspective: "900px" }}
+      initial={{ opacity: 0, y: 30, rotateY: -10 }}
+      animate={{ opacity: 1, y: 0, rotateY: 0 }}
+      transition={{ duration: .8, delay: .4, ease: [.16,.77,.25,1] }}
+      style={{ perspective: 1200 }}
+      className="relative"
     >
-      <motion.div
-        style={{ rotateX: tiltX, rotateY: tiltY, transformStyle: "preserve-3d" }}
-        transition={{ type: "spring", stiffness: 70, damping: 18 }}
-        className="relative w-full max-w-sm mx-auto"
-      >
-        {/* Glow halo */}
-        <div className="absolute -inset-12 rounded-full blur-3xl pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.3) 0%, transparent 70%)' }} />
+      {/* Outer glow */}
+      <div className="absolute -inset-8 rounded-3xl blur-3xl pointer-events-none"
+        style={{ background: 'radial-gradient(ellipse, rgba(124,58,237,.35) 0%, rgba(3,181,211,.15) 60%, transparent 100%)' }} />
 
-        {/* Widget card */}
-        <div className="relative rounded-2xl overflow-hidden" style={{ background: 'rgba(13,13,24,0.85)', backdropFilter: 'blur(20px)', border: '1px solid rgba(139,92,246,0.25)', boxShadow: '0 0 40px rgba(139,92,246,0.2), 0 20px 60px rgba(0,0,0,0.5)' }}>
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(139,92,246,0.12)', background: 'rgba(139,92,246,0.06)' }}>
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#8B5CF6,#22D3EE)' }}>
-                <Sparkles className="w-3.5 h-3.5 text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">Prism AI</p>
-                <p className="text-[11px]" style={{ color: '#94A3B8' }}>Step 2 of 4: Connect data source</p>
-              </div>
-            </div>
-            <div className="flex gap-1.5">
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className={`h-1.5 w-1.5 rounded-full`} style={{ background: i < 2 ? '#8B5CF6' : 'rgba(255,255,255,0.15)' }} />
-              ))}
-            </div>
+      {/* Widget panel */}
+      <div className="relative glass-prism rounded-2xl overflow-hidden shadow-2xl" style={{ width: 380 }}>
+        {/* Header bar */}
+        <div className="px-5 py-3.5 flex items-center gap-3"
+          style={{ background: 'linear-gradient(135deg, rgba(124,58,237,.25), rgba(3,181,211,.15))', borderBottom: '1px solid rgba(74,68,85,.25)' }}>
+          <div className="flex gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-red-400/60" />
+            <span className="w-3 h-3 rounded-full bg-yellow-400/60" />
+            <span className="w-3 h-3 rounded-full bg-green-400/60" />
           </div>
-          {/* Progress bar */}
-          <div className="h-0.5" style={{ background: 'rgba(139,92,246,0.1)' }}>
-            <div className="h-full w-1/2" style={{ background: 'linear-gradient(to right, #8B5CF6, #22D3EE)' }} />
-          </div>
-          {/* Chat */}
-          <div className="p-4 space-y-3 min-h-[200px]">
-            {chatMessages.slice(0, visible).map((msg, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                {msg.role === "agent" && (
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center mr-2 mt-0.5 flex-shrink-0" style={{ background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)' }}>
-                    <Sparkles className="w-3 h-3" style={{ color: '#A78BFA' }} />
-                  </div>
-                )}
-                <div
-                  className="max-w-[75%] rounded-xl px-3 py-2 text-sm leading-relaxed"
-                  style={msg.role === "agent"
-                    ? msg.action
-                      ? { background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#e2d9f3' }
-                      : { background: 'rgba(255,255,255,0.06)', color: '#e2d9f3' }
-                    : { background: 'linear-gradient(135deg,#8B5CF6,#6366F1)', color: '#fff' }
-                  }
-                >
-                  {msg.action && <span className="text-[10px] uppercase tracking-wide block mb-1 font-medium" style={{ color: '#A78BFA' }}>Action</span>}
-                  {msg.text}
-                </div>
-              </motion.div>
-            ))}
-            {typing && (
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)' }}>
-                  <Sparkles className="w-3 h-3" style={{ color: '#A78BFA' }} />
-                </div>
-                <div className="rounded-xl px-4 py-3 flex gap-1" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                  <span className="typing-dot w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#8B5CF6' }} />
-                  <span className="typing-dot w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#8B5CF6' }} />
-                  <span className="typing-dot w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#8B5CF6' }} />
-                </div>
-              </div>
-            )}
-          </div>
-          {visible >= 3 && (
-            <div className="px-4 pb-4">
-              <motion.button
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3, type: "spring" }}
-                className="w-full relative overflow-hidden rounded-xl text-white text-sm font-semibold py-3"
-                style={{ background: 'linear-gradient(135deg,#8B5CF6,#22D3EE)', boxShadow: '0 0 20px rgba(139,92,246,0.4)' }}
-              >
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  <ArrowRight className="w-4 h-4" /> Connect source
-                </span>
-                <motion.div
-                  animate={{ x: ["-100%", "200%"] }}
-                  transition={{ repeat: Infinity, duration: 1.8, ease: "linear", delay: 0.5 }}
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12"
-                />
-              </motion.button>
+          <div className="flex items-center gap-2 ml-1">
+            <div className="w-5 h-5 rounded-md flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg,#7C3AED,#03B5D3)' }}>
+              <Zap className="w-3 h-3 text-white" />
             </div>
-          )}
+            <span className="text-xs font-semibold" style={{ color: '#ccc3d8' }}>Prism Assistant</span>
+          </div>
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-[10px]" style={{ color: '#4ade80' }}>Live</span>
+          </div>
         </div>
-      </motion.div>
+
+        {/* Progress steps */}
+        <div className="px-5 py-3 flex gap-2" style={{ background: 'rgba(14,14,19,.6)', borderBottom: '1px solid rgba(74,68,85,.15)' }}>
+          {steps.map((s, i) => (
+            <div key={i} className="flex-1 text-center">
+              <div className="h-1 rounded-full mb-1.5 transition-all duration-500"
+                style={{ background: i <= step ? 'linear-gradient(90deg,#7C3AED,#03B5D3)' : 'rgba(74,68,85,.4)' }} />
+              <p className="text-[9px] font-medium truncate" style={{ color: i <= step ? '#d2bbff' : '#958da1' }}>{s}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Chat messages */}
+        <div className="p-4 space-y-3 min-h-[200px]" style={{ background: 'rgba(14,14,19,.4)' }}>
+          {chatMsgs.slice(0, msgIdx + 1).map((m, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .3 }}>
+              {m.role === "action" ? (
+                <div className="text-xs px-3 py-1.5 rounded-lg text-center"
+                  style={{ background: 'rgba(124,58,237,.12)', color: '#a78bfa', border: '1px solid rgba(124,58,237,.2)' }}>
+                  {m.text}
+                </div>
+              ) : m.role === "ai" ? (
+                <div className="flex gap-2.5 items-start">
+                  <div className="w-6 h-6 rounded-lg flex-shrink-0 flex items-center justify-center mt-0.5"
+                    style={{ background: 'linear-gradient(135deg,#7C3AED,#03B5D3)' }}>
+                    <Sparkles className="w-3 h-3 text-white" />
+                  </div>
+                  <div className="px-3 py-2 rounded-xl text-sm max-w-[240px]"
+                    style={{ background: 'rgba(42,41,47,.8)', color: '#ccc3d8', border: '1px solid rgba(74,68,85,.2)' }}>
+                    {m.text}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-end">
+                  <div className="px-3 py-2 rounded-xl text-sm"
+                    style={{ background: 'linear-gradient(135deg, rgba(124,58,237,.3), rgba(3,181,211,.2))', color: '#e4e1e9', border: '1px solid rgba(124,58,237,.25)' }}>
+                    {m.text}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Input bar */}
+        <div className="px-4 pb-4">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
+            style={{ background: 'rgba(14,14,19,.8)', border: '1px solid rgba(74,68,85,.25)' }}>
+            <input className="flex-1 bg-transparent text-sm outline-none border-none p-0"
+              style={{ color: '#ccc3d8' }} placeholder="Ask Prism anything..." readOnly />
+            <button className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-opacity hover:opacity-80"
+              style={{ background: 'linear-gradient(135deg,#7C3AED,#03B5D3)' }}>
+              <ArrowRight className="w-3.5 h-3.5 text-white" />
+            </button>
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
 }
 
-/* ---------- Hero ---------- */
+/* ─── Hero ─────────────────────────────────────────────────── */
 export default function Hero() {
-  const [mouse, setMouse] = useState({ x: 0.5, y: 0.5 });
-
   return (
-    <section
-      className="relative min-h-screen flex items-center overflow-hidden pt-16"
-      style={{ background: '#030306' }}
-      onMouseMove={(e) => setMouse({ x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight })}
-    >
-      {/* Grid */}
-      <div className="absolute inset-0 bg-grid" />
-
-      {/* Radial gradient center glow */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(139,92,246,0.35) 0%, transparent 70%)' }} />
-
-      {/* Ambient orbs */}
-      <div className="mesh-orb absolute top-[-15%] right-[-5%] w-[60vw] h-[60vw] rounded-full blur-[140px] pointer-events-none" style={{ background: 'rgba(139,92,246,0.18)' }} />
-      <div className="mesh-orb-b absolute bottom-[-20%] left-[-10%] w-[55vw] h-[55vw] rounded-full blur-[120px] pointer-events-none" style={{ background: 'rgba(34,211,238,0.1)' }} />
-      <div className="mesh-orb-c absolute top-[35%] left-[15%] w-[30vw] h-[30vw] rounded-full blur-[100px] pointer-events-none" style={{ background: 'rgba(217,70,239,0.1)' }} />
-
-      {/* 3D floating shapes (decorative) */}
-      <div className="absolute top-16 right-[8%] w-28 h-28 opacity-60 float-y pointer-events-none hidden lg:block asset-glow" style={{ animationDelay: '0s' }}>
-        <Image src="/3d-floats.png" alt="" fill style={{ objectFit: 'contain' }} />
-      </div>
-      <div className="absolute bottom-[20%] left-[5%] w-20 h-20 opacity-50 float-x pointer-events-none hidden lg:block asset-glow-cyan" style={{ animationDelay: '2s' }}>
-        <Image src="/3d-floats.png" alt="" fill style={{ objectFit: 'contain', transform: 'scaleX(-1) rotate(45deg)' }} />
-      </div>
-
-      {/* Particles */}
+    <section className="relative min-h-screen flex items-center overflow-hidden pt-20"
+      style={{ background: 'var(--bg)' }}>
+      {/* Ambient particles */}
       <ParticleCanvas />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-24 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-16 lg:gap-8 items-center w-full">
-        {/* Left column */}
-        <div className="max-w-2xl">
-          {/* Live counter */}
-          <LiveCounter />
+      {/* Background grid */}
+      <div className="absolute inset-0 bg-grid opacity-100 pointer-events-none" />
 
-          {/* NEW badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="badge-new mb-8"
-            style={{ display: 'inline-flex' }}
-          >
-            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-sm mr-0.5" style={{ background: '#8B5CF6', color: '#fff' }}>NEW</span>
-            Autonomous ReAct agent — just shipped
-          </motion.div>
+      {/* Large ambient orbs */}
+      <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full pointer-events-none blur-3xl"
+        style={{ background: 'radial-gradient(circle, rgba(124,58,237,.18) 0%, transparent 70%)' }} />
+      <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full pointer-events-none blur-3xl"
+        style={{ background: 'radial-gradient(circle, rgba(3,181,211,.12) 0%, transparent 70%)' }} />
+      <div className="absolute top-[40%] left-[50%] w-[300px] h-[300px] rounded-full pointer-events-none blur-3xl -translate-x-1/2"
+        style={{ background: 'radial-gradient(circle, rgba(217,70,239,.08) 0%, transparent 70%)' }} />
 
-          {/* Headline */}
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            className="font-heading text-5xl md:text-6xl lg:text-7xl font-black leading-[1.04] tracking-tight mb-6 text-white"
-          >
-            Your users are{" "}
-            <br />dropping off.{" "}
-            <br />
-            <span className="gradient-text">Prism fixes it.</span>
-          </motion.h1>
-
-          {/* Subline */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.25 }}
-            className="text-xl leading-relaxed mb-10 max-w-xl"
-            style={{ color: '#94A3B8' }}
-          >
-            Embed an AI agent in your SaaS in 2 lines of code. It guides users through onboarding in real time — clicks buttons, fills forms, answers questions autonomously.
-          </motion.p>
-
-          {/* CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.35 }}
-            className="flex flex-wrap gap-4 mb-8"
-          >
-            <Link
-              href={`${DASHBOARD_URL}/register`}
-              className="inline-flex items-center gap-2 px-8 py-4 font-bold text-lg rounded-xl transition-all duration-200 hover:scale-[1.03] text-white"
-              style={{ background: 'linear-gradient(135deg,#8B5CF6,#22D3EE)', boxShadow: '0 0 40px rgba(139,92,246,0.4), 0 8px 24px rgba(0,0,0,0.3)' }}
-            >
-              Start for free
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-            <button
-              className="inline-flex items-center gap-2 px-8 py-4 font-semibold text-lg rounded-xl transition-all duration-200 group"
-              style={{ border: '1px solid rgba(139,92,246,0.3)', color: '#A78BFA', background: 'rgba(139,92,246,0.06)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,92,246,0.12)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(139,92,246,0.5)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,92,246,0.06)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(139,92,246,0.3)'; }}
-            >
-              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.15)' }}>
-                <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+      <div className="container relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-16 items-center">
+          {/* ── Left: copy ── */}
+          <div>
+            {/* New badge */}
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5 }}>
+              <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full mb-8 cursor-default"
+                style={{ background: 'rgba(124,58,237,.1)', border: '1px solid rgba(124,58,237,.3)' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
+                <span className="text-xs font-semibold tracking-wide" style={{ color: '#d2bbff' }}>
+                  NEW — Autonomous ReAct agent just shipped
+                </span>
+                <ArrowRight className="w-3 h-3" style={{ color: '#a78bfa' }} />
               </div>
-              Watch 3-min demo
-            </button>
-          </motion.div>
+            </motion.div>
 
-          {/* Trust micro-copy */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="text-sm flex flex-wrap gap-x-5 gap-y-1"
-            style={{ color: '#475569' }}
-          >
-            {["Free forever plan", "3 agents included", "100 MTU/mo", "No credit card"].map((item, i) => (
-              <span key={i} className="flex items-center gap-1.5">
-                <span className="w-1 h-1 rounded-full inline-block" style={{ background: '#8B5CF6' }} />
-                {item}
-              </span>
-            ))}
-          </motion.p>
-        </div>
+            {/* Headline */}
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6, delay: .1 }}>
+              <h1 className="mb-6" style={{ letterSpacing: '-0.05em', lineHeight: 1.05 }}>
+                <span style={{ color: '#e4e1e9' }}>Your users drop off.</span>
+                <br />
+                <span className="grad-text">Prism fixes it.</span>
+              </h1>
+            </motion.div>
 
-        {/* Right column — chat widget with 3D orb behind */}
-        <motion.div
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
-          className="w-full lg:w-[420px] xl:w-[480px] relative"
-        >
-          {/* 3D Orb behind the widget */}
-          <div className="absolute -inset-16 -top-24 pointer-events-none opacity-40 hidden lg:block">
-            <Image src="/3d-orb.png" alt="" fill style={{ objectFit: 'contain' }} />
+            {/* Subheadline */}
+            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6, delay: .2 }}
+              className="text-xl mb-10 max-w-lg" style={{ color: '#ccc3d8', lineHeight: 1.65 }}>
+              Embed an AI agent in 2 lines of code. It guides users through onboarding autonomously —
+              clicks buttons, fills forms, answers questions.
+            </motion.p>
+
+            {/* CTAs */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6, delay: .3 }}
+              className="flex flex-wrap gap-4 mb-8">
+              <Link href={DASHBOARD_URL}>
+                <button className="btn-primary text-base px-7 py-3.5">
+                  Start for free <ArrowRight className="w-4 h-4" />
+                </button>
+              </Link>
+              <button className="btn-ghost text-base px-6 py-3.5">
+                <Play className="w-4 h-4" style={{ color: '#a78bfa' }} />
+                Watch demo
+              </button>
+            </motion.div>
+
+            {/* Trust micro-copy */}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: .6, delay: .5 }}
+              className="flex flex-wrap gap-x-5 gap-y-2">
+              {["Free forever plan", "3 agents included", "100 MTU/mo", "No credit card"].map(t => (
+                <div key={t} className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#4cd7f6' }} />
+                  <span className="text-sm" style={{ color: '#958da1' }}>{t}</span>
+                </div>
+              ))}
+            </motion.div>
           </div>
-          <ChatWidget mouse={mouse} />
-        </motion.div>
+
+          {/* ── Right: AI widget ── */}
+          <div className="flex justify-center lg:justify-end">
+            <AIWidget />
+          </div>
+        </div>
       </div>
 
       {/* Bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none" style={{ background: 'linear-gradient(to top, #030306, transparent)' }} />
+      <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
+        style={{ background: 'linear-gradient(to top, var(--bg), transparent)' }} />
     </section>
   );
 }

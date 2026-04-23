@@ -1,94 +1,93 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { motion, useInView } from "framer-motion";
+import { ArrowRight, Zap } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
-import { DASHBOARD_URL } from "../../lib/config";
-import { ArrowRight } from "lucide-react";
+
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
+
+function ParticleCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d")!;
+    let raf: number;
+    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
+    resize(); window.addEventListener("resize", resize);
+    const particles = Array.from({ length: 40 }, () => ({
+      x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+      r: Math.random() * 1.2 + .2, dx: (Math.random() - .5) * .25, dy: (Math.random() - .5) * .25,
+      opacity: Math.random() * .4 + .1, color: Math.random() > .5 ? "124,58,237" : "3,181,211",
+    }));
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.x += p.dx; p.y += p.dy;
+        if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${p.color},${p.opacity})`; ctx.fill();
+      });
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+  }, []);
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />;
+}
 
 export default function FinalCTA() {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section
-      className="relative py-36 overflow-hidden"
-      ref={ref}
-      style={{ background: '#030306' }}
-    >
-      {/* Center glow */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 100%, rgba(139,92,246,0.3) 0%, transparent 70%)' }} />
-      <div className="absolute inset-0 bg-grid opacity-40" />
+    <section ref={ref} className="relative overflow-hidden" style={{ background: 'var(--bg)', padding: '8rem 0' }}>
+      <ParticleCanvas />
+      <div className="absolute inset-0 bg-grid pointer-events-none" />
 
-      {/* 3D shapes decorative */}
-      <div className="absolute right-[5%] top-[10%] w-40 h-40 opacity-35 float-y pointer-events-none hidden lg:block asset-glow">
-        <Image src="/3d-shapes.png" alt="" fill style={{ objectFit: 'contain' }} />
-      </div>
-      <div className="absolute left-[5%] bottom-[10%] w-32 h-32 opacity-30 float-x pointer-events-none hidden lg:block asset-glow-cyan">
-        <Image src="/3d-floats.png" alt="" fill style={{ objectFit: 'contain', transform: 'rotate(180deg)' }} />
-      </div>
+      {/* Ambient orbs */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full blur-3xl pointer-events-none"
+        style={{ background: 'radial-gradient(ellipse, rgba(124,58,237,.18) 0%, rgba(3,181,211,.08) 50%, transparent 80%)' }} />
 
-      <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5 }}
-          className="badge-new mb-6"
-          style={{ display: 'inline-flex' }}
-        >
-          Free tier · No credit card · 5-min setup
-        </motion.div>
-
-        <motion.h2
-          initial={{ opacity: 0, y: 30 }} animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-          className="text-5xl md:text-6xl font-black mb-6 leading-tight text-white"
-        >
-          Your first 3 agents
-          <br />
-          <span className="gradient-text">are completely free.</span>
-        </motion.h2>
-
-        <motion.p
-          initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ delay: 0.2 }}
-          className="text-xl mb-10 leading-relaxed"
-          style={{ color: '#94A3B8' }}
-        >
-          Join founders who stopped guessing why users drop off — and started fixing it with AI.
-        </motion.p>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ delay: 0.3 }}
-          className="flex flex-wrap gap-4 justify-center mb-8"
-        >
-          <Link
-            href={`${DASHBOARD_URL}/register`}
-            className="inline-flex items-center gap-2 px-10 py-4 font-bold text-xl rounded-xl text-white transition-all hover:scale-[1.03]"
-            style={{ background: 'linear-gradient(135deg,#8B5CF6,#22D3EE)', boxShadow: '0 0 50px rgba(139,92,246,0.5), 0 12px 40px rgba(0,0,0,0.4)' }}
-          >
-            Start for free <ArrowRight className="w-5 h-5" />
-          </Link>
-          <Link
-            href="https://cal.com/useprism"
-            className="inline-flex items-center gap-2 px-10 py-4 font-semibold text-xl rounded-xl transition-all hover:scale-[1.01]"
-            style={{ border: '1px solid rgba(139,92,246,0.35)', color: '#A78BFA', background: 'rgba(139,92,246,0.08)' }}
-          >
-            Book a 20-min demo
-          </Link>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}}
-          transition={{ delay: 0.5 }}
-          className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm"
-          style={{ color: '#475569' }}
-        >
-          {["No credit card", "3 agents free", "100 MTU/mo", "Cancel anytime"].map((item) => (
-            <span key={item} className="flex items-center gap-1.5">
-              <span style={{ color: '#22D3EE' }}>✓</span> {item}
+      <div className="container relative z-10 text-center">
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: .7 }}>
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8"
+            style={{ background: 'rgba(124,58,237,.1)', border: '1px solid rgba(124,58,237,.3)' }}>
+            <Zap className="w-3.5 h-3.5" style={{ color: '#a78bfa' }} />
+            <span className="text-xs font-semibold tracking-wide" style={{ color: '#d2bbff' }}>
+              Start in under 2 minutes
             </span>
-          ))}
+          </div>
+
+          {/* Headline */}
+          <h2 className="mb-6" style={{ letterSpacing: '-0.04em' }}>
+            <span style={{ color: '#e4e1e9' }}>Stop losing users to</span>
+            <br />
+            <span className="grad-text">broken onboarding.</span>
+          </h2>
+
+          <p className="text-xl max-w-2xl mx-auto mb-12" style={{ color: '#ccc3d8' }}>
+            Join hundreds of SaaS teams using Prism to guide users autonomously.
+            2 lines of code. No engineers required.
+          </p>
+
+          {/* CTAs */}
+          <div className="flex flex-wrap justify-center gap-4 mb-10">
+            <Link href={DASHBOARD_URL}>
+              <button className="btn-primary text-base px-8 py-4">
+                Start for free today <ArrowRight className="w-4 h-4" />
+              </button>
+            </Link>
+            <Link href="/pricing">
+              <button className="btn-ghost text-base px-7 py-4">See pricing</button>
+            </Link>
+          </div>
+
+          {/* Trust */}
+          <p className="text-sm" style={{ color: '#958da1' }}>
+            Free forever plan available · No credit card required · SOC 2 compliant
+          </p>
         </motion.div>
       </div>
     </section>
