@@ -2,73 +2,55 @@
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 
-const techs = [
-  "React", "Next.js", "Vue", "Angular", "Svelte", "Nuxt", "Remix",
-  "Astro", "SvelteKit", "Solid.js", "Qwik", "HTML + JS",
-];
+const techs = ["React", "Next.js", "Vue", "Angular", "Svelte", "Nuxt", "Remix", "Astro", "Solid.js", "HTML + JS"];
 
 export default function IntegrationLogos() {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section ref={ref} style={{ background: "var(--bg)", padding: "6rem 0", borderTop: "1px solid rgba(74,68,85,.15)" }}>
-      <div className="container text-center">
-        <motion.p initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}}
-          className="eyebrow mb-4">Works with your stack</motion.p>
-        <motion.h2 initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: .1 }}
-          className="text-3xl md:text-4xl font-black mb-3" style={{ color: "#e4e1e9" }}>
+    <section ref={ref} style={{ background: "var(--bg)", padding: "5rem 0", borderTop: "1px solid var(--border)" }}>
+      <div className="container" style={{ textAlign: "center" }}>
+        <motion.p className="section-label" style={{ marginBottom: 14 }} initial={{ opacity: 0, y: 16 }} animate={inView ? { opacity: 1, y: 0 } : {}}>
+          Works with your stack
+        </motion.p>
+        <motion.h2 style={{ marginBottom: 10, fontSize: "clamp(1.5rem, 3vw, 2.5rem)" }} initial={{ opacity: 0, y: 16 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: .1 }}>
           2 lines of code. Any framework.
         </motion.h2>
-        <motion.p initial={{ opacity: 0, y: 16 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: .2 }}
-          className="text-base mb-12" style={{ color: "#958da1" }}>
-          Drop in the snippet. Works everywhere JavaScript runs.
+        <motion.p style={{ fontSize: 16, color: "var(--text-4)", marginBottom: 40 }} initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}} transition={{ delay: .2 }}>
+          Drop the snippet in your &lt;head&gt;. Works anywhere JavaScript runs.
         </motion.p>
 
         {/* Code snippet */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: .3 }}
-          className="inline-block rounded-2xl overflow-hidden mb-12 text-left"
-          style={{ background: "#0e0e13", border: "1px solid rgba(74,68,85,.3)", minWidth: 360 }}>
-          <div className="px-4 py-2.5 flex items-center gap-2"
-            style={{ background: "rgba(124,58,237,.06)", borderBottom: "1px solid rgba(74,68,85,.2)" }}>
-            <div className="flex gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#ff5f57" }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#febc2e" }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#28c840" }} />
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: .25 }}
+          style={{ display: "inline-block", textAlign: "left", marginBottom: 40 }}>
+          <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", minWidth: 380 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--surface-3)" }} />
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--surface-3)" }} />
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--surface-3)" }} />
+              <span style={{ fontSize: 12, color: "var(--text-5)", marginLeft: 8 }}>index.html</span>
             </div>
-            <span className="text-xs ml-2" style={{ color: "#4a4455" }}>index.html</span>
+            <pre style={{ padding: "16px 20px", fontSize: 13, fontFamily: "monospace", color: "var(--text-3)", lineHeight: 1.7, margin: 0, overflowX: "auto" }}>
+{`<script>
+  window.PrismConfig = {
+    apiKey: "YOUR_KEY",
+    userId: "{{user.id}}",
+  };
+</script>
+<script src="https://cdn.useprism.ai/widget.js" async></script>`}
+            </pre>
           </div>
-          <pre className="px-6 py-5 text-sm font-mono leading-relaxed overflow-x-auto">
-            <code>
-              <span style={{ color: "#a78bfa" }}>&lt;script&gt;</span>{"\n"}
-              {"  "}<span style={{ color: "#4cd7f6" }}>window</span>.<span style={{ color: "#e4e1e9" }}>PrismConfig</span> = {"{"}{"\n"}
-              {"    "}<span style={{ color: "#4cd7f6" }}>apiKey</span>: <span style={{ color: "#7C3AED" }}>&quot;YOUR_KEY&quot;</span>,{"\n"}
-              {"    "}<span style={{ color: "#4cd7f6" }}>userId</span>: <span style={{ color: "#7C3AED" }}>&quot;{"{{user.id}}"}&quot;</span>,{"\n"}
-              {"  "}{"}"};{"\n"}
-              <span style={{ color: "#a78bfa" }}>&lt;/script&gt;</span>{"\n"}
-              <span style={{ color: "#a78bfa" }}>&lt;script</span> <span style={{ color: "#4cd7f6" }}>src</span>=<span style={{ color: "#7C3AED" }}>&quot;https://cdn.useprism.ai/widget.js&quot;</span> <span style={{ color: "#4cd7f6" }}>async</span><span style={{ color: "#a78bfa" }}>&gt;&lt;/script&gt;</span>
-            </code>
-          </pre>
         </motion.div>
 
         {/* Tech pills */}
-        <div className="flex flex-wrap justify-center gap-2.5">
-          {techs.map((tech, i) => (
-            <motion.span key={tech}
-              initial={{ opacity: 0, scale: .9 }} animate={inView ? { opacity: 1, scale: 1 } : {}}
-              transition={{ delay: .35 + i * .04 }}
-              whileHover={{ scale: 1.06, y: -2 }}
-              className="px-4 py-1.5 rounded-full text-sm font-semibold cursor-default select-none"
-              style={{ background: "rgba(124,58,237,.08)", border: "1px solid rgba(124,58,237,.2)", color: "#d2bbff" }}>
-              {tech}
-            </motion.span>
+        <motion.div initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}} transition={{ delay: .35 }}
+          style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8 }}>
+          {techs.map(t => (
+            <span key={t} className="tag" style={{ fontSize: 13 }}>{t}</span>
           ))}
-        </div>
-
-        <motion.p initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}} transition={{ delay: .9 }}
-          className="text-sm mt-8" style={{ color: "#4a4455" }}>
-          And anything else that runs JavaScript.
-        </motion.p>
+          <span className="tag" style={{ color: "var(--text-5)", fontSize: 13 }}>+ more</span>
+        </motion.div>
       </div>
     </section>
   );

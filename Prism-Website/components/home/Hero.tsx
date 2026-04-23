@@ -1,258 +1,227 @@
 "use client";
-import { useRef, useEffect, useState } from "react";
-import { motion, useMotionValue, useTransform, animate } from "framer-motion";
-import { ArrowRight, Play, Sparkles, Zap, CheckCircle2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
+import { ArrowRight, Play, Zap } from "lucide-react";
 import Link from "next/link";
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
 
-/* ─── Ambient particle canvas ─────────────────────────────── */
-function ParticleCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = canvasRef.current; if (!canvas) return;
-    const ctx = canvas.getContext("2d")!;
-    let raf: number;
-    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
-    resize(); window.addEventListener("resize", resize);
-
-    const particles = Array.from({ length: 60 }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      r: Math.random() * 1.5 + .3,
-      dx: (Math.random() - .5) * .3,
-      dy: (Math.random() - .5) * .3,
-      opacity: Math.random() * .5 + .1,
-      color: Math.random() > .5 ? "124,58,237" : "3,181,211",
-    }));
-
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach(p => {
-        p.x += p.dx; p.y += p.dy;
-        if (p.x < 0) p.x = canvas.width;
-        if (p.x > canvas.width) p.x = 0;
-        if (p.y < 0) p.y = canvas.height;
-        if (p.y > canvas.height) p.y = 0;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${p.color},${p.opacity})`;
-        ctx.fill();
-      });
-      raf = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
-  }, []);
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />;
-}
-
-/* ─── Live AI Widget mockup ────────────────────────────────── */
-const chatMsgs = [
-  { role: "ai", text: "Hi! I'll guide you through setting up Prism. Let's start with installing the snippet." },
-  { role: "user", text: "Done! Pasted the script tag." },
-  { role: "ai", text: "Perfect — I can see it's live. Now let's connect your first data source." },
-  { role: "action", text: "→ Navigating to Settings → Integrations..." },
-];
-
-function AIWidget() {
+/* ── AI Widget preview inside hero ─────────────────────────── */
+function HeroWidget() {
   const [step, setStep] = useState(0);
-  const [typed, setTyped] = useState("");
-  const [msgIdx, setMsgIdx] = useState(0);
-  const steps = ["Install snippet", "Connect data", "Build flow", "Go live"];
+  const [msg, setMsg] = useState(0);
+
+  const steps = ["Install snippet", "Connect data", "Launch agent", "Go live"];
+  const messages = [
+    "Hi! I'll guide you through setup. Click the button below to continue.",
+    "Great — now let's connect your first data source.",
+    "Your agent is trained and ready. Let's deploy it.",
+  ];
 
   useEffect(() => {
-    const t = setTimeout(() => setMsgIdx(i => Math.min(i + 1, chatMsgs.length - 1)), 1800);
-    return () => clearTimeout(t);
-  }, [msgIdx]);
-
-  useEffect(() => {
-    const t = setInterval(() => setStep(s => (s + 1) % 4), 3000);
-    return () => clearInterval(t);
+    const t1 = setInterval(() => setStep(s => (s + 1) % 4), 2800);
+    const t2 = setInterval(() => setMsg(m => (m + 1) % messages.length), 3500);
+    return () => { clearInterval(t1); clearInterval(t2); };
   }, []);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30, rotateY: -10 }}
-      animate={{ opacity: 1, y: 0, rotateY: 0 }}
-      transition={{ duration: .8, delay: .4, ease: [.16,.77,.25,1] }}
-      style={{ perspective: 1200 }}
-      className="relative"
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: .7, delay: .3 }}
+      className="glass-widget"
+      style={{ width: 340, flexShrink: 0, overflow: "hidden" }}
     >
-      {/* Outer glow */}
-      <div className="absolute -inset-8 rounded-3xl blur-3xl pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse, rgba(124,58,237,.35) 0%, rgba(3,181,211,.15) 60%, transparent 100%)' }} />
-
-      {/* Widget panel */}
-      <div className="relative glass-prism rounded-2xl overflow-hidden shadow-2xl" style={{ width: 380 }}>
-        {/* Header bar */}
-        <div className="px-5 py-3.5 flex items-center gap-3"
-          style={{ background: 'linear-gradient(135deg, rgba(124,58,237,.25), rgba(3,181,211,.15))', borderBottom: '1px solid rgba(74,68,85,.25)' }}>
-          <div className="flex gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-red-400/60" />
-            <span className="w-3 h-3 rounded-full bg-yellow-400/60" />
-            <span className="w-3 h-3 rounded-full bg-green-400/60" />
-          </div>
-          <div className="flex items-center gap-2 ml-1">
-            <div className="w-5 h-5 rounded-md flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg,#7C3AED,#03B5D3)' }}>
-              <Zap className="w-3 h-3 text-white" />
-            </div>
-            <span className="text-xs font-semibold" style={{ color: '#ccc3d8' }}>Prism Assistant</span>
-          </div>
-          <div className="ml-auto flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-[10px]" style={{ color: '#4ade80' }}>Live</span>
-          </div>
+      {/* Widget header */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "12px 16px",
+        borderBottom: "1px solid var(--border)",
+        background: "rgba(255,255,255,0.02)"
+      }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: 6, background: "#FFFFFF",
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+        }}>
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+            <path d="M7 1L13 4V10L7 13L1 10V4L7 1Z" stroke="#0A0A0F" strokeWidth="1.5" fill="none"/>
+            <path d="M7 4L10 5.5V8.5L7 10L4 8.5V5.5L7 4Z" fill="#0A0A0F"/>
+          </svg>
         </div>
-
-        {/* Progress steps */}
-        <div className="px-5 py-3 flex gap-2" style={{ background: 'rgba(14,14,19,.6)', borderBottom: '1px solid rgba(74,68,85,.15)' }}>
-          {steps.map((s, i) => (
-            <div key={i} className="flex-1 text-center">
-              <div className="h-1 rounded-full mb-1.5 transition-all duration-500"
-                style={{ background: i <= step ? 'linear-gradient(90deg,#7C3AED,#03B5D3)' : 'rgba(74,68,85,.4)' }} />
-              <p className="text-[9px] font-medium truncate" style={{ color: i <= step ? '#d2bbff' : '#958da1' }}>{s}</p>
-            </div>
-          ))}
+        <div style={{ flex: 1 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-1)", lineHeight: 1.2 }}>Prism</p>
+          <p style={{ fontSize: 11, color: "var(--text-4)", lineHeight: 1.2 }}>AI Onboarding Agent</p>
         </div>
-
-        {/* Chat messages */}
-        <div className="p-4 space-y-3 min-h-[200px]" style={{ background: 'rgba(14,14,19,.4)' }}>
-          {chatMsgs.slice(0, msgIdx + 1).map((m, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .3 }}>
-              {m.role === "action" ? (
-                <div className="text-xs px-3 py-1.5 rounded-lg text-center"
-                  style={{ background: 'rgba(124,58,237,.12)', color: '#a78bfa', border: '1px solid rgba(124,58,237,.2)' }}>
-                  {m.text}
-                </div>
-              ) : m.role === "ai" ? (
-                <div className="flex gap-2.5 items-start">
-                  <div className="w-6 h-6 rounded-lg flex-shrink-0 flex items-center justify-center mt-0.5"
-                    style={{ background: 'linear-gradient(135deg,#7C3AED,#03B5D3)' }}>
-                    <Sparkles className="w-3 h-3 text-white" />
-                  </div>
-                  <div className="px-3 py-2 rounded-xl text-sm max-w-[240px]"
-                    style={{ background: 'rgba(42,41,47,.8)', color: '#ccc3d8', border: '1px solid rgba(74,68,85,.2)' }}>
-                    {m.text}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex justify-end">
-                  <div className="px-3 py-2 rounded-xl text-sm"
-                    style={{ background: 'linear-gradient(135deg, rgba(124,58,237,.3), rgba(3,181,211,.2))', color: '#e4e1e9', border: '1px solid rgba(124,58,237,.25)' }}>
-                    {m.text}
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80" }} className="animate-pulse-dot" />
+          <span style={{ fontSize: 11, color: "#4ade80", fontWeight: 500 }}>Live</span>
         </div>
+      </div>
 
-        {/* Input bar */}
-        <div className="px-4 pb-4">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
-            style={{ background: 'rgba(14,14,19,.8)', border: '1px solid rgba(74,68,85,.25)' }}>
-            <input className="flex-1 bg-transparent text-sm outline-none border-none p-0"
-              style={{ color: '#ccc3d8' }} placeholder="Ask Prism anything..." readOnly />
-            <button className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-opacity hover:opacity-80"
-              style={{ background: 'linear-gradient(135deg,#7C3AED,#03B5D3)' }}>
-              <ArrowRight className="w-3.5 h-3.5 text-white" />
-            </button>
+      {/* Progress bar */}
+      <div style={{ padding: "10px 16px 0", display: "flex", gap: 4 }}>
+        {steps.map((s, i) => (
+          <div key={i} style={{ flex: 1 }}>
+            <div style={{
+              height: 2, borderRadius: 2, marginBottom: 4,
+              background: i <= step ? "#FFFFFF" : "var(--surface-3)",
+              transition: "background .4s"
+            }} />
+            <p style={{ fontSize: 9, color: i <= step ? "var(--text-3)" : "var(--text-5)", textAlign: "center", lineHeight: 1.2 }}>
+              {s}
+            </p>
           </div>
+        ))}
+      </div>
+
+      {/* AI message */}
+      <div style={{ padding: "14px 16px", minHeight: 90 }}>
+        <div style={{
+          background: "var(--surface-2)", borderRadius: 6, padding: "10px 12px",
+          border: "1px solid var(--border)"
+        }}>
+          <motion.p key={msg}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: .3 }}
+            style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.6 }}>
+            {messages[msg]}
+          </motion.p>
+        </div>
+      </div>
+
+      {/* Action button */}
+      <div style={{ padding: "0 16px 14px" }}>
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "9px 16px", borderRadius: 6, gap: 6, cursor: "pointer",
+          background: "#FFFFFF", transition: "background .12s"
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#0A0A0F" }}>Continue setup</span>
+          <ArrowRight size={13} color="#0A0A0F" />
+        </div>
+      </div>
+
+      {/* Input bar */}
+      <div style={{ padding: "0 16px 16px" }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          background: "var(--bg-2)", borderRadius: 6, border: "1px solid var(--border)",
+          padding: "8px 12px"
+        }}>
+          <span style={{ fontSize: 12, color: "var(--text-5)", flex: 1 }}>Ask anything...</span>
+          <ArrowRight size={13} color="var(--text-5)" />
         </div>
       </div>
     </motion.div>
   );
 }
 
-/* ─── Hero ─────────────────────────────────────────────────── */
+/* ── Hero ──────────────────────────────────────────────────── */
 export default function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden pt-20"
-      style={{ background: 'var(--bg)' }}>
-      {/* Ambient particles */}
-      <ParticleCanvas />
+    <section style={{
+      minHeight: "100vh", display: "flex", alignItems: "center",
+      background: "var(--bg)", position: "relative", overflow: "hidden",
+      padding: "80px 0 60px",
+    }}>
+      {/* Dot grid */}
+      <div className="dot-grid" style={{ position: "absolute", inset: 0, opacity: .6, pointerEvents: "none" }} />
 
-      {/* Background grid */}
-      <div className="absolute inset-0 bg-grid opacity-100 pointer-events-none" />
+      {/* Violet glow — RIGHT side only, behind widget */}
+      <div style={{
+        position: "absolute", right: "5%", top: "30%",
+        width: 480, height: 480, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(124,58,237,.18) 0%, transparent 70%)",
+        filter: "blur(40px)", pointerEvents: "none",
+      }} />
 
-      {/* Large ambient orbs */}
-      <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full pointer-events-none blur-3xl"
-        style={{ background: 'radial-gradient(circle, rgba(124,58,237,.18) 0%, transparent 70%)' }} />
-      <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full pointer-events-none blur-3xl"
-        style={{ background: 'radial-gradient(circle, rgba(3,181,211,.12) 0%, transparent 70%)' }} />
-      <div className="absolute top-[40%] left-[50%] w-[300px] h-[300px] rounded-full pointer-events-none blur-3xl -translate-x-1/2"
-        style={{ background: 'radial-gradient(circle, rgba(217,70,239,.08) 0%, transparent 70%)' }} />
-
-      <div className="container relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-16 items-center">
-          {/* ── Left: copy ── */}
-          <div>
-            {/* New badge */}
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5 }}>
-              <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full mb-8 cursor-default"
-                style={{ background: 'rgba(124,58,237,.1)', border: '1px solid rgba(124,58,237,.3)' }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-                <span className="text-xs font-semibold tracking-wide" style={{ color: '#d2bbff' }}>
-                  NEW — Autonomous ReAct agent just shipped
-                </span>
-                <ArrowRight className="w-3 h-3" style={{ color: '#a78bfa' }} />
+      <div className="container" style={{ position: "relative", zIndex: 1 }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 80,
+          flexWrap: "wrap",
+        }}>
+          {/* Left: copy */}
+          <div style={{ flex: "1 1 480px", minWidth: 300 }}>
+            {/* Badge */}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4 }}>
+              <div className="badge" style={{ marginBottom: 32 }}>
+                <span className="badge-dot" />
+                Now in public beta
               </div>
             </motion.div>
 
             {/* Headline */}
-            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6, delay: .1 }}>
-              <h1 className="mb-6" style={{ letterSpacing: '-0.05em', lineHeight: 1.05 }}>
-                <span style={{ color: '#e4e1e9' }}>Your users drop off.</span>
-                <br />
-                <span className="grad-text">Prism fixes it.</span>
-              </h1>
-            </motion.div>
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, delay: .1 }}
+              style={{ marginBottom: 20 }}
+            >
+              Your users stop.<br />Prism starts.
+            </motion.h1>
 
-            {/* Subheadline */}
-            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6, delay: .2 }}
-              className="text-xl mb-10 max-w-lg" style={{ color: '#ccc3d8', lineHeight: 1.65 }}>
-              Embed an AI agent in 2 lines of code. It guides users through onboarding autonomously —
-              clicks buttons, fills forms, answers questions.
+            {/* Sub */}
+            <motion.p
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, delay: .2 }}
+              style={{ fontSize: 18, lineHeight: 1.7, maxWidth: 480, marginBottom: 36, color: "var(--text-3)" }}
+            >
+              Embed an AI agent in 2 lines of code. It guides users through onboarding
+              autonomously — clicks buttons, fills forms, answers questions.
             </motion.p>
 
             {/* CTAs */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6, delay: .3 }}
-              className="flex flex-wrap gap-4 mb-8">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, delay: .3 }}
+              style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 20 }}
+            >
               <Link href={DASHBOARD_URL}>
-                <button className="btn-primary text-base px-7 py-3.5">
-                  Start for free <ArrowRight className="w-4 h-4" />
+                <button className="btn-primary" style={{ padding: "12px 24px", fontSize: 15 }}>
+                  Start for free <ArrowRight size={15} />
                 </button>
               </Link>
-              <button className="btn-ghost text-base px-6 py-3.5">
-                <Play className="w-4 h-4" style={{ color: '#a78bfa' }} />
+              <button className="btn-ghost" style={{ padding: "11px 22px", fontSize: 15 }}>
+                <Play size={14} style={{ opacity: .6 }} />
                 Watch demo
               </button>
             </motion.div>
 
-            {/* Trust micro-copy */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: .6, delay: .5 }}
-              className="flex flex-wrap gap-x-5 gap-y-2">
-              {["Free forever plan", "3 agents included", "100 MTU/mo", "No credit card"].map(t => (
-                <div key={t} className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#4cd7f6' }} />
-                  <span className="text-sm" style={{ color: '#958da1' }}>{t}</span>
-                </div>
-              ))}
-            </motion.div>
+            {/* Trust */}
+            <motion.p
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: .5 }}
+              style={{ fontSize: 13, color: "var(--text-5)" }}
+            >
+              Free forever plan · No credit card needed
+            </motion.p>
           </div>
 
-          {/* ── Right: AI widget ── */}
-          <div className="flex justify-center lg:justify-end">
-            <AIWidget />
+          {/* Right: AI widget */}
+          <div style={{ flex: "0 1 340px", display: "flex", justifyContent: "flex-end" }}>
+            <HeroWidget />
           </div>
         </div>
-      </div>
 
-      {/* Bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
-        style={{ background: 'linear-gradient(to top, var(--bg), transparent)' }} />
+        {/* Stats bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .6, duration: .5 }}
+          style={{
+            marginTop: 80,
+            background: "var(--bg-3)", border: "1px solid var(--border)",
+            borderRadius: 8, display: "flex", flexWrap: "wrap",
+            overflow: "hidden",
+          }}
+        >
+          {[
+            { num: "60%", label: "of users never finish onboarding" },
+            { num: "72%", label: "SaaS churn in first 30 days" },
+            { num: "$25k", label: "avg cost per churned customer" },
+          ].map((s, i) => (
+            <div key={i} className="stat-block" style={{
+              borderRight: i < 2 ? "1px solid var(--border)" : "none",
+              borderBottom: "none",
+            }}>
+              <p style={{ fontSize: 36, fontFamily: "'Coolvetica', sans-serif", fontWeight: 400, color: "var(--text-1)", letterSpacing: "-0.03em", lineHeight: 1 }}>{s.num}</p>
+              <p style={{ fontSize: 14, color: "var(--text-4)", marginTop: 4 }}>{s.label}</p>
+            </div>
+          ))}
+        </motion.div>
+      </div>
     </section>
   );
 }

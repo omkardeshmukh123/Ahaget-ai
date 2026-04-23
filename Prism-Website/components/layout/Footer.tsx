@@ -1,86 +1,48 @@
 "use client";
 import Link from "next/link";
-import { Zap, Globe, MessageCircle, Briefcase } from "lucide-react";
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
 
-const footerLinks = {
-  Product: [
-    { label: "Features", href: "/#features" },
-    { label: "How it works", href: "/#how-it-works" },
-    { label: "Pricing", href: "/pricing" },
-    { label: "Changelog", href: "/changelog" },
-    { label: "Roadmap", href: "/roadmap" },
-  ],
-  Developers: [
-    { label: "Documentation", href: "/docs" },
-    { label: "API Reference", href: "/docs/api" },
-    { label: "SDK", href: "/docs/sdk" },
-    { label: "MCP Connectors", href: "/docs/mcp" },
-    { label: "Status", href: "/status" },
-  ],
-  Company: [
-    { label: "About", href: "/about" },
-    { label: "Blog", href: "/blog" },
-    { label: "Careers", href: "/careers" },
-    { label: "Privacy", href: "/privacy" },
-    { label: "Terms", href: "/terms" },
-  ],
+const cols = {
+  Product:    [{ l:"Features", h:"/#features"}, {l:"How it works", h:"/#how-it-works"}, {l:"Pricing",h:"/pricing"}, {l:"Changelog",h:"/changelog"}],
+  Developers: [{ l:"Documentation",h:"/docs"}, {l:"API Reference",h:"/docs/api"}, {l:"SDK",h:"/docs/sdk"}, {l:"Status",h:"/status"}],
+  Company:    [{ l:"About",h:"/about"}, {l:"Blog",h:"/blog"}, {l:"Careers",h:"/careers"}, {l:"Privacy",h:"/privacy"}, {l:"Terms",h:"/terms"}],
 };
 
 export default function Footer() {
   return (
-    <footer style={{ background: 'var(--bg-dim)', borderTop: '1px solid rgba(74,68,85,.2)' }}>
-      <div className="container py-16">
-        {/* Top row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 pb-14"
-          style={{ borderBottom: '1px solid rgba(74,68,85,.15)' }}>
+    <footer style={{ background: "var(--bg-2)", borderTop: "1px solid var(--border)" }}>
+      <div className="container" style={{ padding: "3.5rem 2rem 2rem" }}>
+        {/* Top */}
+        <div style={{ display: "grid", gridTemplateColumns: "1.5fr repeat(3, 1fr)", gap: 40, marginBottom: 48, flexWrap: "wrap" }}
+          className="footer-grid">
           {/* Brand */}
-          <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="inline-flex items-center gap-2.5 mb-5">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg,#7C3AED,#03B5D3)', boxShadow: '0 0 20px rgba(124,58,237,.35)' }}>
-                <Zap className="w-4 h-4 text-white" />
+          <div>
+            <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 16, textDecoration: "none" }}>
+              <div style={{ width: 24, height: 24, background: "#FFFFFF", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
+                  <path d="M7 1L13 4V10L7 13L1 10V4L7 1Z" stroke="#0A0A0F" strokeWidth="1.5" fill="none"/>
+                  <path d="M7 4L10 5.5V8.5L7 10L4 8.5V5.5L7 4Z" fill="#0A0A0F"/>
+                </svg>
               </div>
-              <span className="text-lg font-bold" style={{ color: '#e4e1e9', letterSpacing: '-0.03em' }}>Prism</span>
+              <span style={{ fontFamily: "'Coolvetica', sans-serif", fontSize: 17, color: "#FFFFFF", letterSpacing: "-0.02em" }}>Prism</span>
             </Link>
-            <p className="text-sm mb-6 max-w-[200px]" style={{ color: '#958da1', lineHeight: 1.7 }}>
+            <p style={{ fontSize: 13, color: "var(--text-4)", lineHeight: 1.7, maxWidth: 200, marginBottom: 20 }}>
               AI-powered onboarding for B2B SaaS. Guide users autonomously.
             </p>
-            <div className="flex gap-3">
-              {[
-                { icon: Globe, href: "https://github.com" },
-                { icon: MessageCircle, href: "https://twitter.com" },
-                { icon: Briefcase, href: "https://linkedin.com" },
-              ].map(({ icon: Icon, href }) => (
-                <a key={href} href={href} target="_blank" rel="noopener noreferrer"
-                  className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
-                  style={{ background: 'rgba(31,31,37,.8)', border: '1px solid rgba(74,68,85,.25)', color: '#958da1' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(124,58,237,.4)'; e.currentTarget.style.color = '#d2bbff'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(74,68,85,.25)'; e.currentTarget.style.color = '#958da1'; }}
-                >
-                  <Icon className="w-4 h-4" />
-                </a>
-              ))}
-            </div>
           </div>
 
-          {/* Links */}
-          {Object.entries(footerLinks).map(([group, links]) => (
+          {/* Link columns */}
+          {Object.entries(cols).map(([group, links]) => (
             <div key={group}>
-              <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: '#4a4455', letterSpacing: '.1em' }}>
-                {group}
-              </p>
-              <ul className="space-y-2.5">
-                {links.map(link => (
-                  <li key={link.label}>
-                    <Link href={link.href}
-                      className="text-sm transition-colors"
-                      style={{ color: '#958da1' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#ccc3d8')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#958da1')}
-                    >
-                      {link.label}
+              <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-5)", marginBottom: 16 }}>{group}</p>
+              <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
+                {links.map(l => (
+                  <li key={l.l}>
+                    <Link href={l.h} style={{ fontSize: 13, color: "var(--text-4)", transition: "color .12s" }}
+                      onMouseEnter={e => (e.currentTarget.style.color = "var(--text-2)")}
+                      onMouseLeave={e => (e.currentTarget.style.color = "var(--text-4)")}>
+                      {l.l}
                     </Link>
                   </li>
                 ))}
@@ -89,18 +51,13 @@ export default function Footer() {
           ))}
         </div>
 
-        {/* Bottom row */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-8">
-          <p className="text-sm" style={{ color: '#4a4455' }}>
-            © {new Date().getFullYear()} Prism AI, Inc. All rights reserved.
-          </p>
-          <p className="text-sm" style={{ color: '#4a4455' }}>
-            Built with{" "}
-            <span style={{ color: '#7C3AED' }}>♥</span>{" "}
-            for SaaS teams that care about onboarding.
-          </p>
+        {/* Bottom */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 20, borderTop: "1px solid var(--border)", flexWrap: "wrap", gap: 12 }}>
+          <p style={{ fontSize: 12, color: "var(--text-5)" }}>© {new Date().getFullYear()} Prism AI, Inc.</p>
+          <p style={{ fontSize: 12, color: "var(--text-5)" }}>Built for teams that care about onboarding.</p>
         </div>
       </div>
+      <style>{`@media(max-width:768px){.footer-grid{grid-template-columns:1fr 1fr!important}}`}</style>
     </footer>
   );
 }

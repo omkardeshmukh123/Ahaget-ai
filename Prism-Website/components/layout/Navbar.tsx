@@ -2,131 +2,121 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Menu, X, ChevronDown, ArrowRight } from "lucide-react";
+import { Menu, X, ArrowRight } from "lucide-react";
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
 
-const navLinks = [
-  { label: "Product", href: "#features" },
-  { label: "Use Cases", href: "#how-it-works" },
+const links = [
+  { label: "Features", href: "/#features" },
+  { label: "How it works", href: "/#how-it-works" },
   { label: "Pricing", href: "/pricing" },
   { label: "Docs", href: "/docs" },
-  { label: "Blog", href: "/blog" },
 ];
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 24);
-    window.addEventListener("scroll", handler, { passive: true });
-    return () => window.removeEventListener("scroll", handler);
+    const fn = () => setScrolled(window.scrollY > 8);
+    window.addEventListener("scroll", fn, { passive: true });
+    return () => window.removeEventListener("scroll", fn);
   }, []);
 
   return (
     <>
+      {/* 1px violet top line */}
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 1, background: "var(--accent)", zIndex: 60, opacity: .7 }} />
+
       <motion.header
-        initial={{ y: -80, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: .5, ease: [.16,.77,.25,1] }}
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: .4 }}
         style={{
-          background: scrolled ? 'rgba(14,14,19,.85)' : 'transparent',
-          backdropFilter: scrolled ? 'blur(20px)' : 'none',
-          WebkitBackdropFilter: scrolled ? 'blur(20px)' : 'none',
-          borderBottom: scrolled ? '1px solid rgba(74,68,85,.2)' : 'none',
-          boxShadow: scrolled ? '0 0 40px rgba(124,58,237,.06)' : 'none',
+          position: "fixed", top: 1, left: 0, right: 0, zIndex: 50,
+          height: 60,
+          background: scrolled ? "rgba(10,10,15,.88)" : "transparent",
+          backdropFilter: scrolled ? "blur(20px)" : "none",
+          WebkitBackdropFilter: scrolled ? "blur(20px)" : "none",
+          borderBottom: scrolled ? "1px solid var(--border)" : "none",
+          transition: "background .2s, border-color .2s",
         }}
       >
-        {/* Top violet accent line */}
-        <div className="h-px w-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(124,58,237,.5), rgba(3,181,211,.3), transparent)' }} />
-
-        <nav className="container flex items-center h-16 gap-6">
+        <div className="container" style={{ display: "flex", alignItems: "center", height: "100%", gap: 0 }}>
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg,#7C3AED,#03B5D3)', boxShadow: '0 0 20px rgba(124,58,237,.4)' }}>
-              <Zap className="w-4 h-4 text-white" />
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", flexShrink: 0, marginRight: 40 }}>
+            <div style={{ width: 28, height: 28, background: "#FFFFFF", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1L13 4V10L7 13L1 10V4L7 1Z" stroke="#0A0A0F" strokeWidth="1.5" fill="none"/>
+                <path d="M7 4L10 5.5V8.5L7 10L4 8.5V5.5L7 4Z" fill="#0A0A0F"/>
+              </svg>
             </div>
-            <span className="text-lg font-bold tracking-tight" style={{ color: '#e4e1e9', letterSpacing: '-0.03em' }}>
-              Prism
-            </span>
+            <span style={{ fontFamily: "'Coolvetica', sans-serif", fontSize: 20, color: "#FFFFFF", fontWeight: 400, letterSpacing: "-0.02em" }}>Prism</span>
           </Link>
 
-          {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-0.5 flex-1 justify-center">
-            {navLinks.map(link => (
-              <Link key={link.label} href={link.href}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 whitespace-nowrap"
-                style={{ color: '#958da1' }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#e4e1e9'; e.currentTarget.style.background = 'rgba(31,31,37,.6)'; }}
-                onMouseLeave={e => { e.currentTarget.style.color = '#958da1'; e.currentTarget.style.background = 'transparent'; }}
-              >
-                {link.label}
-              </Link>
+          {/* Desktop links */}
+          <nav style={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }} className="hidden-mobile">
+            {links.map(l => (
+              <Link key={l.label} href={l.href} className="nav-link">{l.label}</Link>
             ))}
-          </div>
+          </nav>
 
-          {/* Desktop right */}
-          <div className="hidden md:flex items-center gap-3 ml-auto">
-            <Link href={`${DASHBOARD_URL}/sign-in`}
-              className="px-4 py-2 text-sm font-medium transition-colors"
-              style={{ color: '#958da1' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#e4e1e9')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#958da1')}
-            >
-              Sign in
-            </Link>
+          {/* Right */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginLeft: "auto" }} className="hidden-mobile">
+            <Link href={`${DASHBOARD_URL}/sign-in`} className="nav-link" style={{ color: "var(--text-4)" }}>Sign in</Link>
             <Link href={DASHBOARD_URL}>
-              <button className="btn-primary btn-sm flex items-center gap-1.5">
-                Start free <ArrowRight className="w-3.5 h-3.5" />
+              <button className="btn-primary" style={{ padding: "8px 18px", fontSize: 13 }}>
+                Get started <ArrowRight size={13} />
               </button>
             </Link>
           </div>
 
           {/* Mobile hamburger */}
           <button
-            className="md:hidden ml-auto p-2 rounded-lg transition-colors"
-            style={{ color: '#958da1' }}
-            onClick={() => setMobileOpen(!mobileOpen)}
+            onClick={() => setOpen(!open)}
+            style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--text-3)", cursor: "pointer", padding: 4 }}
+            className="show-mobile"
           >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {open ? <X size={20} /> : <Menu size={20} />}
           </button>
-        </nav>
+        </div>
       </motion.header>
 
       {/* Mobile menu */}
       <AnimatePresence>
-        {mobileOpen && (
+        {open && (
           <motion.div
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ duration: .2 }}
-            className="fixed top-[65px] left-0 right-0 z-40 px-4 pb-4"
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            style={{
+              position: "fixed", top: 62, left: 0, right: 0, zIndex: 40,
+              background: "var(--bg-2)", borderBottom: "1px solid var(--border)",
+              padding: "12px 0",
+            }}
           >
-            <div className="glass-prism rounded-2xl p-4 space-y-1">
-              {navLinks.map(link => (
-                <Link key={link.label} href={link.href}
-                  className="flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors"
-                  style={{ color: '#ccc3d8' }}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <div className="pt-2 border-t" style={{ borderColor: 'rgba(74,68,85,.2)' }}>
-                <Link href={DASHBOARD_URL} onClick={() => setMobileOpen(false)}>
-                  <button className="btn-primary w-full justify-center mt-2">
-                    Start for free <ArrowRight className="w-4 h-4" />
-                  </button>
-                </Link>
-              </div>
+            {[...links, { label: "Sign in", href: `${DASHBOARD_URL}/sign-in` }].map(l => (
+              <Link key={l.label} href={l.href} onClick={() => setOpen(false)}
+                style={{ display: "block", padding: "12px 24px", fontSize: 15, color: "var(--text-3)" }}>
+                {l.label}
+              </Link>
+            ))}
+            <div style={{ padding: "12px 24px" }}>
+              <Link href={DASHBOARD_URL} onClick={() => setOpen(false)}>
+                <button className="btn-primary" style={{ width: "100%", justifyContent: "center" }}>Get started</button>
+              </Link>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .hidden-mobile { display: none !important; }
+          .show-mobile { display: flex !important; }
+        }
+        @media (min-width: 769px) {
+          .show-mobile { display: none !important; }
+        }
+      `}</style>
     </>
   );
 }
