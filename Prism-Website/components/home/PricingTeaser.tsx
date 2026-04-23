@@ -1,13 +1,15 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
+import { Check, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
+
 const plans = [
-  { name: "Free", price: 0, agents: "3 agents", mtu: "100 MTU", active: true },
-  { name: "Starter", price: 99, agents: "10 agents", mtu: "1,000 MTU" },
-  { name: "Growth", price: 299, agents: "Unlimited", mtu: "10,000 MTU" },
-  { name: "Scale", price: 999, agents: "Unlimited", mtu: "Unlimited MTU" },
+  { name: "Starter", price: 0,   mtu: "100 MTU/mo",   agents: "3 agents", active: false },
+  { name: "Pro",     price: 49,  mtu: "2,500 MTU/mo", agents: "10 agents", active: true  },
+  { name: "Scale",   price: 149, mtu: "10k MTU/mo",   agents: "Unlimited", active: false },
 ];
 
 export default function PricingTeaser() {
@@ -15,43 +17,53 @@ export default function PricingTeaser() {
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section className="py-24" ref={ref} style={{ background: '#07070d', borderTop: '1px solid rgba(139,92,246,0.1)' }}>
-      <div className="max-w-5xl mx-auto px-6">
+    <section ref={ref} style={{ background: "var(--bg-dim)", padding: "7rem 0", borderTop: "1px solid rgba(74,68,85,.15)" }}>
+      <div className="container">
         <div className="text-center mb-14">
-          <motion.p initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5 }} className="eyebrow mb-4">
-            Pricing
-          </motion.p>
-          <motion.h2 initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.1 }} className="text-4xl md:text-5xl font-bold text-white mb-4">
+          <motion.p initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} className="eyebrow mb-4">Pricing</motion.p>
+          <motion.h2 initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: .1 }}>
             Start free. Pay when you scale.
-            <br /><span className="font-normal" style={{ color: '#475569' }}>No &ldquo;Contact Sales.&rdquo; No surprises.</span>
+            <br />
+            <span style={{ color: "#4a4455", fontWeight: 500, fontSize: ".65em" }}>No &ldquo;Contact Sales.&rdquo; No surprises.</span>
           </motion.h2>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        {/* Plan cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto mb-10">
           {plans.map((plan, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 30 }} animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: 0.2 + i * 0.08 }}
-              className={`p-5 rounded-2xl border text-center transition-all ${
-                plan.active
-                  ? "shadow-brand-sm"
-                  : ""
-              }`}
-              style={plan.active ? { border: '1px solid rgba(139,92,246,0.5)', background: 'rgba(139,92,246,0.08)' } : { border: '1px solid rgba(139,92,246,0.15)' }}
-            >
-              <p className={`text-sm font-semibold mb-2`} style={{ color: plan.active ? '#A78BFA' : '#94A3B8' }}>{plan.name}</p>
-              <p className="text-3xl font-black mb-1 text-white">${plan.price}<span className="text-base font-normal" style={{ color: '#475569' }}>/mo</span></p>
-              <p className="text-xs" style={{ color: '#9B6560' }}>{plan.mtu}</p>
-              {plan.active && <div className="mt-3 w-full h-0.5 bg-brand/20 rounded-full" />}
+            <motion.div key={plan.name}
+              initial={{ opacity: 0, y: 24 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: .15 + i * .1 }}
+              className="relative rounded-2xl p-6 flex flex-col items-center text-center"
+              style={plan.active
+                ? { background: "rgba(124,58,237,.08)", border: "1px solid rgba(124,58,237,.4)", boxShadow: "0 0 40px rgba(124,58,237,.15)" }
+                : { background: "var(--surface)", border: "1px solid rgba(74,68,85,.2)" }
+              }>
+              {plan.active && (
+                <div className="absolute -top-3 px-3 py-0.5 rounded-full text-[10px] font-bold"
+                  style={{ background: "linear-gradient(135deg,#7C3AED,#03B5D3)", color: "#ede0ff" }}>
+                  Most popular
+                </div>
+              )}
+              <p className="text-sm font-bold mb-2"
+                style={{ color: plan.active ? "#a78bfa" : "#958da1" }}>{plan.name}</p>
+              <p className="text-3xl font-black mb-1" style={{ color: "#e4e1e9" }}>
+                ${plan.price}<span className="text-sm font-normal" style={{ color: "#958da1" }}>/mo</span>
+              </p>
+              <p className="text-xs mb-1" style={{ color: "#958da1" }}>{plan.agents}</p>
+              <p className="text-xs" style={{ color: "#4a4455" }}>{plan.mtu}</p>
+              {plan.active && <div className="mt-3 w-full h-px" style={{ background: "linear-gradient(90deg,transparent,rgba(124,58,237,.5),transparent)" }} />}
             </motion.div>
           ))}
         </div>
 
+        {/* CTA */}
         <div className="text-center">
-          <Link href="/pricing" className="inline-flex items-center gap-2 text-brand font-semibold hover:text-brand-dark transition-colors">
-            See full pricing →
+          <Link href="/pricing">
+            <button className="btn-primary">
+              See full pricing <ArrowRight className="w-4 h-4" />
+            </button>
           </Link>
+          <p className="text-sm mt-4" style={{ color: "#4a4455" }}>Free plan always available · No credit card required</p>
         </div>
       </div>
     </section>
