@@ -17,19 +17,19 @@ export default function IntegrationLogos() {
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section className="py-24 bg-white border-t border-slate-100" ref={ref}>
+    <section className="py-24" ref={ref} style={{ background: 'var(--cream)', borderTop: '1px solid rgba(107,64,60,0.08)' }}>
       <div className="max-w-4xl mx-auto px-6 text-center">
         <motion.p
           initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5 }}
-          className="text-slate-400 text-sm font-medium tracking-widest uppercase mb-5"
+          className="text-sm font-medium tracking-widest uppercase mb-5" style={{ color: '#9B6560' }}
         >
           Works with your stack
         </motion.p>
         <motion.h2
           initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="text-3xl md:text-4xl font-black text-slate-900 mb-10"
+          className="text-3xl md:text-4xl font-black mb-10" style={{ color: '#6B403C' }}
         >
           2 lines of code. Any framework.
         </motion.h2>
@@ -47,7 +47,7 @@ export default function IntegrationLogos() {
               animate={inView ? { opacity: 1, scale: 1 } : {}}
               transition={{ delay: 0.25 + i * 0.04, type: "spring", stiffness: 220 }}
               whileHover={{ scale: 1.06, y: -2 }}
-              className="inline-flex items-center px-4 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 text-sm font-semibold cursor-default select-none transition-colors"
+              className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold cursor-default select-none transition-colors" style={{ background: 'rgba(107,64,60,0.07)', border: '1px solid rgba(107,64,60,0.14)', color: '#6B403C' }}
             >
               {tech}
             </motion.span>
@@ -66,15 +66,15 @@ export default function IntegrationLogos() {
               <span className="w-3 h-3 rounded-full bg-yellow-400/60" />
               <span className="w-3 h-3 rounded-full bg-green-400/60" />
             </div>
-            <span className="text-slate-600 text-xs">index.html</span>
+            <span style={{ color: '#9B6560', fontSize: '12px' }}>index.html</span>
           </div>
-          <pre className="p-5 text-sm text-slate-300 overflow-x-auto"><code>{snippet}</code></pre>
+          <pre className="p-5 text-sm overflow-x-auto" style={{ color: '#f8f8f2' }}><code>{snippet}</code></pre>
         </motion.div>
 
         <motion.p
           initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}}
           transition={{ delay: 0.8 }}
-          className="text-slate-400 text-sm mt-6"
+          className="text-sm mt-6" style={{ color: '#9B6560' }}
         >
           And anything else that runs JavaScript.
         </motion.p>

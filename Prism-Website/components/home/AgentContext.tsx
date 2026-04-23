@@ -46,7 +46,7 @@ export default function AgentContext() {
   const inView = useInView(ref, { once: true, margin: "-60px" });
 
   return (
-    <section className="py-28 bg-[#0a0b0f]" ref={ref}>
+    <section className="py-28" ref={ref} style={{ background: '#3d1a17' }}>
       <div className="max-w-7xl mx-auto px-6">
         {/* Heading */}
         <motion.div

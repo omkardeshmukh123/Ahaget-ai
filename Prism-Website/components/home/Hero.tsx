@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Play, Sparkles, ArrowRight } from "lucide-react";
+import { DASHBOARD_URL } from "../../lib/config";
 
 /* ---------- Particle System ---------- */
 function ParticleCanvas() {
@@ -85,15 +86,15 @@ function WidgetPanel({ mouse }: { mouse: { x: number; y: number } }) {
         className="relative w-full max-w-sm mx-auto"
       >
         <div className="absolute -inset-10 bg-brand/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative glass rounded-2xl overflow-hidden shadow-glass border border-white/10">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-white/2">
+        <div className="relative rounded-2xl overflow-hidden shadow-lg" style={{ background: 'rgba(253,250,246,0.85)', backdropFilter: 'blur(20px)', border: '1px solid rgba(107,64,60,0.10)' }}>
+          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(107,64,60,0.08)', background: 'rgba(253,250,246,0.5)' }}>
             <div className="flex items-center gap-3">
               <div className="w-7 h-7 rounded-lg bg-brand/80 flex items-center justify-center">
                 <Sparkles className="w-3.5 h-3.5 text-white" />
               </div>
               <div>
-                <p className="text-white text-sm font-semibold">Prism</p>
-                <p className="text-slate-400 text-[11px]">Step 2 of 4: Connect your data source</p>
+                <p className="text-sm font-semibold" style={{ color: '#6B403C' }}>Prism</p>
+                <p className="text-[11px]" style={{ color: '#9B6560' }}>Step 2 of 4: Connect your data source</p>
               </div>
             </div>
             <div className="flex gap-1.5">
@@ -102,8 +103,8 @@ function WidgetPanel({ mouse }: { mouse: { x: number; y: number } }) {
               ))}
             </div>
           </div>
-          <div className="h-0.5 bg-white/5">
-            <div className="h-full bg-gradient-to-r from-brand to-purple-400 w-1/2" />
+          <div className="h-0.5" style={{ background: 'rgba(107,64,60,0.06)' }}>
+            <div className="h-full w-1/2" style={{ background: 'linear-gradient(to right, #FF857A, #EBAEE6)' }} />
           </div>
           <div className="p-4 space-y-3 min-h-[200px]">
             {chatMessages.slice(0, visibleMessages).map((msg, i) => (
@@ -113,11 +114,17 @@ function WidgetPanel({ mouse }: { mouse: { x: number; y: number } }) {
                     <Sparkles className="w-3 h-3 text-brand-light" />
                   </div>
                 )}
-                <div className={`max-w-[75%] rounded-xl px-3 py-2 text-[13px] leading-relaxed ${
+                <div className={`max-w-[75%] rounded-xl px-3 py-2 leading-relaxed ${
                   msg.role === "agent"
-                    ? msg.action ? "bg-brand/20 border border-brand/30 text-brand-light" : "bg-white/8 text-slate-200"
-                    : "bg-brand text-white"
-                }`}>
+                    ? msg.action ? "border text-sm leading-relaxed" : "text-sm" 
+                    : "text-white text-sm"
+                  }`}
+                  style={msg.role === "agent" 
+                    ? msg.action 
+                      ? { background: 'rgba(255,133,122,0.12)', borderColor: 'rgba(255,133,122,0.25)', color: '#6B403C' }
+                      : { background: 'rgba(107,64,60,0.06)', color: '#6B403C' }
+                    : { background: 'linear-gradient(135deg,#FF857A,#EBAEE6)', color: '#3d1008' }
+                  }>
                   {msg.action && <span className="text-[10px] text-brand-light uppercase tracking-wide block mb-1 font-medium">Action</span>}
                   {msg.text}
                 </div>
@@ -187,14 +194,14 @@ function LiveCounter() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 1.0 }}
-      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-300 text-xs font-medium mb-6"
+      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-6" style={{ border: '1px solid rgba(107,64,60,0.15)', background: 'rgba(107,64,60,0.05)', color: '#9B6560' }}
     >
       <span className="relative flex h-2 w-2">
         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
         <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
       </span>
-      <span className="tabular-nums font-mono text-green-300">{count.toLocaleString()}</span>
-      <span className="text-slate-400">sessions guided today</span>
+      <span className="tabular-nums font-mono" style={{ color: '#FF857A' }}>{count.toLocaleString()}</span>
+      <span style={{ color: '#9B6560' }}>sessions guided today</span>
     </motion.div>
   );
 }
@@ -231,7 +238,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-brand/30 bg-brand/10 text-brand-light text-sm font-medium mb-8"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium mb-8" style={{ border: '1px solid rgba(255,133,122,0.30)', background: 'rgba(255,133,122,0.08)', color: '#FF857A' }}
           >
             <span className="text-brand">✦</span>
             Free tier — no credit card required
@@ -272,14 +279,15 @@ export default function Hero() {
             className="flex flex-wrap gap-4 mb-8"
           >
             <Link
-              href="https://app.useprism.ai/register"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-brand hover:bg-brand-dark text-white font-bold text-lg rounded-xl transition-all duration-200 shadow-brand hover:shadow-[0_20px_60px_rgba(99,102,241,0.4)] hover:scale-[1.02]"
+              href={`${DASHBOARD_URL}/register`}
+              className="inline-flex items-center gap-2 px-8 py-4 font-bold text-lg rounded-xl transition-all duration-200 hover:scale-[1.02]"
+              style={{ background: 'linear-gradient(135deg,#FF857A,#EBAEE6)', color: '#3d1008', boxShadow: '0 12px 40px rgba(255,133,122,0.28)' }}
             >
               Start for free
               <ArrowRight className="w-5 h-5" />
             </Link>
-            <button className="inline-flex items-center gap-2 px-8 py-4 border border-white/15 hover:border-brand/50 text-slate-200 hover:text-white font-semibold text-lg rounded-xl transition-all duration-200 hover:bg-white/5 group">
-              <div className="w-9 h-9 rounded-full bg-white/10 group-hover:bg-brand/20 border border-white/15 flex items-center justify-center transition-colors">
+            <button className="inline-flex items-center gap-2 px-8 py-4 font-semibold text-lg rounded-xl transition-all duration-200 group" style={{ border: '1px solid rgba(107,64,60,0.2)', color: '#6B403C', background: 'transparent' }} onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(107,64,60,0.06)'; }} onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center transition-colors" style={{ background: 'rgba(107,64,60,0.08)', border: '1px solid rgba(107,64,60,0.15)' }}>
                 <Play className="w-4 h-4 fill-current ml-0.5" />
               </div>
               Watch 3-min demo
@@ -291,7 +299,7 @@ export default function Hero() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
-            className="text-slate-500 text-sm flex flex-wrap gap-x-4 gap-y-1"
+            className="text-sm flex flex-wrap gap-x-4 gap-y-1" style={{ color: '#9B6560' }}
           >
             {["Free forever", "3 agents", "100 MTU", "No credit card"].map((item, i) => (
               <span key={i} className="flex items-center gap-1.5">

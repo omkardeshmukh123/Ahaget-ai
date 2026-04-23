@@ -41,13 +41,13 @@ export default function LogoBar() {
   const inView = useInView(ref, { once: true });
 
   return (
-    <section ref={ref} className="py-16 bg-white border-y border-slate-100 overflow-hidden">
+    <section ref={ref} className="py-16 overflow-hidden" style={{ background: 'var(--cream)', borderTop: '1px solid rgba(107,64,60,0.08)', borderBottom: '1px solid rgba(107,64,60,0.08)' }}>
       {/* Label */}
       <motion.p
         initial={{ opacity: 0, y: 16 }}
         animate={inView ? { opacity: 1, y: 0 } : {}}
         transition={{ duration: 0.5 }}
-        className="text-center text-xs font-bold uppercase tracking-widest text-slate-400 mb-8"
+        className="text-center text-xs font-bold uppercase tracking-widest mb-8" style={{ color: '#9B6560' }}
       >
         Trusted by teams at
       </motion.p>
@@ -55,14 +55,14 @@ export default function LogoBar() {
       {/* Marquee */}
       <div className="relative">
         {/* Fade edges */}
-        <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
-        <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
+        <div className="absolute left-0 top-0 bottom-0 w-24 z-10 pointer-events-none" style={{ background: 'linear-gradient(to right, var(--cream), transparent)' }} />
+        <div className="absolute right-0 top-0 bottom-0 w-24 z-10 pointer-events-none" style={{ background: 'linear-gradient(to left, var(--cream), transparent)' }} />
         <div className="marquee-container">
           <div className="flex gap-14 animate-marquee whitespace-nowrap">
             {logos.map((logo, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-default select-none group"
+                className="flex items-center gap-2.5 transition-colors cursor-default select-none group" style={{ color: '#9B6560' }}
               >
                 <div
                   className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-black shadow-sm"
@@ -85,13 +85,13 @@ export default function LogoBar() {
         className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto px-6"
       >
         {testimonials.map((t, i) => (
-          <div key={i} className="bg-[#fafbfc] border border-slate-100 rounded-2xl p-6">
-            <p className="text-slate-700 leading-relaxed text-sm mb-4 italic">
+          <div key={i} className="rounded-2xl p-6" style={{ background: 'var(--cream-2)', border: '1px solid rgba(107,64,60,0.08)' }}>
+            <p className="leading-relaxed text-sm mb-4 italic" style={{ color: '#6B403C' }}>
               &ldquo;{t.quote}&rdquo;
             </p>
             <div>
-              <p className="text-slate-900 font-semibold text-sm">{t.name}</p>
-              <p className="text-slate-400 text-xs mt-0.5">{t.role}</p>
+              <p className="font-semibold text-sm" style={{ color: '#6B403C' }}>{t.name}</p>
+              <p className="text-xs mt-0.5" style={{ color: '#9B6560' }}>{t.role}</p>
             </div>
           </div>
         ))}
