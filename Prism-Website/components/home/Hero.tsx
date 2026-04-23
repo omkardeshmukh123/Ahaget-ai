@@ -30,7 +30,8 @@ function ParticleCanvas() {
       for (const p of particles) {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(99,102,241,${p.opacity})`;
+        const colors = ['173,235,179','255,133,122','235,174,230','107,64,60'];
+        ctx.fillStyle = `rgba(${colors[Math.floor(p.opacity * colors.length) % colors.length]},${p.opacity})`;
         ctx.fill();
         p.x += p.vx; p.y += p.vy;
         if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
@@ -167,7 +168,7 @@ function WavyUnderline() {
       fixes it
       <svg className="absolute -bottom-2 left-0 w-full overflow-visible" height="12" viewBox="0 0 200 12" preserveAspectRatio="none">
         <path d="M0,6 C20,2 40,10 60,6 C80,2 100,10 120,6 C140,2 160,10 180,6 C190,4 196,5 200,6"
-          fill="none" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round"
+          fill="none" stroke="#FF857A" strokeWidth="2.5" strokeLinecap="round"
         />
       </svg>
     </span>
@@ -204,17 +205,17 @@ export default function Hero() {
 
   return (
     <section
-      className="relative min-h-screen bg-[#050510] flex items-center overflow-hidden pt-16"
+      className="relative min-h-screen flex items-center overflow-hidden pt-16" style={{ background: 'linear-gradient(160deg, #FDFAF6 0%, #F5F0E8 40%, #fff5f4 100%)' }}
       onMouseMove={(e) => setMouse({ x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight })}
     >
       {/* Grid background */}
       <div className="absolute inset-0 bg-grid" />
 
       {/* Aurora gradient blobs — Stripe-level */}
-      <div className="mesh-orb absolute top-[-10%] right-[-5%] w-[55vw] h-[55vw] bg-brand/20 rounded-full blur-[120px] pointer-events-none" />
-      <div className="mesh-orb-b absolute bottom-[-15%] left-[-10%] w-[50vw] h-[50vw] bg-purple-600/15 rounded-full blur-[100px] pointer-events-none" />
-      <div className="mesh-orb-c absolute top-[30%] left-[20%] w-[35vw] h-[35vw] bg-pink-500/8 rounded-full blur-[90px] pointer-events-none" />
-      <div className="mesh-orb absolute bottom-[10%] right-[25%] w-[25vw] h-[25vw] bg-cyan-500/6 rounded-full blur-[80px] pointer-events-none" />
+      <div className="mesh-orb absolute top-[-10%] right-[-5%] w-[55vw] h-[55vw] rounded-full blur-[120px] pointer-events-none" style={{ background: 'rgba(173,235,179,0.35)' }} />
+      <div className="mesh-orb-b absolute bottom-[-15%] left-[-10%] w-[50vw] h-[50vw] rounded-full blur-[100px] pointer-events-none" style={{ background: 'rgba(255,133,122,0.22)' }} />
+      <div className="mesh-orb-c absolute top-[30%] left-[20%] w-[35vw] h-[35vw] rounded-full blur-[90px] pointer-events-none" style={{ background: 'rgba(235,174,230,0.20)' }} />
+      <div className="mesh-orb absolute bottom-[10%] right-[25%] w-[25vw] h-[25vw] rounded-full blur-[80px] pointer-events-none" style={{ background: 'rgba(107,64,60,0.08)' }} />
 
       {/* Particles */}
       <ParticleCanvas />
@@ -241,7 +242,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="font-heading text-5xl md:text-6xl lg:text-7xl font-black text-white leading-[1.05] tracking-tight mb-6"
+            className="font-heading text-5xl md:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tight mb-6" style={{ color: '#6B403C' }}
           >
             Your users are
             <br />dropping off.
@@ -258,7 +259,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.25 }}
-            className="text-xl text-slate-400 leading-relaxed mb-10 max-w-xl"
+            className="text-xl leading-relaxed mb-10 max-w-xl" style={{ color: '#9B6560' }}
           >
             Embed an AI agent in your SaaS in 2 lines of code. It guides users through onboarding in real time — clicks buttons, fills forms, answers questions. You watch it all from a dashboard that shows you exactly where users get stuck.
           </motion.p>
@@ -313,7 +314,7 @@ export default function Hero() {
       </div>
 
       {/* Bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none" style={{ background: 'linear-gradient(to top, #F5F0E8, transparent)' }} />
     </section>
   );
 }

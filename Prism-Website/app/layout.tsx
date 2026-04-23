@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="bg-white text-slate-900 antialiased">
+      <body className="bg-cream text-brown antialiased" style={{ background: 'var(--cream)', color: 'var(--brown)' }}>
         <div id="scroll-progress" style={{ width: "0%" }} />
         <Navbar />
         <main>{children}</main>

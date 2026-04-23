@@ -56,15 +56,15 @@ export default function DashboardPage() {
       {/* Onboarding checklist — only while incomplete */}
       {onboarding && !onboarding.allDone && (
         <div style={{
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.14), rgba(128,131,255,0.09))',
+          background: 'linear-gradient(135deg, rgba(255,133,122,0.14), rgba(128,131,255,0.09))',
           borderRadius: 14,
           padding: '18px 20px',
           marginBottom: 24,
-          outline: '0.5px solid rgba(192,193,255,0.10)',
+          outline: '0.5px solid rgba(255,133,122,0.10)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c0c1ff" strokeWidth={2} strokeLinecap="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF857A" strokeWidth={2} strokeLinecap="round">
                 <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
               </svg>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)' }}>Complete Setup</span>
@@ -77,10 +77,10 @@ export default function DashboardPage() {
             You're almost ready to go live. Complete these steps.
           </p>
           {/* Progress bar */}
-          <div style={{ height: 4, background: 'rgba(192,193,255,0.12)', borderRadius: 9999, marginBottom: 14, overflow: 'hidden' }}>
+          <div style={{ height: 4, background: 'rgba(255,133,122,0.12)', borderRadius: 9999, marginBottom: 14, overflow: 'hidden' }}>
             <div style={{
               height: '100%',
-              background: 'linear-gradient(90deg, #c0c1ff, #8083ff)',
+              background: 'linear-gradient(90deg, #FF857A, #EBAEE6)',
               borderRadius: 9999,
               width: `${(onboarding.completedCount / onboarding.totalCount) * 100}%`,
               transition: 'width 0.6s ease',
@@ -91,10 +91,10 @@ export default function DashboardPage() {
               <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{
                   width: 18, height: 18, borderRadius: '50%',
-                  background: step.done ? 'linear-gradient(135deg, #c0c1ff, #8083ff)' : 'rgba(192,193,255,0.10)',
+                  background: step.done ? 'linear-gradient(135deg, #FF857A, #EBAEE6)' : 'rgba(255,133,122,0.10)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0,
-                  outline: step.done ? 'none' : '1px solid rgba(192,193,255,0.18)',
+                  outline: step.done ? 'none' : '1px solid rgba(255,133,122,0.18)',
                 }}>
                   {step.done && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#07006c" strokeWidth={3.5} strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>}
                 </div>
@@ -119,7 +119,7 @@ export default function DashboardPage() {
             <div style={{
               position: 'absolute', top: -20, right: -20,
               width: 80, height: 80, borderRadius: '50%',
-              background: 'rgba(192,193,255,0.06)',
+              background: 'rgba(255,133,122,0.06)',
               filter: 'blur(20px)',
               pointerEvents: 'none',
             }} />
@@ -131,7 +131,7 @@ export default function DashboardPage() {
               <span style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--on-surface)' }}>
                 {value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toLocaleString()}
               </span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--success)', background: 'rgba(52,211,153,0.10)', padding: '1px 6px', borderRadius: 999 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--success)', background: 'rgba(173,235,179,0.14)', padding: '1px 6px', borderRadius: 999 }}>
                 {delta}
               </span>
             </div>
@@ -154,8 +154,8 @@ export default function DashboardPage() {
               <LineChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                 <defs>
                   <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#c0c1ff" />
-                    <stop offset="100%" stopColor="#8083ff" />
+                    <stop offset="0%" stopColor="#FF857A" />
+                    <stop offset="100%" stopColor="#EBAEE6" />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="4 4" stroke="rgba(70,69,84,0.25)" vertical={false} />
@@ -183,7 +183,7 @@ export default function DashboardPage() {
                   stroke="url(#lineGrad)"
                   strokeWidth={2.5}
                   dot={false}
-                  activeDot={{ r: 4, fill: '#c0c1ff', strokeWidth: 0 }}
+                  activeDot={{ r: 4, fill: '#FF857A', strokeWidth: 0 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -230,7 +230,7 @@ export default function DashboardPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                       <div style={{
                         width: 26, height: 26, borderRadius: '50%',
-                        background: 'linear-gradient(135deg, rgba(192,193,255,0.2), rgba(128,131,255,0.2))',
+                        background: 'linear-gradient(135deg, rgba(255,133,122,0.2), rgba(235,174,230,0.2))',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 10, fontWeight: 700, color: 'var(--primary)',
                         flexShrink: 0,
@@ -260,12 +260,12 @@ export default function DashboardPage() {
           background: topInsight.severity === 'high'
             ? 'rgba(255,180,171,0.08)' : topInsight.severity === 'medium'
             ? 'rgba(255,183,131,0.08)' : 'var(--surface-container)',
-          outline: '0.5px solid rgba(192,193,255,0.07)',
+          outline: '0.5px solid rgba(255,133,122,0.07)',
           display: 'flex', alignItems: 'center', gap: 14,
         }}>
           <span style={{
             fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, letterSpacing: '0.06em', textTransform: 'uppercase',
-            background: topInsight.severity === 'high' ? 'rgba(255,180,171,0.15)' : topInsight.severity === 'medium' ? 'rgba(255,183,131,0.15)' : 'rgba(192,193,255,0.10)',
+            background: topInsight.severity === 'high' ? 'rgba(255,180,171,0.15)' : topInsight.severity === 'medium' ? 'rgba(255,183,131,0.15)' : 'rgba(255,133,122,0.10)',
             color: topInsight.severity === 'high' ? 'var(--error)' : topInsight.severity === 'medium' ? 'var(--warning)' : 'var(--primary)',
           }}>
             {topInsight.severity}

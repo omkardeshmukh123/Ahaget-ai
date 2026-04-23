@@ -57,9 +57,9 @@ export default function Sidebar() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <div style={{
             width: 28, height: 28, borderRadius: 8,
-            background: 'linear-gradient(135deg, #c0c1ff, #8083ff)',
+            background: 'linear-gradient(135deg, #FF857A, #EBAEE6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 16px rgba(192,193,255,0.25)',
+            boxShadow: '0 0 16px rgba(255,133,122,0.30)',
             flexShrink: 0,
           }}>
             <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
@@ -79,11 +79,11 @@ export default function Sidebar() {
             width: '100%',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             padding: '7px 12px',
-            background: 'linear-gradient(135deg, #c0c1ff, #8083ff)',
-            color: '#07006c',
+            background: 'linear-gradient(135deg, #FF857A, #EBAEE6)',
+            color: '#3d1008',
             fontWeight: 600, fontSize: 12,
             borderRadius: 8,
-            boxShadow: '0 0 18px rgba(192,193,255,0.14)',
+            boxShadow: '0 0 18px rgba(255,133,122,0.22)',
             transition: 'opacity 0.15s',
           }}
           onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
@@ -132,9 +132,9 @@ export default function Sidebar() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <div style={{
             width: 26, height: 26, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #c0c1ff, #8083ff)',
+            background: 'linear-gradient(135deg, rgba(255,133,122,0.2), rgba(235,174,230,0.2))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 11, fontWeight: 700, color: '#07006c',
+            fontSize: 11, fontWeight: 700, color: 'var(--coral)',
             flexShrink: 0,
           }}>
             {user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? '?'}
