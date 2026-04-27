@@ -125,7 +125,9 @@ export async function searchKnowledgeBase(
   if (articles.length === 0) return [];
 
   // ── Vector search ─────────────────────────────────────────────────────────
-  const queryEmbedding = await embedText(query);
+  // Fix #7: pre-truncate query to 500 chars before embedding — avoids
+  // sending runaway user messages directly into the embedding API.
+  const queryEmbedding = await embedText(query.slice(0, 500));
 
   const vectorScored = articles.map((a) => ({
     id: a.id,

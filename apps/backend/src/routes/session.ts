@@ -1005,6 +1005,10 @@ router.post('/act/goal', async (req: AuthenticatedRequest, res: Response) => {
     res.status(400).json({ error: 'sessionId and goal required' });
     return;
   }
+  if (!pageContext?.url) {
+    res.status(400).json({ error: 'pageContext with url required' });
+    return;
+  }
   if (goal.length > 500) {
     res.status(400).json({ error: 'goal too long (max 500 chars)' });
     return;
@@ -1018,27 +1022,53 @@ router.post('/act/goal', async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
+  let userMetadata: Record<string, unknown> | undefined;
+  let userHistoryFormatted: string | undefined;
+  if (turnCount === 0) {
+    const goalSession = await prisma.userOnboardingSession.findFirst({
+      where: { id: sessionId, organizationId: req.organization!.id },
+      select: { endUserId: true, endUser: { select: { metadata: true } } },
+    }).catch(() => null);
+    userMetadata = (goalSession?.endUser.metadata ?? {}) as Record<string, unknown>;
+    if (goalSession) {
+      const history = await getUserHistory(goalSession.endUserId, sessionId).catch(() => null);
+      userHistoryFormatted = history?.formatted;
+    }
+  }
+
+  // Fix #9: detect language from the goal text and translate to English before
+  // passing to the agent; pass detectedLang so the system prompt uses the right
+  // language instruction and the response is localized back.
+  const goalDetectedLang = await detectLanguage(goal);
+  const goalForAgent = goalDetectedLang !== 'en'
+    ? await translateText(goal, 'en', goalDetectedLang)
+    : goal;
+
   const action = await runAgentGoal({
     org: req.organization!,
-    goal,
+    goal: goalForAgent,
     pageContext,
     turnHistory,
     sessionId,
+    userMetadata,
+    userHistoryFormatted,
+    detectedLang: goalDetectedLang,
   });
 
-  const done = action.type === 'goal_complete' || action.type === 'escalate_to_human';
+  const localizedGoalAction = await localizeAction(action, goalDetectedLang);
+  const done = localizedGoalAction.type === 'goal_complete' || localizedGoalAction.type === 'escalate_to_human';
 
   // Persist to audit log for traceability (SessionMessage requires stepId FK — skip it for goal mode)
   prisma.auditLog.create({
     data: {
       organizationId: req.organization!.id,
       sessionId,
-      actionType: action.type,
-      payload: { goal, turnCount, action } as import('@prisma/client').Prisma.InputJsonValue,
+      actionType: localizedGoalAction.type,
+      payload: { goal, turnCount, action: localizedGoalAction } as import('@prisma/client').Prisma.InputJsonValue,
     },
   }).catch(() => {}); // non-blocking
 
-  res.json({ action, done, turnCount: turnCount + 1 });
+  res.json({ action: localizedGoalAction, done, turnCount: turnCount + 1 });
 });
 
 // ─── POST /api/v1/session/stt ────────────────────────────────────────────────

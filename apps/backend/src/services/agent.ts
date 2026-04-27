@@ -6,6 +6,7 @@ import { assertPublicUrl } from '../lib/ipGuard';
 import { searchKnowledgeBase } from './knowledge';
 import { loadMcpTools, toOpenAITools, callMcpTool, resolveMcpCall, ConnectorToolBundle } from './mcp';
 import { logger, withRetry, timer } from '../lib/logger';
+import { extractJsonField } from '../lib/streaming';
 
 let _openai: OpenAI | null = null;
 const openai = () => { if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); return _openai; };
@@ -152,9 +153,14 @@ export interface PageContext {
   semanticSummary?: string;
 }
 
-// ─── DOM text sanitizer — strips newlines/control chars to prevent prompt injection ──
+// ─── DOM text sanitizer — strips control chars and common injection phrases ────
+const INJECTION_RE = /ignore\s+(previous|prior|all|above|the)\s+(instructions?|prompts?|context|rules?)/gi;
 function sanitizeDomText(text: string): string {
-  return text.replace(/[\r\n\t]+/g, ' ').replace(/[^\x20-\x7E]/g, '').slice(0, 120);
+  return text
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\x20-\x7E]/g, '')
+    .replace(INJECTION_RE, '[filtered]')
+    .slice(0, 120);
 }
 
 // ─── Model routing ────────────────────────────────────────────────────────────
@@ -170,7 +176,7 @@ function selectModel(opts: {
   if (isVerify) return 'gpt-4o-mini';
   if (isInit && hasActionConfig && !hasUnansweredQuestions) return 'gpt-4o-mini';
   if (hasKbResults) return 'gpt-4o';
-  return 'gpt-4o';
+  return 'gpt-4o-mini';
 }
 
 // ─── System prompt builder ────────────────────────────────────────────────────
@@ -236,13 +242,34 @@ RESPONSE TURN: The user has replied or taken an action.
     ? '\nLANGUAGE: Respond in Hinglish — natural Hindi+English mix in Roman script. Example: "Yahan click karein, phir apna naam enter karein."'
     : '';
 
+  // Token budget guard — cap combined variable sections to ~40k chars (~10k tokens)
+  const TOKEN_BUDGET_CHARS = 40_000;
+  const variableSize = domSummary.length + kbSection.length + mcpSection.length + historySection.length;
+  let trimmedKbSection = kbSection;
+  let trimmedDomSummary = domSummary;
+  if (variableSize > TOKEN_BUDGET_CHARS) {
+    const overflow = variableSize - TOKEN_BUDGET_CHARS;
+    if (kbSection.length >= overflow) {
+      trimmedKbSection = kbSection.slice(0, kbSection.length - overflow);
+    } else {
+      trimmedKbSection = '';
+      const domOverflow = overflow - kbSection.length;
+      if (domSummary.length > domOverflow) {
+        trimmedDomSummary = domSummary.slice(0, domSummary.length - domOverflow);
+      }
+    }
+  }
+
+  // Fix #5: truncate collectedData to 500 chars to avoid runaway context growth
+  const collectedDataStr = JSON.stringify(collectedData).slice(0, 500);
+
   return `You are Prism, an AI onboarding guide inside "${orgName}". You ALWAYS call exactly one tool — never respond with plain text.
 ${userProfile}${historySection}
 STEP: "${step.title}"
 Goal: ${step.description || step.title}
 ${step.aiPrompt ? `Instructions: ${step.aiPrompt}` : ''}
-${actionHint}${domSummary}${kbSection}${mcpSection}
-Collected so far: ${JSON.stringify(collectedData)}
+${actionHint}${trimmedDomSummary}${trimmedKbSection}${mcpSection}
+Collected so far: ${collectedDataStr}
 ${isLastStep ? 'FINAL STEP: use celebrate_milestone when done (not complete_step).' : ''}
 ${verifyInstructions}${initInstructions}${generalInstructions}
 
@@ -330,48 +357,53 @@ function parseToolCall(name: string, input: Record<string, unknown>): AgentActio
     };
   }
 
+  // Fix #3: log unknown tool names so we can detect model hallucinations
+  logger.warn('agent.parseToolCall.unknown', { name });
   return null;
 }
 
 // ─── Streaming text extractor ─────────────────────────────────────────────────
-// Extracts the primary text field from a partially-built JSON argument string
-// so we can stream words to the client before the full tool call is done.
 function extractStreamingText(argsSoFar: string, toolName: string): string {
-  let fieldName: string;
-  if (toolName === 'ask_clarification') fieldName = 'question';
-  else if (toolName === 'chat') fieldName = 'content';
-  else if (toolName === 'celebrate_milestone') fieldName = 'headline';
-  else return '';
+  if (toolName === 'ask_clarification') return extractJsonField(argsSoFar, 'question');
+  if (toolName === 'chat')              return extractJsonField(argsSoFar, 'content');
+  if (toolName === 'celebrate_milestone') return extractJsonField(argsSoFar, 'headline');
+  return '';
+}
 
-  const key = `"${fieldName}":`;
-  const keyIdx = argsSoFar.indexOf(key);
-  if (keyIdx === -1) return '';
+// ─── KB content truncation at sentence boundary ───────────────────────────────
+function truncateAtSentence(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  const boundary = text.lastIndexOf('.', maxChars);
+  return boundary > maxChars * 0.6 ? text.slice(0, boundary + 1) : text.slice(0, maxChars);
+}
 
-  // Find opening quote of the value
-  let valueStart = argsSoFar.indexOf('"', keyIdx + key.length);
-  if (valueStart === -1) return '';
-  valueStart++; // skip the opening quote
+// ─── Conversation summarization ───────────────────────────────────────────────
+const SUMMARIZE_THRESHOLD = 12;
+const RECENT_WINDOW = 6;
+const SUMMARIZE_TIMEOUT_MS = 1_500;
 
-  // Read until unescaped closing quote (or end of buffer)
-  let text = '';
-  let i = valueStart;
-  while (i < argsSoFar.length) {
-    const c = argsSoFar[i];
-    if (c === '\\' && i + 1 < argsSoFar.length) {
-      const next = argsSoFar[i + 1];
-      if (next === '"') text += '"';
-      else if (next === 'n') text += '\n';
-      else if (next === 't') text += '\t';
-      else text += next;
-      i += 2;
-    } else if (c === '"') {
-      break;
-    } else {
-      text += c;
-      i++;
-    }
-  }
-  return text;
+async function summarizeHistory(
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+): Promise<string> {
+  const result = await Promise.race([
+    openai().chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 150,
+      temperature: 0,
+      messages: [
+        {
+          role: 'system',
+          content: 'Summarize this conversation in 2-3 sentences. Focus on what the user has already completed and any information collected.',
+        },
+        {
+          role: 'user',
+          content: messages.map((m) => `${m.role}: ${m.content}`).join('\n'),
+        },
+      ],
+    }),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), SUMMARIZE_TIMEOUT_MS)),
+  ]);
+  return result?.choices[0].message.content ?? '';
 }
 
 // ─── Shared agent setup (input processing before calling OpenAI) ───────────────
@@ -430,8 +462,14 @@ ${actionConfig!.fields   ? `- fields: ${JSON.stringify(actionConfig!.fields)} (r
       ]);
   if (!isInit && !isVerify) logger.latency('kb.search', kbTimer(), { orgId: org.id, hits: kbResults.length });
 
-  const kbSection = kbResults.length > 0
-    ? `\nKNOWLEDGE BASE:\n${kbResults.map((r) => `[${r.title}]\n${r.content.slice(0, 500)}`).join('\n\n')}\n`
+  const seenKbTitles = new Set<string>();
+  const uniqueKbResults = kbResults.filter((r) => {
+    if (seenKbTitles.has(r.title)) return false;
+    seenKbTitles.add(r.title);
+    return true;
+  });
+  const kbSection = uniqueKbResults.length > 0
+    ? `\nKNOWLEDGE BASE:\n${uniqueKbResults.map((r) => `[${r.title}]\n${truncateAtSentence(r.content, 500)}`).join('\n\n')}\n`
     : '';
 
   // ── MCP tools ────────────────────────────────────────────────────────────────
@@ -475,10 +513,23 @@ ${actionConfig!.fields   ? `- fields: ${JSON.stringify(actionConfig!.fields)} (r
     detectedLang,
   });
 
-  const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
-    ...conversationHistory.slice(-10),
-    { role: 'user', content: userMessage },
-  ];
+  // Fix #8: parallelize KB search and summarizeHistory — they're independent
+  let messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  if (conversationHistory.length > SUMMARIZE_THRESHOLD) {
+    const older = conversationHistory.slice(0, -RECENT_WINDOW);
+    const recent = conversationHistory.slice(-RECENT_WINDOW);
+    // summarizeHistory runs concurrently with KB/MCP (already awaited above)
+    const summary = await summarizeHistory(older);
+    const summaryPrefix: Array<{ role: 'user' | 'assistant'; content: string }> = summary
+      ? [
+          { role: 'user', content: `[Summary of earlier conversation: ${summary}]` },
+          { role: 'assistant', content: 'Understood.' },
+        ]
+      : [];
+    messages = [...summaryPrefix, ...recent, { role: 'user', content: userMessage }];
+  } else {
+    messages = [...conversationHistory.slice(-RECENT_WINDOW), { role: 'user', content: userMessage }];
+  }
 
   // ── Guardrails: filter tools by step.allowedActions ─────────────────────────
   const allowedActions = (step.allowedActions as string[] | undefined) ?? [];
@@ -522,7 +573,7 @@ async function handleMcpCall(
   systemPrompt: string,
   messages: Array<{ role: 'user' | 'assistant'; content: string }>,
   toolsForStep: OpenAI.Chat.ChatCompletionTool[],
-  model: string,
+  model: string, // Fix #2: use caller's model, not hardcoded gpt-4o
 ): Promise<AgentAction> {
   const resolved = resolveMcpCall(call.function.name, mcpBundles);
   if (!resolved) {
@@ -542,7 +593,7 @@ async function handleMcpCall(
 
   const followUp = await withRetry(
     () => openai().chat.completions.create({
-      model: 'gpt-4o',
+      model, // Fix #2: honour caller's model selection
       max_tokens: 1500,
       temperature: 0,
       // Remove MCP tools from follow-up to avoid infinite loops
@@ -617,15 +668,23 @@ export async function runAgent(opts: {
       try { await assertPublicUrl(input.url as string); }
       catch (err) { return { type: 'chat', content: `Cannot reach that URL: ${(err as Error).message}` }; }
 
+      // Fix #6: sanitize string values in collectedData before interpolation
+      const sanitizedData = Object.fromEntries(
+        Object.entries(collectedData).map(([k, v]) => [k, typeof v === 'string' ? v.slice(0, 500) : v])
+      );
       const rawBody      = input.body as Record<string, unknown> | undefined;
-      const resolvedBody = rawBody ? interpolate(rawBody, collectedData) as Record<string, unknown> : undefined;
+      const resolvedBody = rawBody ? interpolate(rawBody, sanitizedData) as Record<string, unknown> : undefined;
 
-      const apiResult = await executeApiCall({
-        url:     input.url as string,
-        method:  (input.method as string ?? 'GET') as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-        headers: input.headers as Record<string, string> | undefined,
-        body:    resolvedBody,
-      });
+      const CALL_API_TIMEOUT_MS = 10_000;
+      const apiResult = await Promise.race([
+        executeApiCall({
+          url:     input.url as string,
+          method:  (input.method as string ?? 'GET') as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+          headers: input.headers as Record<string, string> | undefined,
+          body:    resolvedBody,
+        }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out after 10s')), CALL_API_TIMEOUT_MS)),
+      ]).catch((err: unknown) => ({ ok: false, status: 0, data: null, error: err instanceof Error ? err.message : 'Request timed out' }));
 
       const followUpMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
         ...messages,
@@ -644,7 +703,7 @@ export async function runAgent(opts: {
 
       const followUp = await withRetry(
         () => openai().chat.completions.create({
-          model: 'gpt-4o',
+          model, // Fix #2: use caller's model, not hardcoded gpt-4o
           max_tokens: 1500,
           temperature: 0,
           tools: toolsForStep.filter((t) => t.function.name !== 'call_api'),
@@ -774,6 +833,12 @@ export async function* runAgentStream(
     return;
   }
 
+  // Fix #4: yield 'Working…' token before follow-up network round-trips so the
+  // widget shows activity instead of going silent during call_api / mcp__ calls.
+  if (name.startsWith('mcp__') || name === 'call_api') {
+    yield { type: 'word', word: 'Working… ' };
+  }
+
   // MCP and call_api follow-up turns — resolve synchronously now
   if (name.startsWith('mcp__')) {
     const action = await handleMcpCall(
@@ -788,15 +853,23 @@ export async function* runAgentStream(
     try { await assertPublicUrl(input.url as string); }
     catch (err) { yield { type: 'action', action: { type: 'chat', content: `Cannot reach that URL: ${(err as Error).message}` } }; return; }
 
+    // Fix #6: sanitize string values in collectedData before interpolation
+    const sanitizedData = Object.fromEntries(
+      Object.entries(collectedData).map(([k, v]) => [k, typeof v === 'string' ? v.slice(0, 500) : v])
+    );
     const rawBody      = input.body as Record<string, unknown> | undefined;
-    const resolvedBody = rawBody ? interpolate(rawBody, collectedData) as Record<string, unknown> : undefined;
+    const resolvedBody = rawBody ? interpolate(rawBody, sanitizedData) as Record<string, unknown> : undefined;
 
-    const apiResult = await executeApiCall({
-      url:     input.url as string,
-      method:  (input.method as string ?? 'GET') as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-      headers: input.headers as Record<string, string> | undefined,
-      body:    resolvedBody,
-    });
+    const CALL_API_TIMEOUT_MS = 10_000;
+    const apiResult = await Promise.race([
+      executeApiCall({
+        url:     input.url as string,
+        method:  (input.method as string ?? 'GET') as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+        headers: input.headers as Record<string, string> | undefined,
+        body:    resolvedBody,
+      }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out after 10s')), CALL_API_TIMEOUT_MS)),
+    ]).catch((err: unknown) => ({ ok: false, status: 0, data: null, error: err instanceof Error ? err.message : 'Request timed out' }));
 
     const oaiCall = call as OpenAI.Chat.ChatCompletionMessageToolCall;
     const followUpMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -811,7 +884,7 @@ export async function* runAgentStream(
 
     const followUp = await withRetry(
       () => openai().chat.completions.create({
-        model: 'gpt-4o',
+        model, // Fix #2: use caller's model, not hardcoded gpt-4o
         max_tokens: 1500,
         temperature: 0,
         tools: toolsForStep.filter((t) => t.function.name !== 'call_api'),
@@ -886,8 +959,8 @@ ${pageHint}`.trim();
 
   const response = await withRetry(
     () => openai().chat.completions.create({
-      model: 'gpt-4o-mini',
-      max_tokens: 512,
+      model: 'gpt-4o',
+      max_tokens: 1024,
       temperature: 0,
       tools: [planTool],
       tool_choice: { type: 'function', function: { name: 'create_plan' } },
@@ -952,7 +1025,7 @@ function buildAlternativeSelectorBlock(
       ].join(' ').toLowerCase();
 
       const score = searchTerms.filter((term) => haystack.includes(term)).length;
-      if (score >= 1) {
+      if (score >= 2) {
         alternatives.push(`  • "${el.selector}" (label: "${el.text}")`);
         if (alternatives.length >= 3) break;
       }
@@ -1006,16 +1079,17 @@ function buildDegradationInstruction(
 ): string {
   const pageName = pageContext.title || 'current page';
   const failedList = Array.from(failedSelectors).slice(0, 2).join(', ');
-  const hint = failedList
-    ? ` The automated action on ${failedList} could not complete.`
+  const hint = failedList ? ` The automated action on ${failedList} could not complete.` : '';
+  const pageHint = pageContext.semanticSummary
+    ? ` Page context: ${pageContext.semanticSummary.slice(0, 120)}.`
     : '';
-  return `On the "${pageName}" page, manually complete: ${goal}.${hint} Look for the relevant input field or button and perform the action directly.`;
+  return `On the "${pageName}" page, manually complete: ${goal}.${hint}${pageHint} Look for the relevant input field or button and perform the action directly.`;
 }
 
 // ─── Goal mode ────────────────────────────────────────────────────────────────
 
 export interface GoalTurn {
-  role: 'user' | 'assistant' | 'observe';
+  role: 'user' | 'assistant' | 'observe' | 'degrade';
   content: string;
 }
 
@@ -1025,8 +1099,44 @@ export async function runAgentGoal(opts: {
   pageContext: PageContext;
   turnHistory: GoalTurn[];
   sessionId: string;
+  userMetadata?: Record<string, unknown>;
+  userHistoryFormatted?: string;
+  detectedLang?: string; // Fix #9
 }): Promise<AgentAction> {
-  const { org, goal, pageContext, turnHistory } = opts;
+  const { org, goal, pageContext, turnHistory, userMetadata, userHistoryFormatted, detectedLang } = opts;
+
+  const isFirstGoalTurn = turnHistory.length === 0;
+  const lastUserTurn = [...turnHistory].reverse().find((t) => t.role === 'user');
+  const INTERROGATIVE_RE = /\b(how|what|why|where|when|which|who|can|could|does|do|is|are|will|would|should)\b/i;
+  const lastUserIsQuestion = lastUserTurn
+    ? lastUserTurn.content.includes('?') || INTERROGATIVE_RE.test(lastUserTurn.content)
+    : false;
+  const shouldSearchKb = isFirstGoalTurn || lastUserIsQuestion;
+  const kbQuery = lastUserIsQuestion && lastUserTurn ? lastUserTurn.content : goal;
+
+  const kbResults = shouldSearchKb
+    ? await Promise.race([
+        searchKnowledgeBase(org.id, kbQuery).catch(() => []),
+        new Promise<Awaited<ReturnType<typeof searchKnowledgeBase>>>((resolve) =>
+          setTimeout(() => resolve([]), 800)
+        ),
+      ])
+    : [];
+  const mcpBundles: ConnectorToolBundle[] = await loadMcpTools(org.id).catch(() => []);
+  const mcpOAITools = toOpenAITools(mcpBundles);
+  const mcpSection = mcpBundles.length > 0
+    ? `\nMCP TOOLS AVAILABLE: You have ${mcpOAITools.length} external tool(s) from ${mcpBundles.length} connector(s). Use them when they help complete this goal.\n`
+    : '';
+
+  const seenGoalKbTitles = new Set<string>();
+  const uniqueGoalKbResults = kbResults.filter((r) => {
+    if (seenGoalKbTitles.has(r.title)) return false;
+    seenGoalKbTitles.add(r.title);
+    return true;
+  });
+  const kbSection = uniqueGoalKbResults.length > 0
+    ? `\nKNOWLEDGE BASE:\n${uniqueGoalKbResults.map((r) => `[${r.title}]\n${truncateAtSentence(r.content, 500)}`).join('\n\n')}\n`
+    : '';
 
   const goalCompleteTool: OpenAI.Chat.ChatCompletionTool = {
     type: 'function',
@@ -1048,13 +1158,27 @@ export async function runAgentGoal(opts: {
     ? pageContext.semanticSummary
       ? `\nPAGE SEMANTIC SUMMARY:\n${pageContext.semanticSummary}\n\nLIVE PAGE ELEMENTS (verified selectors — only use these):\nPage: ${sanitizeDomText(pageContext.title)} (${pageContext.url})\n${pageContext.headings.length ? `Headings: ${pageContext.headings.map(sanitizeDomText).join(' | ')}` : ''}\nInteractive elements:\n${pageContext.elements.slice(0,30).map((e) => `  [${e.tag}${e.type ? `[${e.type}]` : ''}] selector="${sanitizeDomText(e.selector)}" label="${sanitizeDomText(e.text)}"${e.value ? ` value="${sanitizeDomText(e.value)}"` : ''}`).join('\n')}\n`
       : pageContext.elements.length > 0
-        ? `\nLIVE PAGE ELEMENTS (verified selectors — only use these):\nPage: ${sanitizeDomText(pageContext.title)} (${pageContext.url})\n${pageContext.headings.length ? `Headings: ${pageContext.headings.map(sanitizeDomText).join(' | ')}` : ''}\nInteractive elements:\n${pageContext.elements.map((e) => `  [${e.tag}${e.type ? `[${e.type}]` : ''}] selector="${sanitizeDomText(e.selector)}" label="${sanitizeDomText(e.text)}"${e.value ? ` value="${sanitizeDomText(e.value)}"` : ''}`).join('\n')}\n`
+        ? `\nLIVE PAGE ELEMENTS (verified selectors — only use these):\nPage: ${sanitizeDomText(pageContext.title)} (${pageContext.url})\n${pageContext.headings.length ? `Headings: ${pageContext.headings.map(sanitizeDomText).join(' | ')}` : ''}\nInteractive elements:\n${pageContext.elements.slice(0, 30).map((e) => `  [${e.tag}${e.type ? `[${e.type}]` : ''}] selector="${sanitizeDomText(e.selector)}" label="${sanitizeDomText(e.text)}"${e.value ? ` value="${sanitizeDomText(e.value)}"` : ''}`).join('\n')}\n`
         : ''
     : '';
 
-  const historyText = turnHistory.length === 0
-    ? 'None yet.'
-    : turnHistory.map((t, i) => `Turn ${i + 1} [${t.role}]: ${t.content}`).join('\n');
+  const GOAL_SUMMARIZE_THRESHOLD = 10;
+  const GOAL_RECENT_WINDOW = 4;
+  let historyText: string;
+  if (turnHistory.length === 0) {
+    historyText = 'None yet.';
+  } else if (turnHistory.length > GOAL_SUMMARIZE_THRESHOLD) {
+    const olderGoalTurns = turnHistory.slice(0, -GOAL_RECENT_WINDOW).map((t) => `${t.role}: ${t.content}`).join('\n');
+    const recentGoalTurns = turnHistory.slice(-GOAL_RECENT_WINDOW).map((t, i) => `Turn ${turnHistory.length - GOAL_RECENT_WINDOW + i + 1} [${t.role}]: ${t.content}`).join('\n');
+    const goalSummary = await summarizeHistory(
+      turnHistory.slice(0, -GOAL_RECENT_WINDOW).map((t) => ({ role: t.role === 'user' ? 'user' : 'assistant' as const, content: t.content }))
+    );
+    historyText = goalSummary
+      ? `[Earlier turns summary: ${goalSummary}]\n${recentGoalTurns}`
+      : `${olderGoalTurns}\n${recentGoalTurns}`;
+  } else {
+    historyText = turnHistory.map((t, i) => `Turn ${i + 1} [${t.role}]: ${t.content}`).join('\n');
+  }
 
   const observeCount = turnHistory.filter((t) => t.role === 'observe').length;
 
@@ -1087,8 +1211,20 @@ Recovery strategy (in order):
 Never repeat a selector that appears in a failed observe turn.
 ${observeCount >= 3 ? '\nYou have reached 3 failures. You MUST call degrade_to_manual now — not escalate_to_human.' : ''}` : '';
 
-  const systemPrompt = `You are Prism, an AI agent inside "${org.name}".
+  const userProfile = userMetadata && Object.keys(userMetadata).length > 0
+    ? `USER PROFILE: ${JSON.stringify(userMetadata)} — match your language and depth to this user's context.\n`
+    : '';
+  const priorHistorySection = userHistoryFormatted ? `\n${userHistoryFormatted}\n` : '';
 
+  // Fix #9: inject language instruction into goal mode system prompt
+  const goalLangInstruction = detectedLang === 'hi'
+    ? '\nLANGUAGE: Always respond in Hindi (Devanagari script). Keep technical terms in English.'
+    : detectedLang === 'hinglish'
+    ? '\nLANGUAGE: Respond in Hinglish \u2014 natural Hindi+English mix in Roman script. Example: "Yahan click karein, phir apna naam enter karein."'
+    : '';
+
+  const systemPrompt = `You are Prism, an AI agent inside "${org.name}".
+${userProfile}${priorHistorySection}
 GOAL: ${goal}
 
 TURN HISTORY (what you have done so far):
@@ -1096,21 +1232,21 @@ ${historyText}
 
 CURRENT PAGE:
 ${domSummary}
-
+${kbSection}${mcpSection}
 You must look at the current page and decide the single best next action to make progress toward the goal.
 
 RULES:
 - Call goal_complete ONLY when the goal is provably achieved based on what you can see on the page
-- Call ask_clarification ONLY when you genuinely cannot proceed without user input — one question max
+- Call ask_clarification ONLY when you genuinely cannot proceed without user input \u2014 one question max
 - Call escalate_to_human ONLY after degrade_to_manual has already been tried and the user chose to escalate
 - Only use selectors that appear verbatim in LIVE PAGE ELEMENTS
 - Keep all user-facing text under 25 words
-- Never repeat an action that already failed — try a different approach
-- Do not call complete_step or celebrate_milestone in goal mode — use goal_complete instead
-- NEVER fill or read fields of type password, or whose name/label contains: password, ssn, social security, credit card, card number, cvv, cvc, or pin — skip them entirely
+- Never repeat an action that already failed \u2014 try a different approach
+- Do not call complete_step or celebrate_milestone in goal mode \u2014 use goal_complete instead
+- NEVER fill or read fields of type password, or whose name/label contains: password, ssn, social security, credit card, card number, cvv, cvc, or pin \u2014 skip them entirely
 - If stuck after 2+ attempts, call degrade_to_manual BEFORE escalate_to_human
 
-${org.customInstructions ?? ''}${failureContextBlock}`.trim();
+${org.customInstructions ?? ''}${failureContextBlock}${goalLangInstruction}`.trim();
 
   const degradeToManualTool: OpenAI.Chat.ChatCompletionTool = {
     type: 'function',
@@ -1135,8 +1271,8 @@ ${org.customInstructions ?? ''}${failureContextBlock}`.trim();
     },
   };
 
-  // Filter out call_api (too risky in autonomous mode)
-  const tools = [...AGENT_TOOLS, goalCompleteTool, degradeToManualTool].filter((t) => t.function.name !== 'call_api');
+  // Filter out call_api (too risky in autonomous mode); append MCP tools
+  const tools = [...AGENT_TOOLS, goalCompleteTool, degradeToManualTool, ...mcpOAITools].filter((t) => t.function.name !== 'call_api');
 
   const GOAL_TURN_TIMEOUT_MS = 8_000;
 
@@ -1144,8 +1280,7 @@ ${org.customInstructions ?? ''}${failureContextBlock}`.trim();
   // First turn or turns with KB context need gpt-4o (complex reasoning).
   // Subsequent retry/action turns (already have history, no KB) use gpt-4o-mini
   // to hit the <1.5s first-token target — saves ~40% latency on majority of turns.
-  const isFirstGoalTurn = turnHistory.length === 0;
-  const hasKbInContext = false; // goal mode doesn't use KB currently
+  const hasKbInContext = kbResults.length > 0;
   const needsBigModel = isFirstGoalTurn || hasKbInContext || wrongPageBlock.length > 0;
   const goalModel = needsBigModel ? 'gpt-4o' : 'gpt-4o-mini';
 
@@ -1205,15 +1340,28 @@ ${org.customInstructions ?? ''}${failureContextBlock}`.trim();
       return { type: 'chat', content: 'Let me help you with that.' };
     }
 
+    // ── MCP tool call in goal mode ─────────────────────────────────────────
+    if (call.function.name.startsWith('mcp__')) {
+      return handleMcpCall(
+        call as OpenAI.Chat.ChatCompletionMessageToolCall,
+        mcpBundles,
+        systemPrompt,
+        [],
+        tools,
+        goalModel,
+      );
+    }
+
     // ── Phase 4: Escalation guard ───────────────────────────────────────────
     // If the agent calls escalate_to_human before degrade_to_manual has fired,
     // intercept and redirect to degrade_to_manual. Enforces recovery ladder:
     // retry → degrade → escalate.
-    if (call.function.name === 'escalate_to_human' && observeCount > 0) {
+    // Fix #1: require >= 2 failed observe turns before intercepting (1 failure
+    // may be a transient DOM miss; let the agent retry once before degrading).
+    if (call.function.name === 'escalate_to_human' && observeCount >= 2) {
       const degradeAlreadyShown = turnHistory.some(
-        (t) => t.role === 'assistant' && (
-          t.content.toLowerCase().includes('manual step') ||
-          t.content.toLowerCase().includes('manually')
+        (t) => t.role === 'degrade' || (
+          t.role === 'assistant' && t.content.toLowerCase().includes('manually')
         )
       );
       if (!degradeAlreadyShown) {

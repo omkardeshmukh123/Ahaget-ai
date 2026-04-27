@@ -57,7 +57,8 @@ router.get('/status', authenticateJWT, async (req: AuthenticatedRequest, res: Re
       limit: p.monthlyMessageLimit,
       agentLimit: p.agentLimit,
       mtuLimit: p.mtuLimit,
-      features: p.features,
+      features: p.gates,       // Plan.gates is the PlanFeatures object (was: p.features — TS2339)
+      featureList: p.featureList,
       current: key === org.planType,
     })),
   });
