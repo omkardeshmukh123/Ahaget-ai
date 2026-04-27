@@ -52,7 +52,7 @@ services:
     name: prism-dashboard
     runtime: node
     plan: free
-    buildCommand: npm install --legacy-peer-deps && npm run build --workspace=apps/dashboard && cp -r apps/dashboard/.next/static apps/dashboard/.next/standalone/.next/static && (cp -r apps/dashboard/public apps/dashboard/.next/standalone/public || true)
+    buildCommand: npm install --include=dev --legacy-peer-deps && npm run build --workspace=apps/dashboard && cp -r apps/dashboard/.next/static apps/dashboard/.next/standalone/.next/static && (cp -r apps/dashboard/public apps/dashboard/.next/standalone/public || true)
     startCommand: node apps/dashboard/.next/standalone/server.js
     healthCheckPath: /
     envVars:
