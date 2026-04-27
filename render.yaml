@@ -50,11 +50,17 @@ services:
   # ─── Dashboard ────────────────────────────────────────────────────────────────
   - type: web
     name: prism-dashboard
-    runtime: static
+    runtime: node
+    plan: free
     rootDir: apps/dashboard
     buildCommand: npm install && npm run build
-    staticPublishPath: out
+    startCommand: node .next/standalone/server.js
+    healthCheckPath: /
     envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
       - key: NEXT_PUBLIC_API_URL
         sync: false
 
