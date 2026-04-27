@@ -52,9 +52,8 @@ services:
     name: prism-dashboard
     runtime: node
     plan: free
-    rootDir: apps/dashboard
-    buildCommand: cd ../../ && npm install --legacy-peer-deps && cd apps/dashboard && npm run build && cp -r .next/static .next/standalone/.next/static && (cp -r public .next/standalone/public || true)
-    startCommand: node .next/standalone/server.js
+    buildCommand: npm install --legacy-peer-deps && npm run build --workspace=apps/dashboard && cp -r apps/dashboard/.next/static apps/dashboard/.next/standalone/.next/static && (cp -r apps/dashboard/public apps/dashboard/.next/standalone/public || true)
+    startCommand: node apps/dashboard/.next/standalone/server.js
     healthCheckPath: /
     envVars:
       - key: NODE_ENV
