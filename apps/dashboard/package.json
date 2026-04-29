@@ -1,5 +1,5 @@
-{
-  "name": "@onboardai/dashboard",
+﻿{
+  "name": "@tesseract-ai/dashboard",
   "version": "1.0.0",
   "private": true,
   "scripts": {

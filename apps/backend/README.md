@@ -1,4 +1,4 @@
-# OnboardAI — Backend
+﻿# Tesseract AI — Backend
 
 Express.js REST API + WebSocket server. Powers the embeddable widget and the admin dashboard.
 
@@ -13,7 +13,7 @@ src/
 ├── index.ts                      ← App entry: middleware, route registration, cron, WebSocket
 │
 ├── lib/
-│   ├── prisma.ts                 ← Singleton Prisma client
+│   ├── tesseracta.ts                 ← Singleton Tesseracta client
 │   ├── jwt.ts                    ← signToken() / verifyToken()
 │   ├── templates.ts              ← 4 built-in vertical flow templates with benchmarks
 │   ├── websocket.ts              ← WS server: auth + streaming + dashboard live view

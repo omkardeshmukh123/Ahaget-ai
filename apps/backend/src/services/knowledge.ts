@@ -1,4 +1,4 @@
-// ─── Knowledge Base Service — hybrid BM25 + vector search with RRF ───────────
+﻿// ─── Knowledge Base Service — hybrid BM25 + vector search with RRF ───────────
 
 import OpenAI from 'openai';
 import { prisma } from '../lib/prisma';

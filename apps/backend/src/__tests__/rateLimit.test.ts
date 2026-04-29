@@ -1,4 +1,4 @@
-// Tests the enforceMessageLimit middleware in isolation —
+﻿// Tests the enforceMessageLimit middleware in isolation —
 // no Claude API calls needed, we mock the AI service.
 
 import request from 'supertest';

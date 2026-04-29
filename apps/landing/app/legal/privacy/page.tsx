@@ -1,10 +1,10 @@
-import type { Metadata } from 'next';
+﻿import type { Metadata } from 'next';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — OnboardAI',
-  description: 'How OnboardAI collects, uses, and protects your data.',
+  title: 'Privacy Policy — Tesseract AI',
+  description: 'How Tesseract AI collects, uses, and protects your data.',
 };
 
 const EFFECTIVE_DATE = 'April 9, 2026';
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-xl font-semibold text-white mb-3">1. Who we are</h2>
               <p>
-                OnboardAI (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) provides an AI-powered onboarding intelligence platform for SaaS products.
+                Tesseract AI (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) provides an AI-powered onboarding intelligence platform for SaaS products.
                 Our service includes a JavaScript widget, a REST API, and a web dashboard (collectively, the &quot;Service&quot;).
               </p>
             </section>
@@ -39,7 +39,7 @@ export default function PrivacyPage() {
               </ul>
               <h3 className="text-base font-semibold text-zinc-300 mb-2 mt-4">2b. Data collected via the widget</h3>
               <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>The <code className="text-indigo-400 text-xs bg-indigo-500/10 px-1 rounded font-mono">userId</code> you pass to <code className="text-indigo-400 text-xs bg-indigo-500/10 px-1 rounded font-mono">OnboardAI('init', ...)</code></li>
+                <li>The <code className="text-indigo-400 text-xs bg-indigo-500/10 px-1 rounded font-mono">userId</code> you pass to <code className="text-indigo-400 text-xs bg-indigo-500/10 px-1 rounded font-mono">Tesseract AI('init', ...)</code></li>
                 <li>The <code className="text-indigo-400 text-xs bg-indigo-500/10 px-1 rounded font-mono">metadata</code> object you pass (plan, role, etc.) — you control what goes here</li>
                 <li>Conversation messages between your users and the AI copilot</li>
                 <li>Session events: which steps were completed, timestamps, time spent</li>
@@ -119,12 +119,12 @@ export default function PrivacyPage() {
               <h2 className="text-xl font-semibold text-white mb-3">7. Your rights</h2>
               <p className="text-sm mb-3">
                 Depending on your jurisdiction you may have rights to access, correct, export, or delete your personal data.
-                To exercise any of these rights, email us at <a href="mailto:privacy@onboardai.com" className="text-indigo-400 hover:underline">privacy@onboardai.com</a>.
+                To exercise any of these rights, email us at <a href="mailto:privacy@tesseract-ai.com" className="text-indigo-400 hover:underline">privacy@tesseract-ai.com</a>.
                 We will respond within 30 days.
               </p>
               <p className="text-sm">
                 If you are operating under GDPR, you are the data controller for your end users&apos; data.
-                OnboardAI acts as a data processor. Contact us for a Data Processing Agreement (DPA).
+                Tesseract AI acts as a data processor. Contact us for a Data Processing Agreement (DPA).
               </p>
             </section>
 
@@ -146,7 +146,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-xl font-semibold text-white mb-3">10. Contact</h2>
               <p className="text-sm">
-                Questions? Email <a href="mailto:privacy@onboardai.com" className="text-indigo-400 hover:underline">privacy@onboardai.com</a>.
+                Questions? Email <a href="mailto:privacy@tesseract-ai.com" className="text-indigo-400 hover:underline">privacy@tesseract-ai.com</a>.
               </p>
             </section>
 

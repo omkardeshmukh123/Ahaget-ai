@@ -1,4 +1,4 @@
-// Security-focused tests: input sanitisation, auth edge cases, header checks
+﻿// Security-focused tests: input sanitisation, auth edge cases, header checks
 
 import request from 'supertest';
 import { createApp } from './testApp';
@@ -89,7 +89,7 @@ describe('Input validation', () => {
     expect(res.status).toBe(400);
   });
 
-  it('rejects SQL-injection-style strings gracefully (Prisma parameterises)', async () => {
+  it('rejects SQL-injection-style strings gracefully (Tesseracta parameterises)', async () => {
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: "' OR 1=1; --", password: 'anything' });

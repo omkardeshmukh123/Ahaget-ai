@@ -1,4 +1,4 @@
-import { runAgentGoal, GoalTurn } from '../../src/services/agent';
+﻿import { runAgentGoal, GoalTurn } from '../../src/services/agent';
 import { Organization } from '@prisma/client';
 
 export interface EvalScenario {

@@ -1,4 +1,4 @@
-// ─── UI components for the Prism side-panel widget ───────────────────────────
+﻿// ─── UI components for the Tesseract side-panel widget ───────────────────────────
 
 export interface StepsResponse {
   type: 'steps';
@@ -29,7 +29,7 @@ export function createSidePanel(root: HTMLElement): HTMLDivElement {
   win.id = 'oai-window';
   win.className = 'oai-hidden';
   win.setAttribute('role', 'complementary');
-  win.setAttribute('aria-label', 'Prism onboarding guide');
+  win.setAttribute('aria-label', 'Tesseract onboarding guide');
   win.innerHTML = `
     <!-- Collapse/expand tab on the left edge -->
     <button id="oai-toggle" aria-label="Collapse panel">
@@ -42,7 +42,7 @@ export function createSidePanel(root: HTMLElement): HTMLDivElement {
       <div id="oai-header-top">
         <div id="oai-avatar">✦</div>
         <div id="oai-header-text">
-          <p id="oai-header-title">Prism</p>
+          <p id="oai-header-title">Tesseract</p>
           <p id="oai-header-sub">Your onboarding guide · AI</p>
         </div>
       </div>
@@ -63,7 +63,7 @@ export function createSidePanel(root: HTMLElement): HTMLDivElement {
       </button>
     </div>
 
-    <div id="oai-footer">Powered by <a href="https://useprism.ai" target="_blank" rel="noopener">Prism</a></div>
+    <div id="oai-footer">Powered by <a href="https://usetesseract.ai" target="_blank" rel="noopener">Tesseract</a></div>
   `;
   root.appendChild(win);
   return win;

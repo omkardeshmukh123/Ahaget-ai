@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
@@ -68,7 +68,7 @@ export default function Sidebar() {
             </svg>
           </div>
           <div>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--on-surface)', letterSpacing: '-0.02em' }}>Prism</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--on-surface)', letterSpacing: '-0.02em' }}>Tesseract</span>
             {org && <p style={{ fontSize: 10, color: 'var(--muted)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130 }}>{org.name}</p>}
           </div>
         </div>

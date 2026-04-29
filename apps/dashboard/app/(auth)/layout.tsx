@@ -1,4 +1,4 @@
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+﻿export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex">
       {/* Left — form panel */}
@@ -13,7 +13,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
                   <path d="M9 5L13 7.5V12.5L9 15L5 12.5V7.5L9 5Z" fill="white" fillOpacity="0.3"/>
                 </svg>
               </div>
-              <span className="text-xl font-bold text-slate-900 tracking-tight">Prism</span>
+              <span className="text-xl font-bold text-slate-900 tracking-tight">Tesseract</span>
             </div>
             <p className="text-sm text-slate-500">AI-guided onboarding that converts</p>
           </div>
@@ -41,7 +41,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
                 P
               </div>
               <div className="flex-1">
-                <p className="text-white text-sm font-medium mb-1">Prism Assistant</p>
+                <p className="text-white text-sm font-medium mb-1">Tesseract Assistant</p>
                 <div className="bg-white/10 rounded-xl rounded-tl-none px-3.5 py-2.5">
                   <p className="text-white/90 text-sm leading-relaxed">
                     👋 Hi! It looks like you haven't connected your data source yet. Want me to walk you through it? It only takes 2 minutes.
@@ -63,7 +63,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             Guide users to their<br/>first "aha" moment
           </h2>
           <p className="text-white/70 text-sm leading-relaxed">
-            Prism's AI assistant appears inside your app and proactively helps users complete onboarding — no code changes needed.
+            Tesseract's AI assistant appears inside your app and proactively helps users complete onboarding — no code changes needed.
           </p>
 
           {/* Stats */}

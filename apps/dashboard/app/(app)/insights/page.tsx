@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import { api, Insight } from '@/lib/api';
 
@@ -173,7 +173,7 @@ function EmptyState() {
       <p className="text-4xl mb-4">✨</p>
       <h2 className="text-base font-semibold text-slate-800 mb-2">No insights yet</h2>
       <p className="text-sm text-slate-500 max-w-sm mx-auto">
-        Once users interact with your AI assistant, Prism will automatically surface patterns, blockers, and gaps here.
+        Once users interact with your AI assistant, Tesseract will automatically surface patterns, blockers, and gaps here.
       </p>
     </div>
   );

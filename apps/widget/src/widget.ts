@@ -1,6 +1,6 @@
-// ─── Prism Widget — side-panel orchestrator ───────────────────────────────────
-// Prism occupies the right 360px of the screen as a persistent sidebar.
-// The host page body shifts left automatically via the `.__prism-open` class.
+﻿// ─── Tesseract Widget — side-panel orchestrator ───────────────────────────────────
+// Tesseract occupies the right 360px of the screen as a persistent sidebar.
+// The host page body shifts left automatically via the `.__tesseract-open` class.
 // There is no floating bubble — the panel slides in from the right when an
 // active onboarding session exists, and can be collapsed to a thin tab.
 
@@ -18,7 +18,7 @@ import {
   renderPlanChecklist, updatePlanPhase, PlanPhase,
 } from './ui';
 
-export class OnboardAIWidget {
+export class Tesseract AIWidget {
   private config: Required<Omit<WidgetConfig, 'userId' | 'metadata'>> & Pick<WidgetConfig, 'userId' | 'metadata'>;
   private isVisible = false;
   private isCollapsed = false;
@@ -101,7 +101,7 @@ export class OnboardAIWidget {
     if (!this.copilot.shouldTriggerOnCurrentPage()) return;
 
     if (trigger.maxTriggersPerUser > 0) {
-      const countKey = `_prism_tc_${this.config.apiKey.slice(0, 8)}_${userId}`;
+      const countKey = `_tesseract_tc_${this.config.apiKey.slice(0, 8)}_${userId}`;
       const shown = parseInt(localStorage.getItem(countKey) ?? '0', 10);
       if (shown >= trigger.maxTriggersPerUser) return;
       localStorage.setItem(countKey, String(shown + 1));
@@ -166,8 +166,8 @@ export class OnboardAIWidget {
     this.isCollapsed = false;
     this.panelEl.classList.remove('oai-hidden', 'oai-collapsed');
     if (!this.isMobile) {
-      document.body.classList.add('__prism-open');
-      document.body.classList.remove('__prism-collapsed');
+      document.body.classList.add('__tesseract-open');
+      document.body.classList.remove('__tesseract-collapsed');
     }
     this.startSession();
   }
@@ -176,8 +176,8 @@ export class OnboardAIWidget {
     this.isCollapsed = true;
     this.panelEl.classList.add('oai-collapsed');
     if (!this.isMobile) {
-      document.body.classList.remove('__prism-open');
-      document.body.classList.add('__prism-collapsed');
+      document.body.classList.remove('__tesseract-open');
+      document.body.classList.add('__tesseract-collapsed');
     }
   }
 
@@ -185,15 +185,15 @@ export class OnboardAIWidget {
     this.isCollapsed = false;
     this.panelEl.classList.remove('oai-collapsed');
     if (!this.isMobile) {
-      document.body.classList.add('__prism-open');
-      document.body.classList.remove('__prism-collapsed');
+      document.body.classList.add('__tesseract-open');
+      document.body.classList.remove('__tesseract-collapsed');
     }
   }
 
   private hidePanel() {
     this.isVisible = false;
     this.panelEl.classList.add('oai-hidden');
-    document.body.classList.remove('__prism-open', '__prism-collapsed');
+    document.body.classList.remove('__tesseract-open', '__tesseract-collapsed');
   }
 
   // ─── Session start message flow ──────────────────────────────────────────

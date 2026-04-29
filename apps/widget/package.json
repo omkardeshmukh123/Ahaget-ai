@@ -1,5 +1,5 @@
-{
-  "name": "@onboardai/widget",
+﻿{
+  "name": "@tesseract-ai/widget",
   "version": "1.0.0",
   "scripts": {
     "dev": "vite --config vite.dev.config.ts",

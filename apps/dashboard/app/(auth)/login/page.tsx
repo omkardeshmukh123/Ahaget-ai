@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -78,7 +78,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold text-slate-900 mb-1">Sign in to Prism</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-1">Sign in to Tesseract</h1>
       <p className="text-slate-500 text-sm mb-8">
         New here?{' '}
         <Link href="/register" className="text-indigo-600 hover:text-indigo-700 font-medium">

@@ -262,7 +262,7 @@ export class CopilotManager {
     onText?: (word: string) => void,
   ): Promise<{ action: AgentAction; messageId: string | null } | null> {
     if (!this.session) return null;
-    const pageContext = scanPage();
+    const pageContext = { ...scanPage(), semanticSummary: buildSemanticSummary() };
 
     // ── Try SSE streaming first ───────────────────────────────────────────────
     try {

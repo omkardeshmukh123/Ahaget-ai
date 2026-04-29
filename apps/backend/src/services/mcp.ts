@@ -1,4 +1,4 @@
-// ─── MCP (Model Context Protocol) client ─────────────────────────────────────
+﻿// ─── MCP (Model Context Protocol) client ─────────────────────────────────────
 // Fetches tool lists from configured MCP servers and proxies tool calls back.
 // Tool lists are cached per connector for 5 minutes — avoids a network round-
 // trip on every agent call while staying reasonably fresh.
@@ -42,7 +42,11 @@ export interface ConnectorToolBundle {
 
 // ─── In-memory cache ──────────────────────────────────────────────────────────
 const toolListCache = new Map<string, { tools: McpTool[]; fetchedAt: number }>();
-const CACHE_TTL_MS  = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS  = 5 * 60 * 1000; // 5 minutes per-connector tool list
+
+// Connector list cache — avoids a DB hit on every agent turn (60s TTL)
+const connectorListCache = new Map<string, { connectors: ConnectorRow[]; fetchedAt: number }>();
+const CONNECTOR_CACHE_TTL_MS = 60_000;
 
 // ─── Auth headers ─────────────────────────────────────────────────────────────
 function authHeaders(authType: string, authValue: string | null): Record<string, string> {
@@ -130,10 +134,13 @@ async function fetchConnectorTools(c: ConnectorRow): Promise<McpTool[]> {
 
 // ─── Load all MCP tools for an org ───────────────────────────────────────────
 export async function loadMcpTools(orgId: string): Promise<ConnectorToolBundle[]> {
-  const connectors = await prisma.mcpConnector.findMany({
-    where: { organizationId: orgId, enabled: true },
-    select: { id: true, name: true, serverUrl: true, authType: true, authValue: true },
-  });
+  const cached = connectorListCache.get(orgId);
+  const connectors: ConnectorRow[] = cached && Date.now() - cached.fetchedAt < CONNECTOR_CACHE_TTL_MS
+    ? cached.connectors
+    : await prisma.mcpConnector.findMany({
+        where: { organizationId: orgId, enabled: true },
+        select: { id: true, name: true, serverUrl: true, authType: true, authValue: true },
+      }).then((rows) => { connectorListCache.set(orgId, { connectors: rows, fetchedAt: Date.now() }); return rows; });
 
   if (connectors.length === 0) return [];
 

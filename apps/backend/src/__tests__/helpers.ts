@@ -1,4 +1,4 @@
-// Shared helpers: seed org+user, get token, clean up between tests
+﻿// Shared helpers: seed org+user, get token, clean up between tests
 
 import { prisma } from '../lib/prisma';
 import { generateApiKey } from '../lib/apiKey';

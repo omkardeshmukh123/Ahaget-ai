@@ -20,9 +20,12 @@ export async function withRetry<T>(
       return await fn();
     } catch (err) {
       lastError = err;
+      const status = (err as Record<string, unknown>)?.status as number | undefined;
+      if (status && status >= 400 && status < 500 && status !== 429) throw err;
       if (attempt < opts.retries) {
-        const wait = opts.delayMs * Math.pow(2, attempt);
-        log('warn', 'retry', { label: opts.label, attempt: attempt + 1, waitMs: wait });
+        const base = opts.delayMs * Math.pow(2, attempt);
+        const wait = base + Math.random() * base * 0.3;
+        log('warn', 'retry', { label: opts.label, attempt: attempt + 1, waitMs: Math.round(wait) });
         await new Promise((r) => setTimeout(r, wait));
       }
     }

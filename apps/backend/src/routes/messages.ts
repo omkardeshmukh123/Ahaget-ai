@@ -1,16 +1,30 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { authenticateApiKey } from '../middleware/auth';
 import { enforceMessageLimit } from '../middleware/rateLimit';
 import { AuthenticatedRequest } from '../types';
-import { handleMessage } from '../services/ai';
+import { handleMessage, ConversationPageContext } from '../services/ai';
 
 const router = Router();
+
+const PageContextSchema = z.object({
+  url: z.string(),
+  title: z.string(),
+  headings: z.array(z.string()),
+  elements: z.array(z.object({
+    tag: z.string(),
+    selector: z.string(),
+    text: z.string(),
+    type: z.string().optional(),
+  })),
+  semanticSummary: z.string().optional(),
+}).optional();
 
 const SendMessageSchema = z.object({
   conversationId: z.string().uuid(),
   content: z.string().min(1).max(2000),
+  pageContext: PageContextSchema,
 });
 
 // ─── POST /api/v1/messages  (widget) ─────────────────────────────────────────
@@ -39,7 +53,11 @@ router.post(
     }
 
     // Send to AI service — saves both messages to DB, returns assistant reply
-    const response = await handleMessage(body.conversationId, body.content);
+    const response = await handleMessage(
+      body.conversationId,
+      body.content,
+      body.pageContext as ConversationPageContext | undefined,
+    );
 
     res.json({
       messageId: response.messageId,

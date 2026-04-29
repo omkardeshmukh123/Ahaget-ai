@@ -1,4 +1,4 @@
-// ─── Flow alerting service ───────────────────────────────────────────────────
+﻿// ─── Flow alerting service ───────────────────────────────────────────────────
 // Checks all orgs for active flows with 0% completion rate in the last 24h.
 // Fires once per flow per 24h (deduped in-memory — acceptable for a single-
 // instance Railway deploy; a DB flag would be needed for multi-instance).

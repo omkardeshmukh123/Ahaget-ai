@@ -1,4 +1,4 @@
-import { EvalResult } from './runner';
+﻿import { EvalResult } from './runner';
 
 export function printReport(results: EvalResult[]): void {
   const total = results.length;
@@ -10,7 +10,7 @@ export function printReport(results: EvalResult[]): void {
   const p95Ms = allLatencies[p95Index] ?? 0;
 
   console.log('\n' + '═'.repeat(60));
-  console.log('  PRISM AGENT EVAL REPORT');
+  console.log('  TESSERACT AGENT EVAL REPORT');
   console.log('═'.repeat(60));
   console.log(`  Pass rate: ${passed}/${total} (${passRate}%)`);
   console.log(`  P95 turn latency: ${Math.round(p95Ms)}ms`);

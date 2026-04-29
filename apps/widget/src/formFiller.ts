@@ -1,5 +1,5 @@
-// Scans the page for form fields and offers to pre-fill them using
-// the user's known metadata (passed via Prism('init', { metadata: {...} }))
+﻿// Scans the page for form fields and offers to pre-fill them using
+// the user's known metadata (passed via Tesseract('init', { metadata: {...} }))
 
 import { animatedFillFields } from './cursor';
 

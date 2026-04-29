@@ -1,11 +1,11 @@
-import { Response, NextFunction } from 'express';
+﻿import { Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { PLANS, PlanFeatures } from '../lib/plans';
 import { AuthenticatedRequest } from '../types';
 
 const UPGRADE_URL = process.env.FRONTEND_URL
   ? `${process.env.FRONTEND_URL}/settings/billing`
-  : 'https://prism-dashboard.onrender.com/settings/billing';
+  : 'https://tesseract-dashboard.onrender.com/settings/billing';
 
 export function requireFeature(feature: keyof PlanFeatures) {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {

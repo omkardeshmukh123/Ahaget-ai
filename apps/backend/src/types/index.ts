@@ -1,4 +1,4 @@
-import { Request } from 'express';
+﻿import { Request } from 'express';
 import { Organization, User } from '@prisma/client';
 
 // Extend Express Request so TypeScript knows about our custom fields

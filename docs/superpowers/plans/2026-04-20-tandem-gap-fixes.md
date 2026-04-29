@@ -1,4 +1,4 @@
-# Tandem Gap Fixes Implementation Plan
+﻿# Tandem Gap Fixes Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -6,7 +6,7 @@
 
 **Architecture:** Gap 1 adds a `targetRoles` field to `OnboardingFlow` and filters at session start. Gap 2 adds a backend endpoint + dashboard card reusing existing `activation` data. Gap 3 extends the existing WS server to broadcast `flow_updated` events to widget clients, which evict cache and reload.
 
-**Tech Stack:** Node.js + Express + Prisma (backend), Next.js + Tailwind + shadcn/ui (dashboard), Vanilla TS (widget), `ws` library (WebSocket)
+**Tech Stack:** Node.js + Express + Tesseracta (backend), Next.js + Tailwind + shadcn/ui (dashboard), Vanilla TS (widget), `ws` library (WebSocket)
 
 ---
 
@@ -14,8 +14,8 @@
 
 | File | Change |
 |------|--------|
-| `apps/backend/prisma/schema.prisma` | Add `targetRoles String[] @default([])` to `OnboardingFlow` |
-| `apps/backend/prisma/migrations/20260420_add_target_roles/migration.sql` | CREATE migration |
+| `apps/backend/tesseracta/schema.prisma` | Add `targetRoles String[] @default([])` to `OnboardingFlow` |
+| `apps/backend/tesseracta/migrations/20260420_add_target_roles/migration.sql` | CREATE migration |
 | `apps/backend/src/routes/flow.ts` | Accept `targetRoles` in PUT; call `broadcastToOrgWidgets` after update |
 | `apps/backend/src/routes/session.ts` | Filter flows by `targetRoles` at `/start` |
 | `apps/backend/src/routes/activation.ts` | Add `GET /flows` endpoint |
@@ -32,20 +32,20 @@
 ## Task 1: Schema — add targetRoles to OnboardingFlow
 
 **Files:**
-- Modify: `apps/backend/prisma/schema.prisma`
-- Create: `apps/backend/prisma/migrations/20260420_add_target_roles/migration.sql`
+- Modify: `apps/backend/tesseracta/schema.prisma`
+- Create: `apps/backend/tesseracta/migrations/20260420_add_target_roles/migration.sql`
 
 - [ ] **Step 1: Add field to schema**
 
-In `apps/backend/prisma/schema.prisma`, inside the `OnboardingFlow` model, after the `maxTriggersPerUser` line, add:
+In `apps/backend/tesseracta/schema.prisma`, inside the `OnboardingFlow` model, after the `maxTriggersPerUser` line, add:
 
-```prisma
+```tesseracta
   targetRoles         String[] @default([]) @map("target_roles")  // empty = all roles
 ```
 
 The model block around that area should look like:
 
-```prisma
+```tesseracta
   triggerDelayMs      Int    @default(30000) @map("trigger_delay_ms")
   urlPattern          String @default("") @map("url_pattern")
   maxTriggersPerUser  Int    @default(0)   @map("max_triggers_per_user")
@@ -55,7 +55,7 @@ The model block around that area should look like:
 
 - [ ] **Step 2: Write the migration SQL**
 
-Create file `apps/backend/prisma/migrations/20260420_add_target_roles/migration.sql`:
+Create file `apps/backend/tesseracta/migrations/20260420_add_target_roles/migration.sql`:
 
 ```sql
 -- AddColumn
@@ -71,19 +71,19 @@ npx prisma migrate deploy
 
 Expected output: `1 migration applied.`
 
-- [ ] **Step 4: Regenerate Prisma client**
+- [ ] **Step 4: Regenerate Tesseracta client**
 
 ```bash
 cd apps/backend
 npx prisma generate
 ```
 
-Expected output: `Generated Prisma Client`
+Expected output: `Generated Tesseracta Client`
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/backend/prisma/schema.prisma apps/backend/prisma/migrations/20260420_add_target_roles/
+git add apps/backend/tesseracta/schema.tesseracta apps/backend/tesseracta/migrations/20260420_add_target_roles/
 git commit -m "feat: add targetRoles field to OnboardingFlow schema"
 ```
 
@@ -125,7 +125,7 @@ with:
 
 - [ ] **Step 2: Pass targetRoles to the prisma update**
 
-In the same handler, find the `data:` object passed to `prisma.onboardingFlow.updateMany`. Add the targetRoles line:
+In the same handler, find the `data:` object passed to `tesseracta.onboardingFlow.updateMany`. Add the targetRoles line:
 
 ```typescript
     data: {
@@ -168,7 +168,7 @@ In `apps/backend/src/routes/session.ts`, find the `POST /start` handler. Locate 
 
 ```typescript
   // find the org's active flow
-  const baseFlow = await prisma.onboardingFlow.findFirst({
+  const baseFlow = await tesseracta.onboardingFlow.findFirst({
     where: { organizationId: req.organization!.id, isActive: true },
     include: { steps: { orderBy: { order: 'asc' } } },
     orderBy: { createdAt: 'asc' },
@@ -184,7 +184,7 @@ Replace it with:
   // Try role-targeted flow first
   const baseFlow = await (async () => {
     if (userRole) {
-      const roleFlow = await prisma.onboardingFlow.findFirst({
+      const roleFlow = await tesseracta.onboardingFlow.findFirst({
         where: {
           organizationId: req.organization!.id,
           isActive: true,
@@ -196,7 +196,7 @@ Replace it with:
       if (roleFlow) return roleFlow;
     }
     // Fall back to a flow with no role restriction (targetRoles is empty)
-    return prisma.onboardingFlow.findFirst({
+    return tesseracta.onboardingFlow.findFirst({
       where: {
         organizationId: req.organization!.id,
         isActive: true,
@@ -210,7 +210,7 @@ Replace it with:
 
 - [ ] **Step 2: Also update the test-mode flow lookup to use same logic**
 
-In the same file, find the testMode block that calls `prisma.onboardingFlow.findFirst`. That preview doesn't need role filtering (it's admin-only), so leave it as-is.
+In the same file, find the testMode block that calls `tesseracta.onboardingFlow.findFirst`. That preview doesn't need role filtering (it's admin-only), so leave it as-is.
 
 - [ ] **Step 3: Confirm TypeScript compiles**
 
@@ -245,7 +245,7 @@ In `apps/backend/src/routes/activation.ts`, before `export default router;`, add
 router.get('/flows', async (req: AuthenticatedRequest, res: Response) => {
   const orgId = req.user!.organizationId;
 
-  const flows = await prisma.onboardingFlow.findMany({
+  const flows = await tesseracta.onboardingFlow.findMany({
     where: { organizationId: orgId },
     select: { id: true, name: true, isActive: true },
     orderBy: { createdAt: 'asc' },
@@ -254,8 +254,8 @@ router.get('/flows', async (req: AuthenticatedRequest, res: Response) => {
   const stats = await Promise.all(
     flows.map(async (flow) => {
       const [total, completed] = await Promise.all([
-        prisma.userOnboardingSession.count({ where: { organizationId: orgId, flowId: flow.id } }),
-        prisma.userOnboardingSession.count({ where: { organizationId: orgId, flowId: flow.id, status: 'completed' } }),
+        tesseracta.userOnboardingSession.count({ where: { organizationId: orgId, flowId: flow.id } }),
+        tesseracta.userOnboardingSession.count({ where: { organizationId: orgId, flowId: flow.id, status: 'completed' } }),
       ]);
       return {
         flowId: flow.id,
@@ -370,7 +370,7 @@ import { broadcastToOrgWidgets } from '../lib/websocket';
 In the `PUT /:id` handler, after `res.json({ updated: flow.count > 0 });`, add the broadcast call. The full handler ending should look like:
 
 ```typescript
-  const flow = await prisma.onboardingFlow.updateMany({
+  const flow = await tesseracta.onboardingFlow.updateMany({
     where: { id: req.params.id, organizationId: req.user!.organizationId },
     data: {
       ...(name !== undefined && { name }),
@@ -630,7 +630,7 @@ In the JSX, in the trigger config section (find the section that has `triggerDel
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
             />
             <p className="text-xs text-slate-400 mt-1">
-              Matches the <code className="bg-slate-100 px-1 rounded">role</code> field in the metadata your widget install passes via <code className="bg-slate-100 px-1 rounded">PrismConfig.metadata</code>.
+              Matches the <code className="bg-slate-100 px-1 rounded">role</code> field in the metadata your widget install passes via <code className="bg-slate-100 px-1 rounded">TesseractConfig.metadata</code>.
             </p>
           </div>
 ```
@@ -745,7 +745,7 @@ git commit -m "feat: add per-flow completion rate card to dashboard home"
 - ✅ targetRoles filtering uses metadata.role (already passed by widget in `start()` body)
 
 ### Type Consistency
-- `targetRoles: string[]` matches in schema.prisma, flow.ts PUT body, session.ts Prisma query, api.ts OnboardingFlow type, and flow editor `split(',')` → `string[]`
+- `targetRoles: string[]` matches in schema.tesseracta, flow.ts PUT body, session.ts Tesseracta query, api.ts OnboardingFlow type, and flow editor `split(',')` → `string[]`
 - `FlowCompletionStat.completionRate` returned as `number` from backend, rendered as `${f.completionRate}%` in JSX — consistent
 - `broadcastToOrgWidgets` exported from websocket.ts, imported in flow.ts — import path `'../lib/websocket'` is correct relative to `routes/`
 

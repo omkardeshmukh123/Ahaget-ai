@@ -1,11 +1,11 @@
-import { Resend } from 'resend';
+﻿import { Resend } from 'resend';
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const FROM = 'Prism <hello@useprism.ai>';
-const DASHBOARD_URL = process.env.FRONTEND_URL ?? 'https://app.useprism.ai';
+const FROM = 'Tesseract <hello@usetesseract.ai>';
+const DASHBOARD_URL = process.env.FRONTEND_URL ?? 'https://app.usetesseract.ai';
 
 export async function sendMagicLinkEmail(params: {
   to: string;
@@ -21,7 +21,7 @@ export async function sendMagicLinkEmail(params: {
   await resend.emails.send({
     from: FROM,
     to: params.to,
-    subject: 'Sign in to Prism',
+    subject: 'Sign in to Tesseract',
     html: `
 <!DOCTYPE html>
 <html>
@@ -32,17 +32,17 @@ export async function sendMagicLinkEmail(params: {
       <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
         <tr>
           <td style="background:#6366f1;padding:28px 40px;">
-            <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">Prism</h1>
+            <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">Tesseract</h1>
           </td>
         </tr>
         <tr>
           <td style="padding:36px 40px;">
             <p style="margin:0 0 8px;color:#1e293b;font-size:16px;font-weight:600;">Hi ${params.name},</p>
             <p style="margin:0 0 28px;color:#475569;font-size:15px;line-height:1.6;">
-              Click the button below to sign in to your Prism account. This link expires in 15 minutes.
+              Click the button below to sign in to your Tesseract account. This link expires in 15 minutes.
             </p>
             <a href="${params.magicUrl}" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
-              Sign in to Prism →
+              Sign in to Tesseract →
             </a>
             <p style="margin:24px 0 0;color:#94a3b8;font-size:12px;">
               If you didn't request this, you can safely ignore this email.
@@ -70,10 +70,10 @@ export async function sendWelcomeEmail(params: {
     return;
   }
 
-  const snippet = `<!-- Prism Widget -->
-<script src="https://cdn.useprism.ai/widget.js"></script>
+  const snippet = `<!-- Tesseract Widget -->
+<script src="https://cdn.usetesseract.ai/widget.js"></script>
 <script>
-  Prism('init', {
+  Tesseract('init', {
     apiKey: '${params.apiKey}',
     userId: currentUser.id,
     metadata: { plan: currentUser.plan },
@@ -83,7 +83,7 @@ export async function sendWelcomeEmail(params: {
   await resend.emails.send({
     from: FROM,
     to: params.to,
-    subject: `Welcome to Prism — here's your API key`,
+    subject: `Welcome to Tesseract — here's your API key`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -96,7 +96,7 @@ export async function sendWelcomeEmail(params: {
         <!-- Header -->
         <tr>
           <td style="background:#6366f1;padding:32px 40px;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">Prism</h1>
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">Tesseract</h1>
             <p style="margin:4px 0 0;color:#c7d2fe;font-size:13px;">AI-guided onboarding that converts</p>
           </td>
         </tr>
@@ -106,7 +106,7 @@ export async function sendWelcomeEmail(params: {
           <td style="padding:36px 40px;">
             <p style="margin:0 0 16px;color:#1e293b;font-size:16px;">Hi ${params.name},</p>
             <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">
-              Welcome to Prism! Your account for <strong>${params.orgName}</strong> is ready.
+              Welcome to Tesseract! Your account for <strong>${params.orgName}</strong> is ready.
               Paste the snippet below into your app and the AI agent will start guiding users to first value.
             </p>
 
@@ -152,7 +152,7 @@ export async function sendWelcomeEmail(params: {
           <td style="padding:20px 40px;border-top:1px solid #e2e8f0;">
             <p style="margin:0;color:#94a3b8;font-size:12px;">
               Questions? Reply to this email — we read every one.<br>
-              Prism · AI-guided onboarding
+              Tesseract · AI-guided onboarding
             </p>
           </td>
         </tr>
@@ -179,7 +179,7 @@ export async function sendContactEmail(params: {
 
   await resend.emails.send({
     from: FROM,
-    to: 'hello@useprism.ai',
+    to: 'hello@usetesseract.ai',
     reply_to: params.email,
     subject: `Contact: ${params.name}${params.company ? ` (${params.company})` : ''}`,
     html: `
@@ -264,7 +264,7 @@ export async function sendZeroCompletionAlert(params: {
         <tr>
           <td style="padding:18px 36px;border-top:1px solid #e2e8f0;">
             <p style="margin:0;color:#94a3b8;font-size:11px;">
-              Prism · You'll only receive this alert once per flow per 24 hours.
+              Tesseract · You'll only receive this alert once per flow per 24 hours.
             </p>
           </td>
         </tr>

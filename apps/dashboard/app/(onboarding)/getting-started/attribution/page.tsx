@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -44,7 +44,7 @@ export default function AttributionPage() {
 
       <h1 className="text-2xl font-bold text-slate-900 mb-2">Where did you hear about us?</h1>
       <p className="text-slate-500 text-[15px] leading-relaxed mb-8">
-        This helps us understand how people discover Prism so we can build the right things.
+        This helps us understand how people discover Tesseract so we can build the right things.
       </p>
 
       <div className="space-y-3 mb-8">

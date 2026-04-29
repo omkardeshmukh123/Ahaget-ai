@@ -1,4 +1,4 @@
-const CASES = [
+﻿const CASES = [
   {
     icon: '📊',
     category: 'Analytics SaaS',
@@ -84,7 +84,7 @@ export default function UseCases() {
 
         <p className="text-center text-zinc-600 text-sm mt-10">
           Not seeing your category?{' '}
-          <a href="mailto:hello@onboardai.com" className="text-brand-400 hover:underline">
+          <a href="mailto:hello@tesseract-ai.com" className="text-brand-400 hover:underline">
             Tell us what you're building.
           </a>
         </p>

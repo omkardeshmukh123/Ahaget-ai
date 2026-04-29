@@ -1,4 +1,4 @@
-// ─── User History Service ─────────────────────────────────────────────────────
+﻿// ─── User History Service ─────────────────────────────────────────────────────
 // Builds a compact history summary for an end user across all their sessions.
 // Used to give the AI agent returning-user context without loading raw DB rows.
 

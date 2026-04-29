@@ -1,4 +1,4 @@
-// k6 load test — runs against the local backend
+﻿// k6 load test — runs against the local backend
 // Install: https://k6.io/docs/get-started/installation/
 // Run:     k6 run tests/load/k6.js
 //

@@ -102,11 +102,18 @@ export class WidgetSocket {
   sendMessage(
     conversationId: string,
     content: string,
-    callbacks: PendingMessage
+    callbacks: PendingMessage,
+    pageContext?: {
+      url: string;
+      title: string;
+      headings: string[];
+      elements: Array<{ tag: string; selector: string; text: string; type?: string }>;
+      semanticSummary?: string;
+    },
   ) {
     const send = () => {
       this.pending = callbacks;
-      this.ws!.send(JSON.stringify({ type: 'message', conversationId, content }));
+      this.ws!.send(JSON.stringify({ type: 'message', conversationId, content, ...(pageContext ? { pageContext } : {}) }));
     };
 
     if (this.authenticated && this.ws?.readyState === WebSocket.OPEN) {

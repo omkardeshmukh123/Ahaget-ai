@@ -1,4 +1,4 @@
-// ─── Knowledge Base routes (JWT-protected, dashboard only) ───────────────────
+﻿// ─── Knowledge Base routes (JWT-protected, dashboard only) ───────────────────
 // Customers manage docs/FAQs the AI agent searches during onboarding.
 //
 // GET    /api/v1/kb          — list articles (no embedding)

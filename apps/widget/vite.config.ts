@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+﻿import { defineConfig } from 'vite';
 import cssInjectedByJs from 'vite-plugin-css-injected-by-js';
 
 export default defineConfig({
@@ -6,7 +6,7 @@ export default defineConfig({
   build: {
     lib: {
       entry: 'src/index.ts',
-      name: 'OnboardAI',
+      name: 'Tesseract AI',
       fileName: 'widget',
       formats: ['iife'], // Immediately Invoked Function — works in any browser via <script> tag
     },

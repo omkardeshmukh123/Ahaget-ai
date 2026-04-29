@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -71,12 +71,12 @@ export default function SnippetPage() {
     router.push('/dashboard');
   };
 
-  const aiPrompt = `Add the Prism widget to my ${domain ? `${domain} ` : ''}web app.
+  const aiPrompt = `Add the Tesseract widget to my ${domain ? `${domain} ` : ''}web app.
 Copy this snippet and paste it before the closing </body> tag in your HTML:
 
 ${snippet}
 
-This script loads the Prism AI assistant widget asynchronously and initialises it with the app ID and current user context.`;
+This script loads the Tesseract AI assistant widget asynchronously and initialises it with the app ID and current user context.`;
 
   return (
     <div>
@@ -86,7 +86,7 @@ This script loads the Prism AI assistant widget asynchronously and initialises i
         </svg>
       </div>
 
-      <h1 className="text-2xl font-bold text-slate-900 mb-2">Add Prism to your website</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-2">Add Tesseract to your website</h1>
       <p className="text-slate-500 text-[15px] leading-relaxed mb-7">
         Paste this snippet before the closing <code className="text-indigo-600 font-mono text-sm">&lt;/body&gt;</code> tag on every page of your app.
       </p>
@@ -176,7 +176,7 @@ This script loads the Prism AI assistant widget asynchronously and initialises i
         <div>
           <p className={`text-sm font-semibold ${installed ? 'text-emerald-800' : 'text-slate-700'}`}>
             {installed
-              ? '🎉 Prism detected!'
+              ? '🎉 Tesseract detected!'
               : `Waiting for installation${domain ? ` on ${domain}` : ''}…`}
           </p>
           <p className="text-xs text-slate-500 mt-0.5">

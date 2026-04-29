@@ -1,4 +1,4 @@
-export interface WidgetConfig {
+﻿export interface WidgetConfig {
   apiKey: string;
   userId?: string;
   metadata?: Record<string, unknown>;
@@ -9,7 +9,7 @@ export interface WidgetConfig {
 }
 
 export const DEFAULT_CONFIG: Required<Omit<WidgetConfig, 'apiKey' | 'userId' | 'metadata'>> = {
-  apiUrl: 'https://api.useprism.ai',
+  apiUrl: 'https://api.usetesseract.ai',
   idleThreshold: 30_000,
   primaryColor: '#6366f1', // indigo
 };

@@ -1,4 +1,4 @@
-// ─── Users routes (JWT-protected, dashboard only) ────────────────────────────
+﻿// ─── Users routes (JWT-protected, dashboard only) ────────────────────────────
 //
 // GET /api/v1/users                    — paginated list of all end users
 // GET /api/v1/users/:userId/history    — full session history for one user

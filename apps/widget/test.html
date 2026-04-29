@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OnboardAI Copilot Demo — Analytics SaaS</title>
+  <title>Tesseract AI Copilot Demo — Analytics SaaS</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, sans-serif; background: #f8fafc; color: #1e293b; }
@@ -270,18 +270,18 @@
   </script>
 
 
-  <!-- ── OnboardAI Widget ────────────────────────────────────────────────── -->
+  <!-- ── Tesseract AI Widget ────────────────────────────────────────────────── -->
   <!--
     Dev: loads directly from Vite.
     Production: replace with <script src="https://cdn.yourdomain.com/widget.js"></script>
   -->
   <script type="module">
-    import { OnboardAIWidget } from '/src/widget.ts';
+    import { Tesseract AIWidget } from '/src/widget.ts';
 
     // ── Paste API key from seed output ────────────────────────────────────
     const API_KEY = 'org_c6816bf636ae147eda98717e86a52a008424317cd07ca857c7363e73eafc0e24';
 
-    const widget = new OnboardAIWidget({
+    const widget = new Tesseract AIWidget({
       apiKey: API_KEY,
       apiUrl: 'http://localhost:4000',
       userId: 'demo_' + (localStorage.getItem('__demo_uid') || (() => { const id = Math.random().toString(36).slice(2,10); localStorage.setItem('__demo_uid', id); return id; })()),

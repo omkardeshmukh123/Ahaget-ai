@@ -1,4 +1,4 @@
-# OnboardAI — Embeddable Widget
+﻿# Tesseract AI — Embeddable Widget
 
 The AI onboarding copilot. One script tag. Guides every new user to their first value moment.
 
@@ -24,11 +24,11 @@ The AI onboarding copilot. One script tag. Guides every new user to their first 
 
 ```html
 <!-- Step 1: load the widget -->
-<script src="https://cdn.onboardai.com/widget.js"></script>
+<script src="https://cdn.tesseract-ai.com/widget.js"></script>
 
 <!-- Step 2: init with your API key + current user -->
 <script>
-  OnboardAI('init', {
+  Tesseract AI('init', {
     apiKey: 'org_YOUR_KEY',       // from dashboard → Settings → Widget
     userId: currentUser.id,        // your own user ID (string)
     metadata: { plan: 'trial' },   // optional — passed to AI as context
@@ -40,9 +40,9 @@ The AI onboarding copilot. One script tag. Guides every new user to their first 
 <!-- Step 3: fire events when users complete steps in your product -->
 <script>
   // Call this wherever the step actually completes in your app
-  OnboardAI('event', 'data_connected');     // advances session if step has this completionEvent
-  OnboardAI('event', 'dashboard_created');
-  OnboardAI('event', 'insight_viewed');
+  Tesseract AI('event', 'data_connected');     // advances session if step has this completionEvent
+  Tesseract AI('event', 'dashboard_created');
+  Tesseract AI('event', 'insight_viewed');
 </script>
 ```
 
@@ -65,8 +65,8 @@ The AI onboarding copilot. One script tag. Guides every new user to their first 
 
 ```
 src/
-├── index.ts       ← Public API: OnboardAI('init'|'event', ...) + replay queue
-├── widget.ts      ← OnboardAIWidget class — orchestrates all managers
+├── index.ts       ← Public API: Tesseract AI('init'|'event', ...) + replay queue
+├── widget.ts      ← Tesseract AIWidget class — orchestrates all managers
 ├── copilot.ts     ← CopilotManager — session API, page action execution, localStorage cache
 ├── scanner.ts     ← Auto-DOM scanner: maps all interactive elements to CSS selectors
 ├── highlighter.ts ← 4 highlight modes: spotlight / beacon / arrow / multi
@@ -167,7 +167,7 @@ npx vite --config vite.dev.config.ts
 
 ```
 User completes step in your app
-  → your code calls OnboardAI('event', 'data_connected')
+  → your code calls Tesseract AI('event', 'data_connected')
   → widget calls POST /api/v1/session/event
   → backend advances the session
   → backend fires integrations (Segment, Mixpanel, HubSpot, Webhook) in parallel

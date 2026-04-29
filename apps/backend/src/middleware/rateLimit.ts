@@ -1,4 +1,4 @@
-// Simple in-memory rate limiter per org, per month.
+﻿// Simple in-memory rate limiter per org, per month.
 // Counts how many AI messages an org has used this calendar month.
 // When Redis (Upstash) is configured, swap the Map for Redis INCR + EXPIREAT.
 

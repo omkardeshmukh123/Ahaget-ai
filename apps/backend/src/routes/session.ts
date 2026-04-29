@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { authenticateApiKey } from '../middleware/auth';
@@ -61,7 +61,7 @@ async function getOrCreateEndUser(orgId: string, userId: string, metadata: Recor
 
 // ─── POST /api/v1/session/warmup ─────────────────────────────────────────────
 // Phase 5: called by the widget on idle init to pre-warm DB connection pool and
-// Prisma client before the user types anything. Returns 200 immediately.
+// Tesseracta client before the user types anything. Returns 200 immediately.
 // No DB writes — just a lightweight ping that keeps the connection warm.
 router.post('/warmup', async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -232,7 +232,7 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
   let experimentId: string | null = null;
   let experimentVariant: 'control' | 'variant' | null = null;
 
-  const experiment = await prisma.flowExperiment.findFirst({
+  const experiment = await tesseracta.flowExperiment.findFirst({
     where: { controlFlowId: baseFlow.id, status: 'running', organizationId: req.organization!.id },
   });
 
@@ -634,7 +634,7 @@ router.post('/heal', async (req: AuthenticatedRequest, res: Response) => {
 
   const org = req.organization!;
 
-  await prisma.selectorHealLog.create({
+  await tesseracta.selectorHealLog.create({
     data: {
       organizationId: org.id,
       sessionId:        sessionId  ?? null,
@@ -650,7 +650,7 @@ router.post('/heal', async (req: AuthenticatedRequest, res: Response) => {
   // ── Webhook alert on repeated failures ─────────────────────────────────────
   if (strategy === 'failed' && org.selectorAlertEnabled && org.selectorAlertWebhook) {
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentFailures = await prisma.selectorHealLog.count({
+    const recentFailures = await tesseracta.selectorHealLog.count({
       where: {
         organizationId: org.id,
         originalSelector,

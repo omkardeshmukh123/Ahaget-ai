@@ -1,5 +1,5 @@
-// ─── Styles for the Prism side-panel ──────────────────────────────────────────
-// Prism occupies the right 360 px of the viewport as a persistent sidebar.
+﻿// ─── Styles for the Tesseract side-panel ──────────────────────────────────────────
+// Tesseract occupies the right 360 px of the viewport as a persistent sidebar.
 // The host page body gets `margin-right: 360px` so content is never hidden
 // behind the panel.  A collapse button on the panel's left edge lets users
 // temporarily tuck it into a 40 px tab.
@@ -10,11 +10,11 @@ const COLLAPSED_WIDTH = 40;
 export function injectStyles(primaryColor: string) {
   const css = `
     /* ── Host-page nudge ───────────────────────────────────────────────────── */
-    body.__prism-open {
+    body.__tesseract-open {
       margin-right: ${PANEL_WIDTH}px !important;
       transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    body.__prism-collapsed {
+    body.__tesseract-collapsed {
       margin-right: ${COLLAPSED_WIDTH}px !important;
       transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -455,7 +455,7 @@ export function injectStyles(primaryColor: string) {
 
     /* ── Mobile: full-width bottom sheet ────────────────────────────────────── */
     @media (max-width: 640px) {
-      body.__prism-open, body.__prism-collapsed {
+      body.__tesseract-open, body.__tesseract-collapsed {
         margin-right: 0 !important;
         /* Prevent content shifting behind the sheet */
         padding-bottom: 55vh !important;
@@ -502,7 +502,7 @@ export function injectStyles(primaryColor: string) {
       #oai-input { font-size: 16px; } /* prevent iOS zoom on focus */
       .oai-msg-ai, .oai-msg-user { font-size: 14px; }
       /* Cursor animation: skip movement on mobile (too small to be meaningful) */
-      #__prism_cursor__ { display: none !important; }
+      #__tesseract_cursor__ { display: none !important; }
     }
 
     /* ── Degradation card ──────────────────────────────────────────────────── */

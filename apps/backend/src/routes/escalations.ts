@@ -1,4 +1,4 @@
-// ─── Escalations routes (JWT-protected, dashboard only) ──────────────────────
+﻿// ─── Escalations routes (JWT-protected, dashboard only) ──────────────────────
 //
 // GET    /api/v1/escalations          — list tickets (filter by status)
 // GET    /api/v1/escalations/:id      — single ticket with full context

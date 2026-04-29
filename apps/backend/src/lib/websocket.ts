@@ -1,7 +1,7 @@
-import { WebSocketServer, WebSocket } from 'ws';
+﻿import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage } from 'http';
 import { Server } from 'http';
-import { prisma } from './prisma';
+import { prisma } from './tesseracta';
 import { handleMessageStreaming } from '../services/ai';
 import { getMonthlyUsage } from '../middleware/rateLimit';
 
@@ -16,6 +16,13 @@ interface SendMessage {
   type: 'message';
   conversationId: string;
   content: string;
+  pageContext?: {
+    url: string;
+    title: string;
+    headings: string[];
+    elements: Array<{ tag: string; selector: string; text: string; type?: string }>;
+    semanticSummary?: string;
+  };
 }
 
 interface SubscribeMessage {
@@ -194,7 +201,7 @@ export function attachWebSocketServer(httpServer: Server) {
 
         try {
           // Stream — tokens flow back through ws directly inside handleMessageStreaming
-          await handleMessageStreaming(msg.conversationId, content, ws);
+          await handleMessageStreaming(msg.conversationId, content, ws, msg.pageContext);
 
           // Also push the completed message to any dashboard subscribers watching this conversation
           notifySubscribers(msg.conversationId, {

@@ -1,4 +1,4 @@
-// ─── Dashboard-facing session detail routes ────────────────────────────────
+﻿// ─── Dashboard-facing session detail routes ────────────────────────────────
 // Separate from session.ts (which is widget-facing, API-key auth).
 
 import { Router, Response } from 'express';

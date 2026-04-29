@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { authenticateJWT } from '../middleware/auth';
@@ -161,7 +161,7 @@ router.get('/snippet', authenticateJWT, async (req: AuthenticatedRequest, res: R
   }
 
   const snippet = `<script>
-  window.prismSettings = {
+  window.tesseractSettings = {
     app_id: "${org.apiKey}",
     user: {
       id: "USER_ID",       // replace with your user's ID
@@ -170,7 +170,7 @@ router.get('/snippet', authenticateJWT, async (req: AuthenticatedRequest, res: R
     }
   };
 </script>
-<script async src="https://cdn.useprism.ai/widget.js"></script>`;
+<script async src="https://cdn.usetesseract.ai/widget.js"></script>`;
 
   res.json({ snippet, apiKey: org.apiKey, domain: org.websiteUrl });
 });

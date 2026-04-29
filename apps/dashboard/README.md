@@ -1,4 +1,4 @@
-# OnboardAI — Dashboard
+﻿# Tesseract AI — Dashboard
 
 Next.js 14 admin panel. Configure onboarding flows, track activation, benchmark against the industry, manage escalations, and let AI improve your prompts automatically.
 
