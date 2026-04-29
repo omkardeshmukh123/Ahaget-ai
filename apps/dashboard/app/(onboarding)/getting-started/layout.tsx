@@ -25,7 +25,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
                 <path d="M9 2L15.5 6V12L9 16L2.5 12V6L9 2Z" fill="white" fillOpacity="0.9"/>
               </svg>
             </div>
-            <span className="text-base font-bold text-slate-900 tracking-tight">Tesseract</span>
+            <span className="text-base font-bold text-slate-900 tracking-tight">Ahaget</span>
           </div>
 
           {/* Step progress */}

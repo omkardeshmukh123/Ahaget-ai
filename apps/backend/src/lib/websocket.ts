@@ -1,7 +1,7 @@
 ﻿import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage } from 'http';
 import { Server } from 'http';
-import { prisma } from './tesseracta';
+import { prisma } from './ahageta';
 import { handleMessageStreaming } from '../services/ai';
 import { getMonthlyUsage } from '../middleware/rateLimit';
 

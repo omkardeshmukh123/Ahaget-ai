@@ -3,8 +3,8 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — Tesseract AI',
-  description: 'Terms and conditions for using Tesseract AI.',
+  title: 'Terms of Service — Ahaget',
+  description: 'Terms and conditions for using Ahaget.',
 };
 
 const EFFECTIVE_DATE = 'April 9, 2026';
@@ -23,7 +23,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold text-white mb-3">1. Acceptance</h2>
               <p className="text-sm">
-                By creating an account or using the Tesseract AI Service (the &quot;Service&quot;), you agree to these Terms of Service
+                By creating an account or using the Ahaget Service (the &quot;Service&quot;), you agree to these Terms of Service
                 (&quot;Terms&quot;). If you are using the Service on behalf of an organization, you represent that you have authority
                 to bind that organization to these Terms.
               </p>
@@ -32,7 +32,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold text-white mb-3">2. The Service</h2>
               <p className="text-sm">
-                Tesseract AI provides an AI-powered onboarding intelligence platform. The Service includes:
+                Ahaget provides an AI-powered onboarding intelligence platform. The Service includes:
               </p>
               <ul className="list-disc list-inside space-y-1 text-sm mt-3">
                 <li>A JavaScript widget that embeds an AI copilot in your product</li>
@@ -50,7 +50,7 @@ export default function TermsPage() {
               <ul className="list-disc list-inside space-y-2 text-sm">
                 <li>You are responsible for maintaining the confidentiality of your account password and API keys.</li>
                 <li>You are responsible for all activity that occurs under your account or API key.</li>
-                <li>You must notify us immediately at <a href="mailto:security@tesseract-ai.com" className="text-indigo-400 hover:underline">security@tesseract-ai.com</a> if you suspect unauthorized access.</li>
+                <li>You must notify us immediately at <a href="mailto:security@ahaget.com" className="text-indigo-400 hover:underline">security@ahaget.com</a> if you suspect unauthorized access.</li>
                 <li>You may not share API keys across multiple organizations without explicit written permission.</li>
               </ul>
             </section>
@@ -77,7 +77,7 @@ export default function TermsPage() {
                 <li>Send spam, phishing, or misleading content to your users</li>
                 <li>Manipulate or deceive end users in ways that harm them</li>
                 <li>Scrape, reverse engineer, or extract training data from the Service</li>
-                <li>Probe, scan, or test the vulnerability of any Tesseract AI system</li>
+                <li>Probe, scan, or test the vulnerability of any Ahaget system</li>
                 <li>Exceed rate limits or otherwise abuse the API in ways that degrade the Service for others</li>
                 <li>Resell or white-label the Service without a written reseller agreement</li>
               </ul>
@@ -92,7 +92,7 @@ export default function TermsPage() {
               <ul className="list-disc list-inside space-y-2 text-sm">
                 <li>You are responsible for having a lawful basis to collect and process your end users&apos; data and for obtaining any required consents.</li>
                 <li>You are responsible for your own privacy policy disclosures to your end users.</li>
-                <li>You grant Tesseract AI a limited license to process Customer Data solely to provide the Service.</li>
+                <li>You grant Ahaget a limited license to process Customer Data solely to provide the Service.</li>
                 <li>We will not use Customer Data to train AI models or for any purpose beyond operating the Service.</li>
               </ul>
             </section>
@@ -100,7 +100,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold text-white mb-3">7. Intellectual property</h2>
               <p className="text-sm">
-                The Service, including all software, algorithms, UI, and documentation, is owned by Tesseract AI and protected by
+                The Service, including all software, algorithms, UI, and documentation, is owned by Ahaget and protected by
                 intellectual property laws. These Terms do not grant you any rights to our intellectual property beyond
                 the limited right to use the Service as described.
               </p>
@@ -142,7 +142,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold text-white mb-3">11. Limitation of liability</h2>
               <p className="text-sm">
-                TO THE MAXIMUM EXTENT PERMITTED BY LAW, TESSERACT-AI WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL,
+                TO THE MAXIMUM EXTENT PERMITTED BY LAW, AHAGET WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL,
                 SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOSS OF PROFITS, DATA, OR GOODWILL, ARISING
                 FROM YOUR USE OF THE SERVICE. OUR TOTAL CUMULATIVE LIABILITY TO YOU FOR ANY CLAIMS ARISING FROM
                 THESE TERMS OR THE SERVICE WILL NOT EXCEED THE AMOUNT YOU PAID US IN THE 3 MONTHS PRECEDING THE CLAIM.
@@ -152,7 +152,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold text-white mb-3">12. Indemnification</h2>
               <p className="text-sm">
-                You agree to indemnify and hold harmless Tesseract AI and its officers, employees, and contractors from
+                You agree to indemnify and hold harmless Ahaget and its officers, employees, and contractors from
                 any claims, damages, or expenses arising from: (a) your use of the Service; (b) your violation of
                 these Terms; (c) your violation of any rights of a third party, including your end users; or
                 (d) your end users&apos; data.
@@ -188,7 +188,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold text-white mb-3">16. Contact</h2>
               <p className="text-sm">
-                Questions about these Terms? Email <a href="mailto:legal@tesseract-ai.com" className="text-indigo-400 hover:underline">legal@tesseract-ai.com</a>.
+                Questions about these Terms? Email <a href="mailto:legal@ahaget.com" className="text-indigo-400 hover:underline">legal@ahaget.com</a>.
               </p>
             </section>
 

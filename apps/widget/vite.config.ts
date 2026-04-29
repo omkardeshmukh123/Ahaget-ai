@@ -6,7 +6,7 @@ export default defineConfig({
   build: {
     lib: {
       entry: 'src/index.ts',
-      name: 'Tesseract AI',
+      name: 'Ahaget',
       fileName: 'widget',
       formats: ['iife'], // Immediately Invoked Function — works in any browser via <script> tag
     },

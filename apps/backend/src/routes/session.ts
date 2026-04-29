@@ -61,7 +61,7 @@ async function getOrCreateEndUser(orgId: string, userId: string, metadata: Recor
 
 // ─── POST /api/v1/session/warmup ─────────────────────────────────────────────
 // Phase 5: called by the widget on idle init to pre-warm DB connection pool and
-// Tesseracta client before the user types anything. Returns 200 immediately.
+// Ahageta client before the user types anything. Returns 200 immediately.
 // No DB writes — just a lightweight ping that keeps the connection warm.
 router.post('/warmup', async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -232,7 +232,7 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
   let experimentId: string | null = null;
   let experimentVariant: 'control' | 'variant' | null = null;
 
-  const experiment = await tesseracta.flowExperiment.findFirst({
+  const experiment = await ahageta.flowExperiment.findFirst({
     where: { controlFlowId: baseFlow.id, status: 'running', organizationId: req.organization!.id },
   });
 
@@ -634,7 +634,7 @@ router.post('/heal', async (req: AuthenticatedRequest, res: Response) => {
 
   const org = req.organization!;
 
-  await tesseracta.selectorHealLog.create({
+  await ahageta.selectorHealLog.create({
     data: {
       organizationId: org.id,
       sessionId:        sessionId  ?? null,
@@ -650,7 +650,7 @@ router.post('/heal', async (req: AuthenticatedRequest, res: Response) => {
   // ── Webhook alert on repeated failures ─────────────────────────────────────
   if (strategy === 'failed' && org.selectorAlertEnabled && org.selectorAlertWebhook) {
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentFailures = await tesseracta.selectorHealLog.count({
+    const recentFailures = await ahageta.selectorHealLog.count({
       where: {
         organizationId: org.id,
         originalSelector,

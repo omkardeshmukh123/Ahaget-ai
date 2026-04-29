@@ -4,7 +4,7 @@
 import { Resend } from 'resend';
 import { prisma } from '../lib/prisma';
 
-const DASHBOARD_URL = process.env.FRONTEND_URL ?? 'https://app.usetesseract.ai';
+const DASHBOARD_URL = process.env.FRONTEND_URL ?? 'https://app.useahaget.ai';
 
 function esc(s: unknown): string {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -81,7 +81,7 @@ export async function notifyTeam(params: {
       .join('');
 
     tasks.push(resend.emails.send({
-      from: `Tesseract <hello@usetesseract.ai>`,
+      from: `Ahaget <hello@useahaget.ai>`,
       to: owner.email,
       subject: `[${orgName}] Human escalation — ${context.stepTitle}`,
       html: `
@@ -115,7 +115,7 @@ export async function notifyTeam(params: {
     </a>
   </td></tr>
   <tr><td style="padding:16px 32px;border-top:1px solid #e2e8f0;">
-    <p style="margin:0;color:#94a3b8;font-size:11px;">Ticket #${ticketId.slice(0, 8)} · Powered by Tesseract</p>
+    <p style="margin:0;color:#94a3b8;font-size:11px;">Ticket #${ticketId.slice(0, 8)} · Powered by Ahaget</p>
   </td></tr>
 </table>
 </td></tr>

@@ -7,7 +7,7 @@ function buildSnippet(apiKey: string): string {
   const close = String.fromCharCode(62);
   const slash = String.fromCharCode(47);
   return [
-    `${open}script src="https://cdn.usetesseract.ai/widget.js"`,
+    `${open}script src="https://cdn.useahaget.ai/widget.js"`,
     `  data-key="${apiKey}"${close}${open}${slash}script${close}`,
   ].join('\n');
 }
@@ -17,10 +17,10 @@ function buildFullSnippet(apiKey: string): string {
   const close = String.fromCharCode(62);
   const slash = String.fromCharCode(47);
   return [
-    `${open}!-- Tesseract AI Widget --${close}`,
-    `${open}script src="https://cdn.usetesseract.ai/widget.js"${close}${open}${slash}script${close}`,
+    `${open}!-- Ahaget Widget --${close}`,
+    `${open}script src="https://cdn.useahaget.ai/widget.js"${close}${open}${slash}script${close}`,
     `${open}script${close}`,
-    `  Tesseract('init', {`,
+    `  Ahaget('init', {`,
     `    apiKey: '${apiKey}',`,
     `    userId: currentUser.id,`,
     `    metadata: { plan: currentUser.plan },`,
@@ -167,7 +167,7 @@ export default function WidgetSettingsPage() {
               </p>
               <div className="bg-slate-900 rounded-lg px-4 py-3 text-xs text-slate-100 font-mono leading-relaxed">
                 <span className="text-slate-400">// After login:</span>{'\n'}
-                {'Tesseract(\'init\', {\n'}
+                {'Ahaget(\'init\', {\n'}
                 {'  apiKey: \'YOUR_KEY\',\n'}
                 {'  userId: currentUser.id,      '}
                 <span className="text-slate-500">// your DB user ID</span>{'\n'}
@@ -230,7 +230,7 @@ export default function WidgetSettingsPage() {
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">Selector alerts</p>
           <p className="text-xs text-slate-400 mb-4">
-            Get notified when a CSS selector Tesseract relies on starts failing. Tesseract will POST a JSON payload to your webhook.
+            Get notified when a CSS selector Ahaget relies on starts failing. Ahaget will POST a JSON payload to your webhook.
           </p>
           <div className="flex items-center gap-3 mb-4">
             <button
@@ -265,11 +265,11 @@ export default function WidgetSettingsPage() {
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Selector health log</p>
-            <p className="text-xs text-slate-400 mt-0.5">DOM selectors Tesseract has used — and their auto-heal status.</p>
+            <p className="text-xs text-slate-400 mt-0.5">DOM selectors Ahaget has used — and their auto-heal status.</p>
           </div>
           {healEntries.length === 0 ? (
             <div className="px-6 py-10 text-center text-xs text-slate-400">
-              No selector activity yet. Once Tesseract performs DOM actions, they'll appear here.
+              No selector activity yet. Once Ahaget performs DOM actions, they'll appear here.
             </div>
           ) : (
             <div className="overflow-x-auto">

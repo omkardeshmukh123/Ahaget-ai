@@ -1,8 +1,8 @@
 ﻿import Link from 'next/link';
 
-const snippet = `<script src="https://cdn.tesseract-ai.com/widget.js"></script>
+const snippet = `<script src="https://cdn.ahaget.com/widget.js"></script>
 <script>
-  Tesseract AI('init', {
+  Ahaget('init', {
     apiKey: 'org_YOUR_KEY',
     userId: currentUser.id,
   });
@@ -31,7 +31,7 @@ export default function Hero() {
 
         {/* Sub */}
         <p className="text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-          Tesseract AI is an AI copilot embedded in your SaaS product. It detects what each user
+          Ahaget is an AI copilot embedded in your SaaS product. It detects what each user
           is trying to do, asks one smart question, and guides them through setup — automatically.
           From signup to aha moment, without you lifting a finger.
         </p>

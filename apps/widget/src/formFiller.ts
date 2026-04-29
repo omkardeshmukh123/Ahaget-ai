@@ -1,5 +1,5 @@
 ﻿// Scans the page for form fields and offers to pre-fill them using
-// the user's known metadata (passed via Tesseract('init', { metadata: {...} }))
+// the user's known metadata (passed via Ahaget('init', { metadata: {...} }))
 
 import { animatedFillFields } from './cursor';
 

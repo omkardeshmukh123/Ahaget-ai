@@ -1,7 +1,7 @@
 services:
   # ─── Backend API ─────────────────────────────────────────────────────────────
   - type: web
-    name: tesseract-backend
+    name: ahaget-backend
     runtime: node
     plan: free
     rootDir: apps/backend
@@ -13,7 +13,7 @@ services:
         value: production
       - key: DATABASE_URL
         fromDatabase:
-          name: tesseract-db
+          name: ahaget-db
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
@@ -38,9 +38,9 @@ services:
 
   # ─── Landing Page ─────────────────────────────────────────────────────────────
   - type: web
-    name: tesseract-landing
+    name: ahaget-landing
     runtime: static
-    rootDir: Tesseract-Website
+    rootDir: ahaget-website
     buildCommand: npm install && npm run build
     staticPublishPath: out
     envVars:
@@ -49,7 +49,7 @@ services:
 
   # ─── Dashboard ────────────────────────────────────────────────────────────────
   - type: web
-    name: tesseract-dashboard
+    name: ahaget-dashboard
     runtime: node
     plan: free
     buildCommand: npm install --include=dev --legacy-peer-deps && npm run build --workspace=apps/dashboard && cp -r apps/dashboard/.next/static apps/dashboard/.next/standalone/.next/static && (cp -r apps/dashboard/public apps/dashboard/.next/standalone/public || true)
@@ -67,7 +67,7 @@ services:
 
 databases:
   # ─── PostgreSQL ───────────────────────────────────────────────────────────────
-  - name: tesseract-db
+  - name: ahaget-db
     plan: free
-    databaseName: tesseract
-    user: tesseract
+    databaseName: ahaget
+    user: ahaget

@@ -78,7 +78,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold text-slate-900 mb-1">Sign in to Tesseract</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-1">Sign in to Ahaget</h1>
       <p className="text-slate-500 text-sm mb-8">
         New here?{' '}
         <Link href="/register" className="text-indigo-600 hover:text-indigo-700 font-medium">

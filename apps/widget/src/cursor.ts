@@ -3,7 +3,7 @@
 // element, pauses, then the fill happens. Mimics the Tandem-style "pointer
 // works in front of you" experience.
 
-const CURSOR_ID = '__tesseract_cursor__';
+const CURSOR_ID = '__ahaget_cursor__';
 const CURSOR_SIZE = 28;
 
 // Pointer SVG — matches a standard OS cursor arrow, indigo-tinted

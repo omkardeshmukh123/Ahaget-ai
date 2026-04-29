@@ -36,7 +36,7 @@ export default function DescriptionPage() {
 
       <h1 className="text-2xl font-bold text-slate-900 mb-2">What does your product do?</h1>
       <p className="text-slate-500 text-[15px] leading-relaxed mb-8">
-        Give Tesseract's AI a brief description of your product. This becomes the assistant's system instructions so it can answer your users' questions accurately.
+        Give Ahaget's AI a brief description of your product. This becomes the assistant's system instructions so it can answer your users' questions accurately.
       </p>
 
       {error && (

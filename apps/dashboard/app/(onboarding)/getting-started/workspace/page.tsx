@@ -49,7 +49,7 @@ export default function WorkspacePage() {
 
       <h1 className="text-2xl font-bold text-slate-900 mb-2">Let's start with a link</h1>
       <p className="text-slate-500 text-[15px] leading-relaxed mb-8">
-        Enter your product's website. Tesseract will use this to personalise the AI assistant embed snippet for your domain.
+        Enter your product's website. Ahaget will use this to personalise the AI assistant embed snippet for your domain.
       </p>
 
       <form onSubmit={handleContinue} className="space-y-4">

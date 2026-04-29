@@ -22,9 +22,9 @@ Step 3: "Your first insight" (milestone)
     title: 'Embed one script tag',
     description:
       'Copy your API key from the dashboard. Add two lines to your product. The widget loads asynchronously — no impact on page speed, no dependencies, no framework requirements. Works in any SaaS product.',
-    code: `<script src="https://cdn.tesseract-ai.com/widget.js"></script>
+    code: `<script src="https://cdn.ahaget.com/widget.js"></script>
 <script>
-  Tesseract AI('init', {
+  Ahaget('init', {
     apiKey: 'org_YOUR_KEY',
     userId: currentUser.id,
     metadata: { plan: currentUser.plan }

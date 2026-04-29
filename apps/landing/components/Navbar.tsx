@@ -15,7 +15,7 @@ export default function Navbar() {
             <div className="h-8 w-8 rounded-lg bg-brand-500 flex items-center justify-center text-white font-bold text-sm">
               O
             </div>
-            <span className="font-bold text-white text-lg">Tesseract AI</span>
+            <span className="font-bold text-white text-lg">Ahaget</span>
           </div>
 
           {/* Desktop nav */}

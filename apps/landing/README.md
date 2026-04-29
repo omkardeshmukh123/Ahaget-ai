@@ -1,6 +1,6 @@
-﻿# Tesseract AI — Landing Page + Docs Site
+﻿# Ahaget — Landing Page + Docs Site
 
-Marketing landing page and /docs for Tesseract AI — the onboarding intelligence platform for SaaS.
+Marketing landing page and /docs for Ahaget — the onboarding intelligence platform for SaaS.
 
 Runs on port **3001** (dashboard is 3000, backend is 4000).
 
@@ -95,7 +95,7 @@ npm run dev   # → http://localhost:3001
 NEXT_PUBLIC_DASHBOARD_URL=http://localhost:3000
 ```
 
-In production set this to your deployed dashboard URL (e.g. `https://app.tesseract-ai.com`).
+In production set this to your deployed dashboard URL (e.g. `https://app.ahaget.com`).
 
 ---
 

@@ -263,7 +263,7 @@ RESPONSE TURN: The user has replied or taken an action.
   // Fix #5: truncate collectedData to 500 chars to avoid runaway context growth
   const collectedDataStr = JSON.stringify(collectedData).slice(0, 500);
 
-  return `You are Tesseract, an AI onboarding guide inside "${orgName}". You ALWAYS call exactly one tool — never respond with plain text.
+  return `You are Ahaget, an AI onboarding guide inside "${orgName}". You ALWAYS call exactly one tool — never respond with plain text.
 ${userProfile}${historySection}
 STEP: "${step.title}"
 Goal: ${step.description || step.title}
@@ -952,7 +952,7 @@ export async function runAgentPlan(opts: {
     ? `Current page: ${sanitizeDomText(pageContext.title)} (${pageContext.url})`
     : '';
 
-  const systemPrompt = `You are Tesseract, planning a multi-step workflow inside "${org.name}".
+  const systemPrompt = `You are Ahaget, planning a multi-step workflow inside "${org.name}".
 Break the user's goal into 2–5 sequential, concrete phases. Each phase is one focused task completable on a single page or screen.
 Phase titles must be under 6 words and action-oriented (e.g. "Create company profile", "Add payment method").
 ${pageHint}`.trim();
@@ -1223,7 +1223,7 @@ ${observeCount >= 3 ? '\nYou have reached 3 failures. You MUST call degrade_to_m
     ? '\nLANGUAGE: Respond in Hinglish \u2014 natural Hindi+English mix in Roman script. Example: "Yahan click karein, phir apna naam enter karein."'
     : '';
 
-  const systemPrompt = `You are Tesseract, an AI agent inside "${org.name}".
+  const systemPrompt = `You are Ahaget, an AI agent inside "${org.name}".
 ${userProfile}${priorHistorySection}
 GOAL: ${goal}
 

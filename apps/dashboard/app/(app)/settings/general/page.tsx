@@ -151,7 +151,7 @@ export default function SettingsGeneralPage() {
       {tab === 'hosts' && (
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <p className="text-sm font-semibold text-slate-700 mb-1">Allowed hosts</p>
-          <p className="text-sm text-slate-500 mb-4">Restrict which domains can load the Tesseract widget using your App ID.</p>
+          <p className="text-sm text-slate-500 mb-4">Restrict which domains can load the Ahaget widget using your App ID.</p>
           <input
             id="input-allowed-hosts"
             placeholder="acme.com, app.acme.com"

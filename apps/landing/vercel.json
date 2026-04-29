@@ -3,6 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "env": {
-    "NEXT_PUBLIC_DASHBOARD_URL": "@tesseract-ai_dashboard_url"
+    "NEXT_PUBLIC_DASHBOARD_URL": "@ahaget_dashboard_url"
   }
 }

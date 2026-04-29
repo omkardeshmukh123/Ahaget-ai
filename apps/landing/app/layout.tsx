@@ -2,11 +2,11 @@
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Tesseract AI — Stop Losing Users at the Critical Moment',
+  title: 'Ahaget — Stop Losing Users at the Critical Moment',
   description:
-    'Embed one script tag. Tesseract AI detects when users get stuck and triggers an AI-powered guide that converts hesitation into action.',
+    'Embed one script tag. Ahaget detects when users get stuck and triggers an AI-powered guide that converts hesitation into action.',
   openGraph: {
-    title: 'Tesseract AI — AI Onboarding That Converts',
+    title: 'Ahaget — AI Onboarding That Converts',
     description: 'Detect drop-offs. Trigger AI guides. Watch conversions climb.',
     type: 'website',
   },

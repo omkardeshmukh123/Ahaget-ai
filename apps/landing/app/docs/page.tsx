@@ -3,7 +3,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
-  title: 'Docs — Tesseract AI',
+  title: 'Docs — Ahaget',
   description: 'Widget API reference, quick-start guide, flow configuration, and integration examples.',
 };
 
@@ -12,7 +12,7 @@ const SECTIONS = [
     id: 'quick-start',
     title: 'Quick start',
     content: `
-Get Tesseract AI running in 5 minutes.
+Get Ahaget running in 5 minutes.
 
 **1. Create a flow in the dashboard**
 
@@ -21,14 +21,14 @@ Go to **Flows → New flow** and pick a template for your SaaS vertical (Analyti
 **2. Add the script tag**
 
 \`\`\`html
-<script src="https://cdn.tesseract-ai.com/widget.js"></script>
+<script src="https://cdn.ahaget.com/widget.js"></script>
 \`\`\`
 
 **3. Initialize with your API key**
 
 \`\`\`html
 <script>
-  Tesseract AI('init', {
+  Ahaget('init', {
     apiKey: 'org_YOUR_KEY',     // Settings → Widget in the dashboard
     userId: currentUser.id,     // your own user ID — must be a string
     metadata: {
@@ -44,9 +44,9 @@ Go to **Flows → New flow** and pick a template for your SaaS vertical (Analyti
 \`\`\`html
 <script>
   // Call this wherever the user completes that step in your product
-  Tesseract AI('event', 'data_connected');       // step 1 done
-  Tesseract AI('event', 'dashboard_created');    // step 2 done
-  Tesseract AI('event', 'insight_viewed');       // step 3 done
+  Ahaget('event', 'data_connected');       // step 1 done
+  Ahaget('event', 'dashboard_created');    // step 2 done
+  Ahaget('event', 'insight_viewed');       // step 3 done
 </script>
 \`\`\`
 
@@ -61,7 +61,7 @@ Go to **Activation** to see your funnel in real time. Go to **Benchmarks** to co
     id: 'widget-api',
     title: 'Widget API reference',
     content: `
-### \`Tesseract AI('init', config)\`
+### \`Ahaget('init', config)\`
 
 Initializes the widget. Call once per page load after the script tag loads.
 
@@ -74,12 +74,12 @@ Initializes the widget. Call once per page load after the script tag loads.
 | \`primaryColor\` | \`string\` | \`'#6366f1'\` | Hex accent color for the widget |
 | \`position\` | \`string\` | \`'bottom-right'\` | Bubble position: \`'bottom-right'\` or \`'bottom-left'\` |
 
-### \`Tesseract AI('event', eventName)\`
+### \`Ahaget('event', eventName)\`
 
 Fires a completion event. The widget calls \`POST /api/v1/session/event\` with the event name. If the current step's \`completionEvent\` matches, the session advances and integrations fire.
 
 \`\`\`js
-Tesseract AI('event', 'data_connected');
+Ahaget('event', 'data_connected');
 \`\`\`
 
 ### Automatic triggers
@@ -131,7 +131,7 @@ init called → GET /api/v1/session/start
   → session created (or resumed) with current step
   → copilot opens if idle or churn risk detected
   → user chats → AI acts → step may complete
-  → Tesseract AI('event', name) → step advances
+  → Ahaget('event', name) → step advances
   → all steps done → session marked completed
 \`\`\`
     `,
@@ -181,13 +181,13 @@ Do not move on until they confirm they can see rows in the table.
     id: 'integrations',
     title: 'Integrations',
     content: `
-Connect your analytics and CRM tools in **Dashboard → Settings → Integrations**. When a step completes, Tesseract AI fires all enabled integrations in parallel.
+Connect your analytics and CRM tools in **Dashboard → Settings → Integrations**. When a step completes, Ahaget fires all enabled integrations in parallel.
 
 ### Segment
 
 Paste your **Source Write Key** from Segment → Sources → your source → Settings.
 
-Event fired: \`track\` call with \`event: 'Tesseract AI Step Completed'\` and properties:
+Event fired: \`track\` call with \`event: 'Ahaget Step Completed'\` and properties:
 
 \`\`\`json
 {
@@ -202,7 +202,7 @@ Event fired: \`track\` call with \`event: 'Tesseract AI Step Completed'\` and pr
 
 Paste your **Project Token** from Mixpanel → Project Settings.
 
-Event fired: \`Tesseract AI Step Completed\` with the same properties above.
+Event fired: \`Ahaget Step Completed\` with the same properties above.
 
 ### HubSpot
 
@@ -212,7 +212,7 @@ On step complete: upserts a contact by \`userId\` (used as email if it looks lik
 
 ### Webhook
 
-Paste any HTTPS URL. Tesseract AI POSTs this payload on every step completion:
+Paste any HTTPS URL. Ahaget POSTs this payload on every step completion:
 
 \`\`\`json
 {
@@ -224,7 +224,7 @@ Paste any HTTPS URL. Tesseract AI POSTs this payload on every step completion:
     "sessionId": "sess_xyz"
   },
   "timestamp": "2026-04-09T02:00:00.000Z",
-  "source": "tesseract-ai"
+  "source": "ahaget"
 }
 \`\`\`
 
@@ -248,7 +248,7 @@ The widget calls this automatically on session start. You can also call it from 
 **Query params:** \`userId=user_123\`
 
 \`\`\`bash
-curl "https://api.tesseract-ai.com/api/v1/churn/score?userId=user_123" \\
+curl "https://api.ahaget.com/api/v1/churn/score?userId=user_123" \\
   -H "X-API-Key: org_YOUR_KEY"
 \`\`\`
 
@@ -289,7 +289,7 @@ Use this endpoint from your own backend to build churn dashboards, trigger email
 ### Base URL
 
 \`\`\`
-https://api.tesseract-ai.com   (production)
+https://api.ahaget.com   (production)
 http://localhost:4000       (local dev)
 \`\`\`
 
@@ -298,7 +298,7 @@ http://localhost:4000       (local dev)
 **Widget / customer-side** — use your org API key:
 
 \`\`\`bash
-curl -H "X-API-Key: org_YOUR_KEY" https://api.tesseract-ai.com/api/v1/session/start \\
+curl -H "X-API-Key: org_YOUR_KEY" https://api.ahaget.com/api/v1/session/start \\
   -X POST -H "Content-Type: application/json" \\
   -d '{"userId":"user_123"}'
 \`\`\`
@@ -307,13 +307,13 @@ curl -H "X-API-Key: org_YOUR_KEY" https://api.tesseract-ai.com/api/v1/session/st
 
 \`\`\`bash
 # 1. Login
-TOKEN=$(curl -s -X POST https://api.tesseract-ai.com/api/v1/auth/login \\
+TOKEN=$(curl -s -X POST https://api.ahaget.com/api/v1/auth/login \\
   -H "Content-Type: application/json" \\
   -d '{"email":"you@example.com","password":"..."}' | jq -r .token)
 
 # 2. Use token
 curl -H "Authorization: Bearer $TOKEN" \\
-  https://api.tesseract-ai.com/api/v1/activation/funnel
+  https://api.ahaget.com/api/v1/activation/funnel
 \`\`\`
 
 ### Key endpoints
@@ -507,7 +507,7 @@ export default function DocsPage() {
           <div className="mb-12">
             <h1 className="text-4xl font-bold text-white mb-3">Documentation</h1>
             <p className="text-zinc-400 text-lg">
-              Everything you need to embed Tesseract AI, configure flows, and measure activation.
+              Everything you need to embed Ahaget, configure flows, and measure activation.
             </p>
           </div>
 

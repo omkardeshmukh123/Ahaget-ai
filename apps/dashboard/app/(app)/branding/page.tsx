@@ -47,7 +47,7 @@ export default function BrandingPage() {
 
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900 mb-1">Branding</h1>
-        <p className="text-slate-500 text-sm">Customise how the Tesseract assistant looks inside your app.</p>
+        <p className="text-slate-500 text-sm">Customise how the Ahaget assistant looks inside your app.</p>
       </div>
 
       <div className="flex gap-6">
@@ -167,7 +167,7 @@ export default function BrandingPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
                 </div>
-                <span className="text-white text-xs font-semibold">Tesseract Assistant</span>
+                <span className="text-white text-xs font-semibold">Ahaget Assistant</span>
               </div>
               <div className="bg-white/10 rounded-lg px-3 py-2">
                 <p className="text-white/90 text-xs">👋 Hi! How can I help you today?</p>

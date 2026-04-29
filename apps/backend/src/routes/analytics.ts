@@ -61,7 +61,7 @@ router.get('/timeline', authenticateJWT, async (req: AuthenticatedRequest, res: 
   const days = Math.min(parseInt(req.query.days as string) || 30, 90);
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-  // Raw SQL for grouping by date (Tesseracta doesn't have groupBy date truncation)
+  // Raw SQL for grouping by date (Ahageta doesn't have groupBy date truncation)
   const rows = await prisma.$queryRaw<Array<{ date: Date; conversations: bigint }>>`
     SELECT
       DATE_TRUNC('day', "started_at") AS date,

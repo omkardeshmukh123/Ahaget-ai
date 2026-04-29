@@ -3,14 +3,14 @@
 const QUOTES = [
   {
     quote:
-      "We were losing 60% of users before they connected their first data source. Tesseract AI's AI copilot guided them through it — our activation rate went from 28% to 51% in two weeks.",
+      "We were losing 60% of users before they connected their first data source. Ahaget's AI copilot guided them through it — our activation rate went from 28% to 51% in two weeks.",
     name: 'Priya M.',
     role: 'Founder, DataNest Analytics',
     avatar: 'P',
   },
   {
     quote:
-      "Our no-code tool has a steep learning curve. Tesseract AI configured a 4-step flow and now new users build their first automation without ever reading the docs. It literally does the setup for them.",
+      "Our no-code tool has a steep learning curve. Ahaget configured a 4-step flow and now new users build their first automation without ever reading the docs. It literally does the setup for them.",
     name: 'Arjun T.',
     role: 'CTO, Flowbuilder',
     avatar: 'A',

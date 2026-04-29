@@ -67,7 +67,7 @@ export default function KnowledgePage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900 mb-1">Knowledge Sources</h1>
         <p className="text-slate-500 text-sm">
-          Add URLs or documents that Tesseract's AI will use to answer user questions accurately.
+          Add URLs or documents that Ahaget's AI will use to answer user questions accurately.
         </p>
       </div>
 

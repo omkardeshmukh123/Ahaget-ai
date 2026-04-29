@@ -125,7 +125,7 @@ export default function Pricing() {
               <a
                 href={
                   plan.name === 'Contact us'
-                    ? 'mailto:hello@tesseract-ai.com'
+                    ? 'mailto:hello@ahaget.com'
                     : (process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'http://localhost:3000/register')
                 }
                 className={`block w-full rounded-xl py-2.5 text-sm font-semibold text-center transition-colors ${
@@ -142,7 +142,7 @@ export default function Pricing() {
 
         <p className="text-center text-zinc-600 text-sm mt-10">
           All plans include a 14-day money-back guarantee.{' '}
-          <a href="mailto:hello@tesseract-ai.com" className="text-brand-400 hover:underline">
+          <a href="mailto:hello@ahaget.com" className="text-brand-400 hover:underline">
             Need a custom plan? Get in touch.
           </a>
         </p>

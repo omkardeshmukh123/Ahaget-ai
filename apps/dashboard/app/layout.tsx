@@ -2,7 +2,7 @@
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Tesseract Dashboard',
+  title: 'Ahaget Dashboard',
   description: 'Manage your AI onboarding agent',
 };
 
