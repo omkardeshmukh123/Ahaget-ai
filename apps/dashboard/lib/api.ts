@@ -267,12 +267,32 @@ export const api = {
 
   kb: {
     list: () => apiFetch<{ articles: KnowledgeArticle[] }>('/api/v1/kb'),
-    create: (data: { title: string; content: string; tags?: string[] }) =>
+    get: (id: string) => apiFetch<{ article: KnowledgeArticle & { content: string } }>(`/api/v1/kb/${id}`),
+    create: (data: { title: string; content: string; tags?: string[]; pageUrlPattern?: string }) =>
       apiFetch<{ article: KnowledgeArticle }>('/api/v1/kb', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    update: (id: string, data: { title?: string; content?: string; tags?: string[] }) =>
+    ingestUrl: (data: { url: string; pageUrlPattern?: string; tags?: string[] }) =>
+      apiFetch<{ article: KnowledgeArticle; message: string }>('/api/v1/kb/ingest-url', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    ingestFile: (formData: FormData) =>
+      // multipart — bypass default Content-Type so browser sets boundary
+      (async () => {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+        const token = typeof window !== 'undefined' ? localStorage.getItem('oai_token') : null;
+        const res = await fetch(`${API_URL}/api/v1/kb/ingest-file`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        });
+        if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error ?? `HTTP ${res.status}`); }
+        return res.json() as Promise<{ article: KnowledgeArticle }>;
+      })(),
+    sync: (id: string) => apiFetch<{ syncing: boolean }>(`/api/v1/kb/${id}/sync`, { method: 'POST' }),
+    update: (id: string, data: { title?: string; content?: string; tags?: string[]; pageUrlPattern?: string }) =>
       apiFetch<{ article: KnowledgeArticle }>(`/api/v1/kb/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
@@ -890,11 +910,18 @@ export interface UserHistoryDetail {
 export interface KnowledgeArticle {
   id: string;
   title: string;
-  content: string;
+  content?: string;            // omitted in list view, present in get/:id
   tags: string[];
+  sourceType: 'manual' | 'url' | 'file' | 'sitemap';
+  sourceUrl: string | null;
+  pageUrlPattern: string | null; // substring match against user's current URL; null = all pages
+  syncStatus: 'idle' | 'syncing' | 'error';
+  syncedAt: string | null;
+  wordCount: number;
   createdAt: string;
   updatedAt: string;
 }
+
 
 export interface HealEntry {
   originalSelector: string;

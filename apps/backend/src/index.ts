@@ -80,7 +80,9 @@ app.use(cors({
   credentials: false,
 }));
 
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '2mb' })); // KB manual articles can be long
+app.use(express.urlencoded({ extended: false, limit: '2mb' }));
+
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ─── REST routes ─────────────────────────────────────────────────────────────

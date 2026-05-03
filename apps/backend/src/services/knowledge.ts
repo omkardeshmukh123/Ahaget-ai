@@ -1,4 +1,4 @@
-﻿// ─── Knowledge Base Service — hybrid BM25 + vector search with RRF ───────────
+// ─── Knowledge Base Service — hybrid BM25 + vector search with RRF ───────────
 
 import OpenAI from 'openai';
 import { prisma } from '../lib/prisma';
@@ -109,18 +109,32 @@ export interface KBResult {
 /**
  * Hybrid BM25 + vector search with Reciprocal Rank Fusion.
  * Falls back to pure vector if only one article exists.
+ *
+ * pageUrl — if supplied, only articles whose pageUrlPattern matches
+ * (or have no pattern) are included. This is the page-level scoping.
  */
 export async function searchKnowledgeBase(
   orgId: string,
   query: string,
   topK = 3,
   minVectorScore = 0.25,
+  pageUrl?: string,
 ): Promise<KBResult[]> {
-  const articles = await prisma.knowledgeBaseArticle.findMany({
+  const allArticles = await prisma.knowledgeBaseArticle.findMany({
     where: { organizationId: orgId },
-    select: { id: true, title: true, content: true, embedding: true },
+    select: { id: true, title: true, content: true, embedding: true, pageUrlPattern: true },
     take: 500,
   });
+
+  // ── Page-level scoping ──────────────────────────────────────────────────────
+  // If pageUrl supplied: include articles with no pattern (universal) OR whose
+  // pattern is a substring of the current page URL (simple, zero-config match).
+  const articles = pageUrl
+    ? allArticles.filter((a) => {
+        if (!a.pageUrlPattern) return true; // no restriction → always include
+        return pageUrl.toLowerCase().includes(a.pageUrlPattern.toLowerCase());
+      })
+    : allArticles;
 
   if (articles.length === 0) return [];
 

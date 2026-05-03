@@ -1,4 +1,4 @@
-﻿import OpenAI from 'openai';
+import OpenAI from 'openai';
 import { OnboardingStep, Organization } from '@prisma/client';
 
 import { executeApiCall, interpolate } from './apicall';
@@ -451,11 +451,12 @@ ${actionConfig!.fields   ? `- fields: ${JSON.stringify(actionConfig!.fields)} (r
     : '';
 
   // Skip KB search on init/verify turns — 800ms cap (Phase 5 latency budget)
+  // Pass pageContext.url so only page-scoped knowledge articles are retrieved.
   const kbTimer = timer();
   const kbResults = (isInit || isVerify)
     ? []
     : await Promise.race([
-        searchKnowledgeBase(org.id, userMessage).catch(() => []),
+        searchKnowledgeBase(org.id, userMessage, 3, 0.25, pageContext?.url).catch(() => []),
         new Promise<Awaited<ReturnType<typeof searchKnowledgeBase>>>((resolve) =>
           setTimeout(() => resolve([]), 800)  // Phase 5: tightened from 1500ms to 800ms
         ),
@@ -1116,7 +1117,7 @@ export async function runAgentGoal(opts: {
 
   const kbResults = shouldSearchKb
     ? await Promise.race([
-        searchKnowledgeBase(org.id, kbQuery).catch(() => []),
+        searchKnowledgeBase(org.id, kbQuery, 3, 0.25, pageContext.url).catch(() => []),
         new Promise<Awaited<ReturnType<typeof searchKnowledgeBase>>>((resolve) =>
           setTimeout(() => resolve([]), 800)
         ),

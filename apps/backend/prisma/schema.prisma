@@ -452,22 +452,33 @@ model SelectorHealLog {
   @@map("selector_heal_logs")
 }
 
-// ─── KnowledgeBaseArticle (org-specific docs the AI searches during onboarding) ─
+// ─── KnowledgeBaseArticle (org-specific docs the AI searches) ────────────────
+// sourceType: manual | url | file | sitemap
+// pageUrlPattern: glob/substr matched against the user's current URL — empty means all pages
+// syncStatus: idle | syncing | error
 model KnowledgeBaseArticle {
   id             String   @id @default(uuid())
   organizationId String   @map("organization_id")
   title          String
-  content        String   // plain text or markdown
+  content        String   // plain text / markdown
   tags           String[] @default([])
   embedding      Json     @default("[]") @map("embedding") // float[] from text-embedding-3-small
+  sourceType     String   @default("manual") @map("source_type") // manual | url | file | sitemap
+  sourceUrl      String?  @map("source_url")                     // original URL if crawled
+  pageUrlPattern String?  @map("page_url_pattern")               // page scope: "" = all pages
+  syncStatus     String   @default("idle") @map("sync_status")   // idle | syncing | error
+  syncedAt       DateTime? @map("synced_at")
+  wordCount      Int      @default(0) @map("word_count")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
+  @@index([organizationId, pageUrlPattern])
   @@map("knowledge_base_articles")
 }
+
 
 // ─── McpConnector (Model Context Protocol server connections) ─────────────────
 // Each connector points to an MCP server URL. The AI agent uses these to call

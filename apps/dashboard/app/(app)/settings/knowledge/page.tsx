@@ -41,7 +41,8 @@ export default function KnowledgePage() {
   const openEdit = (a: KnowledgeArticle) => {
     setEditingId(a.id);
     setTitle(a.title);
-    setContent(a.content);
+    setContent(a.content ?? '');
+
     setTags(a.tags.join(', '));
     setError(null);
     setShowForm(true);
@@ -202,7 +203,7 @@ export default function KnowledgePage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-800 truncate">{a.title}</p>
                     {!isExpanded && (
-                      <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{a.content}</p>
+                      <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{a.content ?? ''}</p>
                     )}
                     {a.tags.length > 0 && (
                       <div className="flex gap-1 mt-1.5 flex-wrap">
@@ -239,7 +240,7 @@ export default function KnowledgePage() {
                 {isExpanded && (
                   <div className="border-t border-slate-100 px-4 py-3">
                     <pre className="text-xs text-slate-600 whitespace-pre-wrap font-sans leading-relaxed max-h-64 overflow-y-auto">
-                      {a.content}
+                      {a.content ?? ''}
                     </pre>
                   </div>
                 )}
