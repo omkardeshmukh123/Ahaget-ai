@@ -350,7 +350,106 @@ export const api = {
       summary: { droppedOff: number; openEscalations: number };
     }>('/api/v1/failures'),
   },
+
+  expansion: {
+    dashboard: (period = '30d') =>
+      apiFetch<{
+        stats: {
+          totalSuggestions: number;
+          confirmed: number;
+          pending: number;
+          attributedMrr: number;
+          conversionRate: number;
+          mrrByPlan: Record<string, number>;
+        };
+        recent: Array<{
+          id: string;
+          status: string;
+          targetPlan: string;
+          mrr: number | null;
+          suggestedAt: string;
+          confirmedAt: string | null;
+          flow: { name: string; targetPlan: string | null } | null;
+          endUser: { externalId: string | null; email: string | null } | null;
+        }>;
+        period: string;
+      }>(`/api/v1/expansion?period=${period}`),
+    flows: () =>
+      apiFetch<{
+        flows: Array<{
+          id: string; name: string; targetPlan: string | null;
+          upgradeUrl: string | null; mrrPerConversion: number | null;
+          isActive: boolean; createdAt: string;
+          totalSuggestions: number; confirmed: number;
+          conversionRate: number; attributedMrr: number;
+        }>;
+      }>('/api/v1/expansion/flows'),
+    updateFlow: (id: string, data: { targetPlan?: string; upgradeUrl?: string; mrrPerConversion?: number }) =>
+      apiFetch<{ flow: OnboardingFlow }>(`/api/v1/expansion/flows/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+  },
+
+  proactive: {
+    list: (limit = 50) =>
+      apiFetch<{
+        messages: Array<{
+          id: string; channel: string; subject: string | null;
+          bodySnippet: string | null; status: string;
+          sentAt: string; openedAt: string | null; clickedAt: string | null;
+          endUser: { externalId: string | null; email: string | null } | null;
+          flow: { id: string; name: string; flowType: string } | null;
+        }>;
+        stats: { total: number; openRate: number; clickRate: number };
+      }>(`/api/v1/proactive?limit=${limit}`),
+    send: (data: { endUserId: string; flowId: string; subject?: string; bodySnippet?: string; channel?: 'in_app' | 'email' }) =>
+      apiFetch<{ message: { id: string } }>('/api/v1/proactive/send', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
+
+  triggerRules: {
+    list: () =>
+      apiFetch<{
+        rules: Array<{
+          id: string; flowId: string; triggerType: string; isActive: boolean;
+          urlPattern: string | null; firstTimeOnly: boolean;
+          daysThreshold: number | null; eventName: string | null;
+          usageMetric: string | null; usagePercent: number | null;
+          featureSlug: string | null; createdAt: string;
+          flow: { id: string; name: string; flowType: string };
+        }>;
+      }>('/api/v1/triggers'),
+    create: (data: {
+      flowId: string; triggerType: string; isActive?: boolean;
+      urlPattern?: string; firstTimeOnly?: boolean; daysThreshold?: number;
+      eventName?: string; usageMetric?: string; usagePercent?: number; featureSlug?: string;
+    }) => apiFetch<{ rule: { id: string } }>('/api/v1/triggers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    update: (id: string, data: Record<string, unknown>) =>
+      apiFetch<{ updated: boolean }>(`/api/v1/triggers/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    remove: (id: string) =>
+      apiFetch<{ deleted: boolean }>(`/api/v1/triggers/${id}`, { method: 'DELETE' }),
+  },
+
+  lifecycleAnalytics: {
+    get: () => apiFetch<{
+      stages: Record<string, { started: number; completed: number; completionRate: number }>;
+      proactive: { total: number; openRate: number; clickRate: number };
+      expansion: { totalMrr: number; conversionRate: number; confirmedCount: number };
+      activeUsers: number;
+      period: string;
+    }>('/api/v1/analytics/lifecycle'),
+  },
 };
+
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

@@ -1,32 +1,17 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { api } from '@/lib/api';
 
-interface StageData {
-  stage: string;
-  started: number;
-  completed: number;
-  completionRate: number;
-}
+type StageInfo = { started: number; completed: number; completionRate: number };
 
-interface LifecycleData {
+type LifecycleData = {
   period: string;
-  uniqueUsers: number;
-  stages: StageData[];
-  proactive: { sent: number; opened: number; clicked: number; openRate: number; clickRate: number };
-  expansion: { pitched: number; converted: number; attributedMrr: number; conversionRate: number };
-}
-
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-
-async function apiFetch<T>(path: string): Promise<T> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('_ahaget_token') : null;
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as T;
-}
+  activeUsers: number;
+  stages: Record<string, StageInfo>;
+  proactive: { total: number; openRate: number; clickRate: number };
+  expansion: { totalMrr: number; conversionRate: number; confirmedCount: number };
+};
 
 const STAGE_META: Record<string, { label: string; emoji: string; color: string; href: string; desc: string }> = {
   onboarding: { label: 'Onboarding',  emoji: '🚀', color: '#6366f1', href: '/flows?type=onboarding', desc: 'New users getting started' },
@@ -36,10 +21,11 @@ const STAGE_META: Record<string, { label: string; emoji: string; color: string; 
   support:    { label: 'Support',     emoji: '🤝', color: '#10b981', href: '/flows?type=support',     desc: 'Resolving user issues' },
 };
 
-function StageCard({ stage, stageData, isLast }: { stage: string; stageData: StageData; isLast: boolean }) {
-  const meta = STAGE_META[stage];
-  const barWidth = `${stageData.completionRate}%`;
-  const rateColor = stageData.completionRate >= 70 ? '#10b981' : stageData.completionRate >= 40 ? '#f59e0b' : '#ef4444';
+const STAGE_ORDER = ['onboarding', 'adoption', 'upsell', 'retention', 'support'];
+
+function StageCard({ stageKey, info, isLast }: { stageKey: string; info: StageInfo; isLast: boolean }) {
+  const meta = STAGE_META[stageKey] ?? { label: stageKey, emoji: '◈', color: '#6366f1', href: '/flows', desc: '' };
+  const rateColor = info.completionRate >= 70 ? '#10b981' : info.completionRate >= 40 ? '#f59e0b' : '#ef4444';
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
@@ -59,18 +45,18 @@ function StageCard({ stage, stageData, isLast }: { stage: string; stageData: Sta
               <p style={{ margin: 0, fontSize: 11, color: 'var(--muted)' }}>{meta.desc}</p>
             </div>
             <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-              <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'var(--on-surface)' }}>{stageData.started}</p>
+              <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'var(--on-surface)' }}>{info.started}</p>
               <p style={{ margin: 0, fontSize: 10, color: 'var(--muted)' }}>sessions</p>
             </div>
           </div>
 
           {/* Completion rate bar */}
           <div style={{ background: 'var(--surface-low)', borderRadius: 999, height: 5, overflow: 'hidden', marginBottom: 6 }}>
-            <div style={{ height: '100%', width: barWidth, background: meta.color, borderRadius: 999, transition: 'width 0.5s ease' }} />
+            <div style={{ height: '100%', width: `${info.completionRate}%`, background: meta.color, borderRadius: 999, transition: 'width 0.5s ease' }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-            <span style={{ color: 'var(--muted)' }}>{stageData.completed} completed</span>
-            <span style={{ fontWeight: 700, color: rateColor }}>{stageData.completionRate}% rate</span>
+            <span style={{ color: 'var(--muted)' }}>{info.completed} completed</span>
+            <span style={{ fontWeight: 700, color: rateColor }}>{info.completionRate}% rate</span>
           </div>
         </div>
       </Link>
@@ -88,19 +74,33 @@ export default function LifecyclePage() {
   const [period, setPeriod] = useState('30d');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { load(); }, [period]);
+  useEffect(() => { load(); }, [period]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function load() {
     setLoading(true);
     try {
-      const d = await apiFetch<LifecycleData>(`/api/v1/analytics/lifecycle?period=${period}`);
+      const d = await api.lifecycleAnalytics.get();
       setData(d);
+    } catch (e) {
+      console.error('[lifecycle] load error:', e);
     } finally {
       setLoading(false);
     }
   }
 
-  const stages = ['onboarding', 'adoption', 'upsell', 'retention', 'support'];
+  // Present stages in fixed order; fill zeros for missing stages
+  const stageEntries = STAGE_ORDER.map((key) => ({
+    key,
+    info: data?.stages[key] ?? { started: 0, completed: 0, completionRate: 0 },
+  }));
+
+  // Derive proactive sent count from total (API returns total)
+  const proactiveSent = data?.proactive.total ?? 0;
+  // Derive expansion pitched/converted from confirmedCount + conversionRate
+  const expConverted = data?.expansion.confirmedCount ?? 0;
+  const expPitched = data?.expansion.conversionRate && data.expansion.conversionRate > 0
+    ? Math.round(expConverted / (data.expansion.conversionRate / 100))
+    : expConverted;
 
   return (
     <div style={{ padding: '28px 32px', maxWidth: 960 }}>
@@ -109,7 +109,7 @@ export default function LifecyclePage() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--on-surface)', margin: 0 }}>Lifecycle Engine</h1>
           <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
-            Full-funnel view of your AI employee's work — from first touch to expansion revenue.
+            Full-funnel view of your AI employee&apos;s work — from first touch to expansion revenue.
           </p>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
@@ -132,17 +132,17 @@ export default function LifecyclePage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
             <div style={{ background: 'var(--surface)', border: '1px solid rgba(70,69,84,0.12)', borderRadius: 12, padding: '16px 20px' }}>
               <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 8px' }}>Active Users</p>
-              <p style={{ fontSize: 28, fontWeight: 800, color: 'var(--on-surface)', margin: 0 }}>{data.uniqueUsers.toLocaleString()}</p>
+              <p style={{ fontSize: 28, fontWeight: 800, color: 'var(--on-surface)', margin: 0 }}>{(data.activeUsers ?? 0).toLocaleString()}</p>
               <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Last {period}</p>
             </div>
             <div style={{ background: 'var(--surface)', border: '1px solid rgba(70,69,84,0.12)', borderRadius: 12, padding: '16px 20px' }}>
               <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 8px' }}>Proactive Reach</p>
-              <p style={{ fontSize: 28, fontWeight: 800, color: '#f59e0b', margin: 0 }}>{data.proactive.sent}</p>
+              <p style={{ fontSize: 28, fontWeight: 800, color: '#f59e0b', margin: 0 }}>{proactiveSent}</p>
               <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{data.proactive.openRate}% open · {data.proactive.clickRate}% click</p>
             </div>
             <div style={{ background: 'var(--surface)', border: '1px solid rgba(70,69,84,0.12)', borderRadius: 12, padding: '16px 20px' }}>
               <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 8px' }}>Attributed MRR</p>
-              <p style={{ fontSize: 28, fontWeight: 800, color: '#10b981', margin: 0 }}>${data.expansion.attributedMrr.toLocaleString()}</p>
+              <p style={{ fontSize: 28, fontWeight: 800, color: '#10b981', margin: 0 }}>${(data.expansion.totalMrr ?? 0).toLocaleString()}</p>
               <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{data.expansion.conversionRate}% conversion</p>
             </div>
           </div>
@@ -150,9 +150,9 @@ export default function LifecyclePage() {
           {/* Stage funnel */}
           <div style={{ marginBottom: 28 }}>
             <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--on-surface)', marginBottom: 16 }}>Lifecycle Funnel</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr) 32px repeat(0, 1fr)', gap: 0, alignItems: 'stretch' }}>
-              {data.stages.map((s, i) => (
-                <StageCard key={s.stage} stage={s.stage} stageData={s} isLast={i === data.stages.length - 1} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 0, alignItems: 'stretch' }}>
+              {stageEntries.map((s, i) => (
+                <StageCard key={s.key} stageKey={s.key} info={s.info} isLast={i === stageEntries.length - 1} />
               ))}
             </div>
             <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 12 }}>
@@ -160,9 +160,8 @@ export default function LifecyclePage() {
             </p>
           </div>
 
-          {/* Proactive + Expansion side-by-side detail */}
+          {/* Proactive + Expansion side-by-side */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            {/* Proactive */}
             <div style={{ background: 'var(--surface)', border: '1px solid rgba(70,69,84,0.12)', borderRadius: 12, padding: '18px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                 <span style={{ fontSize: 16 }}>💡</span>
@@ -170,21 +169,17 @@ export default function LifecyclePage() {
                 <Link href="/outreach" style={{ marginLeft: 'auto', fontSize: 11, color: '#6366f1', textDecoration: 'none' }}>View all →</Link>
               </div>
               {[
-                { label: 'Sent',   value: data.proactive.sent,   color: 'var(--on-surface)' },
-                { label: 'Opened', value: data.proactive.opened, color: '#f59e0b', rate: data.proactive.openRate },
-                { label: 'Clicked',value: data.proactive.clicked,color: '#10b981', rate: data.proactive.clickRate },
+                { label: 'Sent',    value: proactiveSent,              color: 'var(--on-surface)' },
+                { label: 'Open rate', value: `${data.proactive.openRate}%`,  color: '#f59e0b' },
+                { label: 'Click rate', value: `${data.proactive.clickRate}%`, color: '#10b981' },
               ].map((row) => (
                 <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(70,69,84,0.06)' }}>
                   <span style={{ fontSize: 12, color: 'var(--muted)' }}>{row.label}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {row.rate !== undefined && <span style={{ fontSize: 11, color: row.color, fontWeight: 600 }}>{row.rate}%</span>}
-                    <span style={{ fontSize: 14, fontWeight: 700, color: row.color }}>{row.value}</span>
-                  </div>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: row.color }}>{row.value}</span>
                 </div>
               ))}
             </div>
 
-            {/* Expansion */}
             <div style={{ background: 'var(--surface)', border: '1px solid rgba(70,69,84,0.12)', borderRadius: 12, padding: '18px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                 <span style={{ fontSize: 16 }}>📈</span>
@@ -192,16 +187,13 @@ export default function LifecyclePage() {
                 <Link href="/expansion" style={{ marginLeft: 'auto', fontSize: 11, color: '#d946ef', textDecoration: 'none' }}>View all →</Link>
               </div>
               {[
-                { label: 'Pitches sent',  value: data.expansion.pitched,   color: 'var(--on-surface)' },
-                { label: 'Converted',     value: data.expansion.converted, color: '#d946ef', rate: data.expansion.conversionRate },
-                { label: 'Attributed MRR',value: `$${data.expansion.attributedMrr.toLocaleString()}`, color: '#10b981' },
+                { label: 'Pitches sent',   value: expPitched,                                           color: 'var(--on-surface)' },
+                { label: 'Converted',      value: `${expConverted} (${data.expansion.conversionRate}%)`, color: '#d946ef' },
+                { label: 'Attributed MRR', value: `$${(data.expansion.totalMrr ?? 0).toLocaleString()}`, color: '#10b981' },
               ].map((row) => (
                 <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(70,69,84,0.06)' }}>
                   <span style={{ fontSize: 12, color: 'var(--muted)' }}>{row.label}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {(row as {rate?:number}).rate !== undefined && <span style={{ fontSize: 11, color: row.color, fontWeight: 600 }}>{(row as {rate:number}).rate}%</span>}
-                    <span style={{ fontSize: 14, fontWeight: 700, color: row.color }}>{row.value}</span>
-                  </div>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: row.color }}>{row.value}</span>
                 </div>
               ))}
             </div>

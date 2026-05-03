@@ -1,16 +1,17 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { api } from '@/lib/api';
 
-interface ExpansionStats {
+type ExpansionStats = {
   totalSuggestions: number;
   confirmed: number;
   pending: number;
   attributedMrr: number;
   conversionRate: number;
   mrrByPlan: Record<string, number>;
-}
+};
 
-interface UpsellFlow {
+type UpsellFlow = {
   id: string;
   name: string;
   targetPlan: string | null;
@@ -21,9 +22,9 @@ interface UpsellFlow {
   confirmed: number;
   conversionRate: number;
   attributedMrr: number;
-}
+};
 
-interface RecentAttribution {
+type RecentAttribution = {
   id: string;
   status: string;
   targetPlan: string;
@@ -32,18 +33,7 @@ interface RecentAttribution {
   confirmedAt: string | null;
   flow: { name: string } | null;
   endUser: { externalId: string | null; email: string | null } | null;
-}
-
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-
-async function apiFetch<T>(path: string): Promise<T> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('_ahaget_token') : null;
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as T;
-}
+};
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: '#10b981', pending: '#f59e0b', rejected: '#ef4444',
@@ -77,28 +67,28 @@ export default function ExpansionPage() {
     setLoading(true);
     try {
       const [expData, flowsData] = await Promise.all([
-        apiFetch<{ stats: ExpansionStats; recent: RecentAttribution[]; period: string }>(`/api/v1/expansion?period=${period}`),
-        apiFetch<{ flows: UpsellFlow[] }>('/api/v1/expansion/flows'),
+        api.expansion.dashboard(period),
+        api.expansion.flows(),
       ]);
       setStats(expData.stats);
       setRecent(expData.recent);
       setFlows(flowsData.flows);
+    } catch (e) {
+      console.error('[expansion] load error:', e);
     } finally {
       setLoading(false);
     }
   }
 
-  async function saveFlow(id: string, data: Partial<UpsellFlow>) {
+  async function saveFlow(id: string, data: { targetPlan?: string; upgradeUrl?: string; mrrPerConversion?: number }) {
     setSaving(true);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('_ahaget_token') : null;
-    await fetch(`${BASE}/api/v1/expansion/flows/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify(data),
-    });
-    setSaving(false);
-    setEditFlow(null);
-    load();
+    try {
+      await api.expansion.updateFlow(id, data);
+    } finally {
+      setSaving(false);
+      setEditFlow(null);
+      load();
+    }
   }
 
   const inputStyle = {
