@@ -62,3 +62,50 @@ export async function evaluateTriggers(
     return null;
   }
 }
+
+export interface ProactiveMessage {
+  id: string;
+  channel: string;
+  subject: string | null;
+  bodySnippet: string | null;
+  deepLink: string | null;
+  status: string;
+  sentAt: string;
+  flow: { id: string; name: string; flowType: string } | null;
+}
+
+/**
+ * Fetch the latest unread in-app proactive message for this user.
+ * Returns null if none pending.
+ */
+export async function fetchPendingProactiveMessage(
+  opts: ApiOptions,
+  userId: string
+): Promise<ProactiveMessage | null> {
+  try {
+    const res = await fetch(
+      `${opts.apiUrl}/api/v1/proactive/pending?userId=${encodeURIComponent(userId)}`,
+      { headers: { 'X-API-Key': opts.apiKey } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json() as { message: ProactiveMessage | null };
+    return data.message;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mark a proactive message as opened or clicked.
+ */
+export async function markProactiveMessage(
+  opts: ApiOptions,
+  messageId: string,
+  action: 'open' | 'click'
+): Promise<void> {
+  fetch(`${opts.apiUrl}/api/v1/proactive/${action}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-API-Key': opts.apiKey },
+    body: JSON.stringify({ messageId }),
+  }).catch(() => {});
+}

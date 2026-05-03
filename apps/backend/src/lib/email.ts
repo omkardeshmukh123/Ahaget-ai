@@ -1,4 +1,4 @@
-﻿import { Resend } from 'resend';
+import { Resend } from 'resend';
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -265,6 +265,81 @@ export async function sendZeroCompletionAlert(params: {
           <td style="padding:18px 36px;border-top:1px solid #e2e8f0;">
             <p style="margin:0;color:#94a3b8;font-size:11px;">
               Ahaget · You'll only receive this alert once per flow per 24 hours.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  });
+}
+
+/**
+ * sendProactiveEmail — out-of-app re-engagement email sent by the AI employee.
+ * Contains a deep link back into the product with ?ahaget_resume=<flowId>.
+ * Tracks open + click via a 1x1 pixel and link redirect (future).
+ */
+export async function sendProactiveEmail(params: {
+  to: string;
+  userName?: string;
+  subject: string;
+  bodyHtml: string;   // pre-rendered message body HTML (injected into template)
+  deepLink: string;   // full URL with ?ahaget_resume=<flowId>
+  unsubscribeUrl: string;
+}) {
+  if (!resend) {
+    console.warn('[email] RESEND_API_KEY not set — skipping proactive email');
+    console.info(`[email][proactive] Would send to ${params.to}: ${params.subject}`);
+    console.info(`[email][proactive] Deep link: ${params.deepLink}`);
+    return;
+  }
+
+  await resend.emails.send({
+    from: FROM,
+    to: params.to,
+    subject: params.subject,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#FF857A,#EBAEE6);padding:24px 36px;display:flex;align-items:center;gap:10px;">
+            <span style="color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.3px;">Ahaget</span>
+            <span style="color:rgba(255,255,255,0.75);font-size:13px;">· Your AI employee</span>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:32px 36px;">
+            ${params.userName ? `<p style="margin:0 0 16px;color:#1e293b;font-size:15px;">Hi ${params.userName},</p>` : ''}
+            ${params.bodyHtml}
+
+            <!-- CTA -->
+            <div style="margin-top:28px;">
+              <a href="${params.deepLink}"
+                 style="display:inline-block;background:linear-gradient(135deg,#FF857A,#EBAEE6);color:#3d1008;text-decoration:none;padding:13px 28px;border-radius:9px;font-size:15px;font-weight:700;">
+                Resume where you left off →
+              </a>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:16px 36px;border-top:1px solid #e2e8f0;">
+            <p style="margin:0;color:#94a3b8;font-size:11px;line-height:1.6;">
+              You're receiving this because your account is set up with AI-powered lifecycle assistance.<br>
+              <a href="${params.unsubscribeUrl}" style="color:#94a3b8;">Unsubscribe</a>
             </p>
           </td>
         </tr>

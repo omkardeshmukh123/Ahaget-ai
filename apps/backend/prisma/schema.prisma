@@ -51,6 +51,7 @@ model Organization {
   mcpConnectors         McpConnector[]
   auditLogs             AuditLog[]
   triggerRules          TriggerRule[]
+  proactiveMessages     ProactiveMessage[]
 
   @@map("organizations")
 }
@@ -77,15 +78,18 @@ model EndUser {
   id             String   @id @default(uuid())
   organizationId String   @map("organization_id")
   externalId     String?  @map("external_id") // customer's own user ID
+  email          String?  // for proactive out-of-app emails
   metadata       Json     @default("{}") // plan, page, any custom data
   firstSeenAt    DateTime @default(now()) @map("first_seen_at")
   lastSeenAt     DateTime @default(now()) @map("last_seen_at")
+  unsubscribed   Boolean  @default(false) // opt-out of proactive emails
 
-  organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  conversations      Conversation[]
-  events             Event[]
-  onboardingSessions UserOnboardingSession[]
-  escalationTickets  EscalationTicket[]
+  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversations       Conversation[]
+  events              Event[]
+  onboardingSessions  UserOnboardingSession[]
+  escalationTickets   EscalationTicket[]
+  proactiveMessages   ProactiveMessage[]
 
   @@unique([organizationId, externalId])
   @@index([organizationId])
@@ -527,4 +531,34 @@ model TriggerRule {
   @@index([organizationId])
   @@index([flowId])
   @@map("trigger_rules")
+}
+
+// ─── ProactiveMessage (agent initiates outreach) ──────────────────────────────
+// Tracks every proactive message sent to an end-user — both in-app badge and
+// out-of-app email. Used for deduplication (max 1 per user per 48 hours) and
+// for the "Outreach" dashboard panel.
+//
+// channel: "in_app" | "email"
+// status:  "sent" | "opened" | "clicked" | "unsubscribed"
+model ProactiveMessage {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  endUserId      String   @map("end_user_id")
+  flowId         String   @map("flow_id")           // which flow triggered the message
+  triggerRuleId  String?  @map("trigger_rule_id")   // which rule fired (nullable for manual sends)
+  channel        String   @map("channel")            // in_app | email
+  subject        String?                             // email only
+  bodySnippet    String?  @map("body_snippet")       // first 200 chars of message body
+  deepLink       String?  @map("deep_link")          // ?ahaget_resume= URL sent in email
+  status         String   @default("sent")           // sent | opened | clicked | unsubscribed
+  sentAt         DateTime @default(now()) @map("sent_at")
+  openedAt       DateTime? @map("opened_at")
+  clickedAt      DateTime? @map("clicked_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  endUser      EndUser      @relation(fields: [endUserId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, sentAt(sort: Desc)])
+  @@index([endUserId, sentAt(sort: Desc)])
+  @@map("proactive_messages")
 }

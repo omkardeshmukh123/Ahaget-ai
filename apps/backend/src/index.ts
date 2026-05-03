@@ -26,10 +26,12 @@ import sessionsRoutes from './routes/sessions';
 import mcpRoutes from './routes/mcp';
 import contactRoutes from './routes/contact';
 import triggersRoutes from './routes/triggers';
+import proactiveRoutes from './routes/proactive';
 import { prisma } from './lib/prisma';
 import { errorHandler } from './middleware/errorHandler';
 import { attachWebSocketServer } from './lib/websocket';
 import { checkFlowAlerts } from './services/alerting';
+import { runProactiveMessaging } from './services/proactive';
 
 // ─── Startup env validation ───────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
@@ -101,6 +103,7 @@ app.use('/api/v1/sessions', sessionsRoutes);
 app.use('/api/v1/mcp', mcpRoutes);
 app.use('/api/v1/contact', contactRoutes);
 app.use('/api/v1/triggers', triggersRoutes);
+app.use('/api/v1/proactive', proactiveRoutes);
 
 app.get('/health', async (_req, res) => {
   try {
@@ -153,6 +156,17 @@ httpServer.listen(PORT, () => {
     runDailyTriggers();
     setInterval(runDailyTriggers, DAILY_MS);
   }, 5 * 60 * 1000); // 5 min after startup
+
+  // ── Proactive messaging cron ──────────────────────────────────────────────
+  // Runs daily at startup + 24h interval.
+  // Identifies users who qualify for proactive outreach and sends in-app + email.
+  const PROACTIVE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+  setTimeout(() => {
+    runProactiveMessaging().catch((e) => console.error('[proactive] cron error:', e));
+    setInterval(() => {
+      runProactiveMessaging().catch((e) => console.error('[proactive] cron error:', e));
+    }, PROACTIVE_INTERVAL_MS);
+  }, 10 * 60 * 1000); // 10 min after startup
 });
 
 export default app;

@@ -6,7 +6,7 @@
 
 import { WidgetConfig, DEFAULT_CONFIG } from './config';
 import { DropOffDetector } from './detector';
-import { trackEvent, evaluateTriggers } from './api';
+import { trackEvent, evaluateTriggers, fetchPendingProactiveMessage, markProactiveMessage } from './api';
 import { injectStyles } from './styles';
 import { CopilotManager, AgentAction, CopilotSession } from './copilot';
 import {
@@ -142,7 +142,68 @@ export class AhagetWidget {
     const delay = (resuming || hasCached) ? 0 : trigger.delayMs;
 
     setTimeout(() => this.openPanel(), delay);
+
+    // ── Phase 3: check for pending in-app proactive message ───────────────────
+    // If there's an unread message from the AI employee, show a pulsing badge
+    // on the FAB bubble to draw attention even if the panel hasn't opened yet.
+    fetchPendingProactiveMessage(apiOpts, userId).then((msg) => {
+      if (!msg) return;
+      this.showProactiveBadge(msg.id, msg.bodySnippet ?? msg.subject ?? 'Your AI employee has a message for you', apiOpts);
+    }).catch(() => {/* silent */});
   }
+
+  /** Render a pulsing notification badge on the FAB + a dismissable preview tooltip */
+  private showProactiveBadge(
+    messageId: string,
+    preview: string,
+    apiOpts: { apiKey: string; apiUrl: string }
+  ): void {
+    // Mark as opened immediately (user sees the badge)
+    markProactiveMessage(apiOpts, messageId, 'open');
+
+    const fab = document.getElementById('oai-fab');
+    if (!fab) return;
+
+    // Pulsing red dot
+    const dot = document.createElement('span');
+    dot.id = 'oai-proactive-dot';
+    dot.style.cssText = `
+      position: absolute; top: -4px; right: -4px;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #ef4444; border: 2px solid white;
+      animation: oai-pulse 1.6s ease-in-out infinite;
+      z-index: 9999;
+    `;
+    fab.style.position = 'relative';
+    fab.appendChild(dot);
+
+    // Tooltip preview
+    const tooltip = document.createElement('div');
+    tooltip.id = 'oai-proactive-tooltip';
+    tooltip.style.cssText = `
+      position: fixed; bottom: 80px; right: 20px;
+      background: #1e293b; color: #f1f5f9;
+      padding: 10px 14px; border-radius: 10px;
+      font-size: 13px; max-width: 260px; line-height: 1.5;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      z-index: 9998; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.08);
+    `;
+    tooltip.textContent = `💬 ${preview.length > 80 ? preview.slice(0, 80) + '…' : preview}`;
+    document.body.appendChild(tooltip);
+
+    // Click tooltip → open panel + mark clicked
+    tooltip.addEventListener('click', () => {
+      markProactiveMessage(apiOpts, messageId, 'click');
+      tooltip.remove();
+      dot.remove();
+      this.openPanel();
+    });
+
+    // Auto-dismiss tooltip after 8s (badge stays)
+    setTimeout(() => tooltip.remove(), 8000);
+  }
+
 
   // ─── Progress bar ────────────────────────────────────────────────────────
 

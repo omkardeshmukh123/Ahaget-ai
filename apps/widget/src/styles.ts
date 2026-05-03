@@ -1,4 +1,4 @@
-﻿// ─── Styles for the Ahaget side-panel ──────────────────────────────────────────
+// ─── Styles for the Ahaget side-panel ──────────────────────────────────────────
 // Ahaget occupies the right 360 px of the viewport as a persistent sidebar.
 // The host page body gets `margin-right: 360px` so content is never hidden
 // behind the panel.  A collapse button on the panel's left edge lets users
@@ -451,6 +451,10 @@ export function injectStyles(primaryColor: string) {
     @keyframes oai-cursor {
       0%, 100% { opacity: 1; }
       50%       { opacity: 0; }
+    }
+    @keyframes oai-pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+      50%       { transform: scale(1.15); box-shadow: 0 0 0 5px rgba(239,68,68,0); }
     }
 
     /* ── Mobile: full-width bottom sheet ────────────────────────────────────── */
