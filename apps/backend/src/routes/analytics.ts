@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticateJWT } from '../middleware/auth';
 import { requireFeature } from '../middleware/planGate';
@@ -414,6 +414,84 @@ router.get('/insights', authenticateJWT, async (req: AuthenticatedRequest, res: 
   insights.sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity));
 
   res.json({ insights, generatedAt: new Date().toISOString(), days });
+});
+
+// ─── GET /api/v1/analytics/lifecycle ─────────────────────────────────────────
+// Single endpoint for the Lifecycle funnel view in the dashboard.
+// Returns counts for each stage (onboarding | adoption | upsell | retention | support)
+// and calculates stage drop-off rates.
+router.get('/lifecycle', authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
+  const { organizationId } = req.user!;
+  const { period = '30d' } = req.query as { period?: string };
+  const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const stages = ['onboarding', 'adoption', 'upsell', 'retention', 'support'] as const;
+
+  // Session counts per stage
+  const stageCounts = await Promise.all(
+    stages.map((stage) =>
+      prisma.userOnboardingSession.count({
+        where: { organizationId, startedAt: { gte: since }, flow: { flowType: stage } },
+      })
+    )
+  );
+
+  const stageCompleted = await Promise.all(
+    stages.map((stage) =>
+      prisma.userOnboardingSession.count({
+        where: { organizationId, startedAt: { gte: since }, status: 'completed', flow: { flowType: stage } },
+      })
+    )
+  );
+
+  // Proactive outreach for retention stage
+  const [proactiveSent, proactiveOpened, proactiveClicked] = await Promise.all([
+    prisma.proactiveMessage.count({ where: { organizationId, sentAt: { gte: since } } }),
+    prisma.proactiveMessage.count({ where: { organizationId, sentAt: { gte: since }, status: { in: ['opened', 'clicked'] } } }),
+    prisma.proactiveMessage.count({ where: { organizationId, sentAt: { gte: since }, status: 'clicked' } }),
+  ]);
+
+  // Upsell attribution for expansion stage
+  const [upsellPitched, upsellConverted, upsellMrr] = await Promise.all([
+    prisma.upsellAttribution.count({ where: { organizationId, suggestedAt: { gte: since } } }),
+    prisma.upsellAttribution.count({ where: { organizationId, suggestedAt: { gte: since }, status: 'confirmed' } }),
+    prisma.upsellAttribution.aggregate({
+      where: { organizationId, status: 'confirmed', confirmedAt: { gte: since } },
+      _sum: { mrr: true },
+    }),
+  ]);
+
+  const stageData = stages.map((stage, i) => ({
+    stage,
+    started: stageCounts[i],
+    completed: stageCompleted[i],
+    completionRate: stageCounts[i] > 0 ? Math.round((stageCompleted[i] / stageCounts[i]) * 100) : 0,
+  }));
+
+  // Total unique users who have any session in the window
+  const uniqueUsers = await prisma.endUser.count({
+    where: { organizationId, lastSeenAt: { gte: since } },
+  });
+
+  res.json({
+    period,
+    uniqueUsers,
+    stages: stageData,
+    proactive: {
+      sent: proactiveSent,
+      opened: proactiveOpened,
+      clicked: proactiveClicked,
+      openRate: proactiveSent > 0 ? Math.round((proactiveOpened / proactiveSent) * 100) : 0,
+      clickRate: proactiveSent > 0 ? Math.round((proactiveClicked / proactiveSent) * 100) : 0,
+    },
+    expansion: {
+      pitched: upsellPitched,
+      converted: upsellConverted,
+      attributedMrr: Math.round((upsellMrr._sum.mrr ?? 0) * 100) / 100,
+      conversionRate: upsellPitched > 0 ? Math.round((upsellConverted / upsellPitched) * 100) : 0,
+    },
+  });
 });
 
 export default router;

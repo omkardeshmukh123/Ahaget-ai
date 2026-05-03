@@ -10,6 +10,7 @@ const SECTIONS = [
       { href: '/in-page-assistant', label: 'In-Page Assistant', icon: <SparkleIcon /> },
       { href: '/flows',             label: 'Agent Flows',       icon: <FlowIcon /> },
       { href: '/triggers',          label: 'Triggers',          icon: <TriggerIcon /> },
+      { href: '/lifecycle',         label: 'Lifecycle Engine',  icon: <LifecycleIcon /> },
     ],
   },
   {
@@ -185,6 +186,9 @@ function UsersIcon() {
 }
 function ExpansionIcon() {
   return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>;
+}
+function LifecycleIcon() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>;
 }
 function BookIcon() {
   return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>;
