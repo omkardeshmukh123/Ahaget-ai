@@ -1,39 +1,39 @@
-﻿const CASES = [
+const CASES = [
   {
     icon: '📊',
     category: 'Analytics SaaS',
-    flow: ['Connect data source', 'Create first dashboard', 'See first insight'],
-    result: 'Users reach their first chart in under 8 minutes instead of giving up.',
+    lifecycle: ['🚀 Activate: connect data → first dashboard', '⚡ Adopt: AI surfaces unused reports after 14d', '📈 Expand: 80% limit hit → upgrade pitch'],
+    result: 'Users reach their first chart in 8 minutes. AI keeps them coming back for deeper features.',
   },
   {
     icon: '⚡',
     category: 'No-code / Automation',
-    flow: ['Build first automation', 'Connect first app', 'Run first workflow'],
-    result: 'Users complete their first Zap-equivalent without reading the docs.',
+    lifecycle: ['🚀 Activate: build first automation', '⚡ Adopt: AI introduces advanced triggers', '💡 Retain: 8-day nudge if no new workflow'],
+    result: 'Users complete their first automation without reading the docs. Dormant users get a targeted re-engagement.',
   },
   {
     icon: '🗂️',
     category: 'Project Management',
-    flow: ['Create first project', 'Invite first teammate', 'Complete first task'],
-    result: 'Teams reach collaborative momentum in a single session.',
+    lifecycle: ['🚀 Activate: create project → invite teammate', '⚡ Adopt: AI surfaces time-tracking after week 2', '📈 Expand: team hitting seat limit → upgrade'],
+    result: 'Teams reach collaborative momentum in session 1. AI drives breadth of feature usage over time.',
   },
   {
     icon: '💰',
     category: 'CRM',
-    flow: ['Import contacts', 'Log first deal', 'Set first follow-up'],
-    result: 'Sales reps get to their pipeline view without IT help.',
+    lifecycle: ['🚀 Activate: import contacts → log first deal', '⚡ Adopt: AI introduces automation sequences', '📈 Expand: heavy usage → Growth plan pitch'],
+    result: 'Sales reps activate without IT help. AI employee moves them from manual to automated in week 2.',
   },
   {
     icon: '🛠️',
     category: 'Developer Tools',
-    flow: ['Install SDK', 'Send first API call', 'See response in dashboard'],
-    result: 'Developers go from signup to working integration in one sitting.',
+    lifecycle: ['🚀 Activate: install SDK → first API call', '⚡ Adopt: AI surfaces webhooks after first week', '💡 Retain: if no call in 7 days → proactive nudge'],
+    result: 'Developers hit working integration in one sitting. AI keeps them engaged with advanced features.',
   },
   {
     icon: '🎓',
     category: 'EdTech / LMS',
-    flow: ['Upload first course', 'Enroll first student', 'View first completion'],
-    result: 'Instructors publish their first course without abandoning setup.',
+    lifecycle: ['🚀 Activate: upload first course', '⚡ Adopt: AI introduces quiz + certificate builder', '📈 Expand: first 10 students → Starter plan'],
+    result: 'Instructors publish their first course without abandoning setup. AI drives adoption of monetisation features.',
   },
 ];
 
@@ -47,7 +47,7 @@ export default function UseCases() {
             <span className="gradient-text">any B2B SaaS</span>
           </h2>
           <p className="text-zinc-400 text-lg max-w-xl mx-auto">
-            You define the steps. The AI executes them. The product category does not matter.
+            The AI employee adapts to your product — activating users on day 1 and driving value throughout their entire lifecycle.
           </p>
         </div>
 
@@ -62,14 +62,11 @@ export default function UseCases() {
                 <span className="text-sm font-semibold text-zinc-300">{c.category}</span>
               </div>
 
-              {/* Flow steps */}
+              {/* Lifecycle stages */}
               <div className="space-y-2">
-                {c.flow.map((step, i) => (
-                  <div key={step} className="flex items-center gap-3">
-                    <span className="flex-shrink-0 h-5 w-5 rounded-full bg-brand-500/20 text-brand-400 text-xs flex items-center justify-center font-bold">
-                      {i + 1}
-                    </span>
-                    <span className="text-sm text-zinc-400">{step}</span>
+                {c.lifecycle.map((stage, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <span className="text-sm text-zinc-400 leading-relaxed">{stage}</span>
                   </div>
                 ))}
               </div>

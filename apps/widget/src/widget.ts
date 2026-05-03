@@ -1,4 +1,4 @@
-// ─── Ahaget Widget — side-panel orchestrator ───────────────────────────────────
+﻿// ─── Ahaget Widget — side-panel orchestrator ───────────────────────────────────
 // Ahaget occupies the right 360px of the screen as a persistent sidebar.
 // The host page body shifts left automatically via the `.__ahaget-open` class.
 // There is no floating bubble — the panel slides in from the right when an
@@ -232,7 +232,7 @@ export class AhagetWidget {
     if (this.progressBarEl)  this.progressBarEl.style.width = `${percent}%`;
     if (this.stepTitleEl) {
       this.stepTitleEl.textContent = session.status === 'completed'
-        ? 'Onboarding complete!'
+        ? 'Flow complete!'
         : `Step ${session.currentStep.order + 1}: ${session.currentStep.title}`;
     }
     if (this.progressTextEl) {
@@ -293,9 +293,9 @@ export class AhagetWidget {
     if (!session) return;
 
     if (session.status === 'completed') {
-      addMessage(this.messagesEl, '🎉 You\'ve completed onboarding! Great work.', 'assistant');
+      addMessage(this.messagesEl, '🎉 You\'ve completed this flow! Great work.', 'assistant');
       this.inputEl.disabled = true;
-      this.inputEl.placeholder = 'Onboarding complete';
+      this.inputEl.placeholder = 'Flow complete';
       this.sendBtn.disabled = true;
       return;
     }
@@ -856,3 +856,4 @@ export class AhagetWidget {
     return id;
   }
 }
+

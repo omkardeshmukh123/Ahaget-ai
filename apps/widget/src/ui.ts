@@ -1,4 +1,4 @@
-// --- UI components for the Ahaget side-panel widget ---------------------------
+ï»¿// --- UI components for the Ahaget side-panel widget ---------------------------
 
 export interface StepsResponse {
   type: 'steps';
@@ -43,7 +43,7 @@ export function createSidePanel(root: HTMLElement): HTMLDivElement {
         <div id="oai-avatar">?</div>
         <div id="oai-header-text">
           <p id="oai-header-title">Ahaget</p>
-          <p id="oai-header-sub">Your AI assistant · Ahaget</p>
+          <p id="oai-header-sub">Your AI employee Â· Ahaget</p>
         </div>
       </div>
       <div id="oai-steps-nav"></div>
@@ -55,7 +55,7 @@ export function createSidePanel(root: HTMLElement): HTMLDivElement {
       <textarea
         id="oai-input"
         rows="1"
-        placeholder="Type a message…"
+        placeholder="Type a messageï¿½"
         aria-label="Message input"
       ></textarea>
       <button id="oai-send" aria-label="Send" disabled>
@@ -63,7 +63,7 @@ export function createSidePanel(root: HTMLElement): HTMLDivElement {
       </button>
     </div>
 
-    <div id="oai-footer">Powered by <a href="https://ahaget.ai" target="_blank" rel="noopener">Ahaget</a></div>
+    <div id="oai-footer">AI employee by <a href="https://ahaget.ai" target="_blank" rel="noopener">Ahaget</a></div>
   `;
   root.appendChild(win);
   return win;
@@ -294,3 +294,4 @@ export function addStepsCard(messagesEl: HTMLElement, steps: StepsResponse): HTM
   messagesEl.scrollTop = messagesEl.scrollHeight;
   return card;
 }
+

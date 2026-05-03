@@ -1,15 +1,15 @@
-﻿'use client';
+'use client';
 
 const PLANS = [
   {
     name: 'Free',
     price: '$0',
     period: 'forever',
-    description: 'Try it on your staging environment. No card required.',
-    limit: '100 guided sessions / mo',
+    description: 'Try the AI employee on your staging environment. No card required.',
+    limit: '100 lifecycle sessions / mo',
     features: [
-      '100 AI-guided onboarding sessions',
-      'Up to 3 onboarding steps',
+      '100 AI-guided sessions',
+      'Onboarding + support flows',
       'Activation funnel analytics',
       'Community support',
     ],
@@ -20,13 +20,13 @@ const PLANS = [
     name: 'Starter',
     price: '$99',
     period: 'per month',
-    description: 'For early-stage SaaS getting to first 100 activated users.',
+    description: 'For early-stage SaaS getting users to first value.',
     limit: '1,000 sessions / mo',
     features: [
       '1,000 AI-guided sessions per month',
-      'Unlimited onboarding steps',
-      'Custom AI instructions per step',
+      'Onboarding + adoption flows',
       'Page actions (fill, click, navigate)',
+      'Proactive in-app messaging',
       'Email support',
     ],
     cta: 'Start Starter',
@@ -36,13 +36,14 @@ const PLANS = [
     name: 'Growth',
     price: '$299',
     period: 'per month',
-    description: 'For scaling SaaS optimising time-to-first-value.',
+    description: 'Full lifecycle AI — activate, adopt, retain, expand.',
     limit: '10,000 sessions / mo',
     features: [
       '10,000 AI-guided sessions per month',
       'Everything in Starter',
-      'Time-to-value analytics',
-      'AI-assist rate per step',
+      'Upsell flows + expansion MRR tracking',
+      'Retention re-engagement (in-app + email)',
+      'Lifecycle funnel analytics',
       'Priority support',
     ],
     cta: 'Start Growth',
@@ -57,6 +58,7 @@ const PLANS = [
     features: [
       'Unlimited sessions',
       'Everything in Growth',
+      'Revenue-share attribution reports',
       'White-glove flow setup',
       'SLA + dedicated Slack channel',
       'Custom contract / invoicing',
@@ -72,11 +74,11 @@ export default function Pricing() {
       <div className="mx-auto max-w-6xl">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Simple, usage-based{' '}
-            <span className="gradient-text">pricing</span>
+            Priced on{' '}
+            <span className="gradient-text">lifecycle value</span>
           </h2>
           <p className="text-zinc-400 text-lg max-w-xl mx-auto">
-            Pay per guided session. Upgrade or downgrade any time.
+            One AI employee. One price. Activation, adoption, retention, and expansion — all included.
           </p>
         </div>
 
@@ -124,7 +126,7 @@ export default function Pricing() {
 
               <a
                 href={
-                  plan.name === 'Contact us'
+                  plan.cta === 'Contact us'
                     ? 'mailto:hello@ahaget.ai'
                     : (process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'http://localhost:3000/register')
                 }
@@ -140,7 +142,23 @@ export default function Pricing() {
           ))}
         </div>
 
-        <p className="text-center text-zinc-600 text-sm mt-10">
+        {/* Lifecycle value callout */}
+        <div className="mt-12 rounded-2xl border border-white/10 bg-white/3 p-6 flex flex-col sm:flex-row items-center gap-6">
+          <div className="flex-1">
+            <p className="text-white font-semibold mb-1">What does one session cover?</p>
+            <p className="text-zinc-500 text-sm leading-relaxed">
+              A session is one AI employee conversation — whether it's onboarding a new user,
+              nudging a dormant user back in, explaining a feature, or pitching an upgrade.
+              All lifecycle stages share the same session pool.
+            </p>
+          </div>
+          <div className="flex-shrink-0 text-center">
+            <p className="text-3xl font-black text-white">5×</p>
+            <p className="text-xs text-zinc-500 mt-1">avg activation vs<br />no-AI baseline</p>
+          </div>
+        </div>
+
+        <p className="text-center text-zinc-600 text-sm mt-8">
           All plans include a 14-day money-back guarantee.{' '}
           <a href="mailto:hello@ahaget.ai" className="text-brand-400 hover:underline">
             Need a custom plan? Get in touch.

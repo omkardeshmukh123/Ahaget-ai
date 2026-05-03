@@ -1,4 +1,4 @@
-import { Resend } from 'resend';
+﻿import { Resend } from 'resend';
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -97,7 +97,7 @@ export async function sendWelcomeEmail(params: {
         <tr>
           <td style="background:#6366f1;padding:32px 40px;">
             <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">Ahaget</h1>
-            <p style="margin:4px 0 0;color:#c7d2fe;font-size:13px;">AI-guided onboarding that converts</p>
+            <p style="margin:4px 0 0;color:#c7d2fe;font-size:13px;">Your AI employee — activate, retain, expand</p>
           </td>
         </tr>
 
@@ -123,7 +123,7 @@ export async function sendWelcomeEmail(params: {
             </div>
 
             <!-- Steps -->
-            <p style="margin:0 0 12px;color:#1e293b;font-size:14px;font-weight:600;">Get started in 3 steps</p>
+            <p style="margin:0 0 12px;color:#1e293b;font-size:14px;font-weight:600;">Your AI employee in 2 lines</p>
             <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
               ${['Paste the snippet before </body> on every page', 'Replace <code>currentUser.id</code> with your user\'s ID', 'Open your app — the AI widget appears after 30 seconds'].map((text, i) => `
               <tr>
@@ -152,7 +152,7 @@ export async function sendWelcomeEmail(params: {
           <td style="padding:20px 40px;border-top:1px solid #e2e8f0;">
             <p style="margin:0;color:#94a3b8;font-size:12px;">
               Questions? Reply to this email — we read every one.<br>
-              Ahaget · AI-guided onboarding
+              Ahaget · Your AI employee for SaaS
             </p>
           </td>
         </tr>
@@ -351,3 +351,5 @@ export async function sendProactiveEmail(params: {
 </html>`,
   });
 }
+
+
