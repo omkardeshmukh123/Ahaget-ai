@@ -50,6 +50,7 @@ model Organization {
   flowExperiments       FlowExperiment[]
   mcpConnectors         McpConnector[]
   auditLogs             AuditLog[]
+  triggerRules          TriggerRule[]
 
   @@map("organizations")
 }
@@ -191,6 +192,7 @@ model OnboardingFlow {
   organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   steps              OnboardingStep[]
   sessions           UserOnboardingSession[]
+  triggerRules       TriggerRule[]
   controlExperiments FlowExperiment[]       @relation("ExperimentControl")
   variantExperiments FlowExperiment[]       @relation("ExperimentVariant")
 
@@ -491,4 +493,38 @@ model AuditLog {
   @@index([organizationId, createdAt(sort: Desc)])
   @@index([sessionId])
   @@map("audit_logs")
+}
+
+// ─── TriggerRule (when the AI employee wakes up and acts) ─────────────────────
+// Each rule is linked to one AgentFlow and defines the condition that activates it.
+// Trigger types:
+//   page_visit         — user visits a URL matching pattern (optionally first-time only)
+//   page_never_visited — user has NOT visited URL after N days
+//   usage_threshold    — user hits X% of a plan metric
+//   event_fired        — a specific event name fires
+//   inactivity         — user hasn't logged in for N days
+//   feature_unused     — user hasn't used a feature slug for N days
+model TriggerRule {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  flowId         String   @map("flow_id")
+  triggerType    String   @map("trigger_type") // page_visit | page_never_visited | usage_threshold | event_fired | inactivity | feature_unused
+  isActive       Boolean  @default(true) @map("is_active")
+  // Type-specific config (all optional — use what's relevant for the type)
+  urlPattern     String?  @map("url_pattern")       // page_visit | page_never_visited: regex or glob
+  firstTimeOnly  Boolean  @default(false) @map("first_time_only") // page_visit: only fire on first ever visit
+  daysThreshold  Int?     @map("days_threshold")    // inactivity | page_never_visited | feature_unused
+  eventName      String?  @map("event_name")        // event_fired: exact event type string
+  usageMetric    String?  @map("usage_metric")      // usage_threshold: metric key (api_calls, seats, etc.)
+  usagePercent   Int?     @map("usage_percent")     // usage_threshold: 0-100
+  featureSlug    String?  @map("feature_slug")      // feature_unused: internal feature identifier
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  flow         OnboardingFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([flowId])
+  @@map("trigger_rules")
 }

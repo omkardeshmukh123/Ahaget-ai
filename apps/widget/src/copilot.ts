@@ -257,6 +257,33 @@ export class CopilotManager {
     }
   }
 
+  /**
+   * Start a session for a specific flowId — used when a trigger rule matches
+   * and the system wants to activate a non-default flow for this user.
+   */
+  async startFlow(userId: string, flowId: string, page: string, metadata: Record<string, unknown> = {}): Promise<CopilotSession | null> {
+    this.userId = userId;
+    try {
+      const res = await fetch(`${this.apiUrl}/api/v1/session/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': this.apiKey },
+        body: JSON.stringify({ userId, page, metadata, flowId }),
+      });
+      const data = await res.json();
+      if (data.trigger) this.triggerConfig = data.trigger as TriggerConfig;
+      if (data.session) {
+        const fresh: CopilotSession = { ...data.session, isReturning: data.isReturning ?? false };
+        this.session = fresh;
+        this.saveToCache(userId, fresh);
+        this.emitSessionUpdate(fresh);
+        return fresh;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   async sendMessage(
     userMessage: string,
     onText?: (word: string) => void,

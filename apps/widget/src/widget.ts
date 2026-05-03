@@ -1,4 +1,4 @@
-﻿// ─── Ahaget Widget — side-panel orchestrator ───────────────────────────────────
+// ─── Ahaget Widget — side-panel orchestrator ───────────────────────────────────
 // Ahaget occupies the right 360px of the screen as a persistent sidebar.
 // The host page body shifts left automatically via the `.__ahaget-open` class.
 // There is no floating bubble — the panel slides in from the right when an
@@ -6,7 +6,7 @@
 
 import { WidgetConfig, DEFAULT_CONFIG } from './config';
 import { DropOffDetector } from './detector';
-import { trackEvent } from './api';
+import { trackEvent, evaluateTriggers } from './api';
 import { injectStyles } from './styles';
 import { CopilotManager, AgentAction, CopilotSession } from './copilot';
 import {
@@ -83,12 +83,44 @@ export class AhagetWidget {
     this.copilot.watchNavigation();
 
     const userId = this.config.userId ?? 'anonymous_' + this.getOrCreateAnonId();
+    const apiOpts = { apiKey: this.config.apiKey, apiUrl: this.config.apiUrl ?? DEFAULT_CONFIG.apiUrl };
+
+    // ── Phase 3: detect ?ahaget_resume=flow_id URL param ─────────────────────
+    const urlParams = new URLSearchParams(window.location.search);
+    const resumeFlowId = urlParams.get('ahaget_resume');
+    if (resumeFlowId) {
+      // Store for copilot to use, then strip from URL
+      localStorage.setItem('_oai_resume', resumeFlowId);
+      const cleanUrl = window.location.pathname +
+        (urlParams.toString().replace(`ahaget_resume=${resumeFlowId}`, '').replace(/^&|&$/, '') ? '?' + urlParams.toString().replace(`ahaget_resume=${resumeFlowId}`, '').replace(/^&|&$/, '') : '');
+      window.history.replaceState({}, '', cleanUrl);
+    }
 
     // Register BEFORE start() so the cache pre-warm fires synchronously
     this.copilot.onSessionUpdate((s) => this.updateProgressUI(s));
 
     const session = await this.copilot.start(userId, window.location.pathname, this.config.metadata ?? {});
-    const active = session ?? this.copilot.getSession();
+    let active = session ?? this.copilot.getSession();
+
+    // ── Phase 2: if no active flow session, evaluate trigger rules ────────────
+    if (!active) {
+      const match = await evaluateTriggers(
+        apiOpts,
+        userId,
+        window.location.pathname,
+        this.config.metadata,
+      );
+      if (match) {
+        // Start a session for the matched flow
+        const triggered = await this.copilot.startFlow(
+          userId,
+          match.flow.id,
+          window.location.pathname,
+          this.config.metadata ?? {}
+        );
+        if (triggered) active = this.copilot.getSession();
+      }
+    }
 
     if (!active) return; // no active flow for this user
 

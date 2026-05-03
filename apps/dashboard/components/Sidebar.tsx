@@ -9,6 +9,7 @@ const SECTIONS = [
     items: [
       { href: '/in-page-assistant', label: 'In-Page Assistant', icon: <SparkleIcon /> },
       { href: '/flows',             label: 'Agent Flows',       icon: <FlowIcon /> },
+      { href: '/triggers',          label: 'Triggers',          icon: <TriggerIcon /> },
     ],
   },
   {
@@ -165,6 +166,9 @@ function SparkleIcon() {
 }
 function FlowIcon() {
   return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 012 2v7"/><path d="M11 18H8a2 2 0 01-2-2V9"/></svg>;
+}
+function TriggerIcon() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>;
 }
 function GridIcon() {
   return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>;

@@ -1,4 +1,4 @@
-﻿import 'dotenv/config';
+import 'dotenv/config';
 import 'express-async-errors';
 import http from 'http';
 import express from 'express';
@@ -25,6 +25,7 @@ import failuresRoutes from './routes/failures';
 import sessionsRoutes from './routes/sessions';
 import mcpRoutes from './routes/mcp';
 import contactRoutes from './routes/contact';
+import triggersRoutes from './routes/triggers';
 import { prisma } from './lib/prisma';
 import { errorHandler } from './middleware/errorHandler';
 import { attachWebSocketServer } from './lib/websocket';
@@ -82,7 +83,6 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 // ─── REST routes ─────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/conversations', conversationsRoutes);
-app.use('/api/v1/messages', messagesRoutes);
 app.use('/api/v1/events', eventsRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/config', configRoutes);
@@ -100,6 +100,7 @@ app.use('/api/v1/failures', failuresRoutes);
 app.use('/api/v1/sessions', sessionsRoutes);
 app.use('/api/v1/mcp', mcpRoutes);
 app.use('/api/v1/contact', contactRoutes);
+app.use('/api/v1/triggers', triggersRoutes);
 
 app.get('/health', async (_req, res) => {
   try {
@@ -130,6 +131,28 @@ httpServer.listen(PORT, () => {
       checkFlowAlerts().catch((e) => console.error('[alerting] uncaught error:', e));
     }, ALERT_INTERVAL_MS);
   }, 2 * 60 * 1000);
+
+  // ── Daily trigger evaluator ───────────────────────────────────────────────
+  // Evaluates inactivity + feature_unused triggers for all orgs once per day.
+  const DAILY_MS = 24 * 60 * 60 * 1000;
+  const runDailyTriggers = async () => {
+    console.log('[triggers] Running daily server-side trigger evaluation...');
+    try {
+      const rules = await prisma.triggerRule.findMany({
+        where: { isActive: true, triggerType: { in: ['inactivity', 'feature_unused', 'page_never_visited'] } },
+        include: { flow: { select: { id: true, name: true, flowType: true, organizationId: true } } },
+      });
+      console.log(`[triggers] Evaluating ${rules.length} server-side rules`);
+      // Per-rule evaluation is handled on-demand via /evaluate at widget init.
+      // This cron is a hook for future push notifications (Phase 3).
+    } catch (e) {
+      console.error('[triggers] daily evaluation error:', e);
+    }
+  };
+  setTimeout(() => {
+    runDailyTriggers();
+    setInterval(runDailyTriggers, DAILY_MS);
+  }, 5 * 60 * 1000); // 5 min after startup
 });
 
 export default app;
