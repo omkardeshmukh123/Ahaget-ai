@@ -11,7 +11,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "ts-node ahageta/seed.ts",
+    "db:seed": "ts-node prisma/seed.ts",
     "eval": "ts-node -r tsconfig-paths/register tests/evals/index.ts"
   },
   "dependencies": {
@@ -35,7 +35,7 @@
     "zod": "^3.22.4"
   },
   "prisma": {
-    "seed": "../../node_modules/.bin/ts-node ahageta/seed.ts"
+    "seed": "../../node_modules/.bin/ts-node prisma/seed.ts"
   },
   "devDependencies": {
     "@types/node-cron": "^3.0.11",

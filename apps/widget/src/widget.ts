@@ -7,7 +7,6 @@
 import { WidgetConfig, DEFAULT_CONFIG } from './config';
 import { DropOffDetector } from './detector';
 import { trackEvent } from './api';
-import { WidgetSocket } from './socket';
 import { injectStyles } from './styles';
 import { CopilotManager, AgentAction, CopilotSession } from './copilot';
 import {
@@ -24,7 +23,6 @@ export class AhagetWidget {
   private isCollapsed = false;
   private isSending = false;
   private detector: DropOffDetector | null = null;
-  private socket: WidgetSocket | null = null;
   private copilot: CopilotManager;
 
   // ─── Goal mode state ─────────────────────────────────────────────────────
@@ -80,7 +78,6 @@ export class AhagetWidget {
 
     this.injectProgressBar();
     this.bindEvents();
-    this.connectSocket();
     this.trackPageView();
     this.startDetection();
     this.copilot.watchNavigation();
@@ -267,13 +264,6 @@ export class AhagetWidget {
       this.isSending = false;
       this.sendBtn.disabled = false;
     }
-  }
-
-  // ─── WebSocket ───────────────────────────────────────────────────────────
-
-  private connectSocket() {
-    this.socket = new WidgetSocket(this.config.apiKey, this.config.apiUrl);
-    this.socket.connect().catch(() => {});
   }
 
   // ─── Drop-off detection ──────────────────────────────────────────────────

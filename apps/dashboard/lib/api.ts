@@ -161,10 +161,10 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ templateId }),
       }),
-    create: (name: string, description?: string) =>
+    create: (name: string, description?: string, flowType?: string) =>
       apiFetch<{ flow: OnboardingFlow }>('/api/v1/flow', {
         method: 'POST',
-        body: JSON.stringify({ name, description }),
+        body: JSON.stringify({ name, description, flowType: flowType ?? 'onboarding' }),
       }),
     update: (id: string, data: Partial<Pick<OnboardingFlow, 'name' | 'description' | 'isActive' | 'triggerDelayMs' | 'urlPattern' | 'maxTriggersPerUser'>>) =>
       apiFetch<{ updated: boolean }>(`/api/v1/flow/${id}`, {
@@ -521,6 +521,8 @@ export interface OnboardingFlow {
   name: string;
   description: string;
   isActive: boolean;
+  flowType: string; // onboarding | adoption | upsell | retention | support
+  triggerCondition: Record<string, unknown>;
   triggerDelayMs: number;
   urlPattern: string;
   maxTriggersPerUser: number;

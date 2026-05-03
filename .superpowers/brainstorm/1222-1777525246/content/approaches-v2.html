@@ -1,0 +1,118 @@
+<h2>Revised Architecture for Pivot1</h2>
+<p class="subtitle">You've already made the hardest shift — step-mode → react loop (goal mode). Here's what pivot1 actually needs now.</p>
+
+<div class="section" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+  <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#16a34a;margin-bottom:8px;">What the react loop already gives you for free</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:12px;color:#15803d;">
+    <div style="background:#fff;border-radius:8px;padding:10px 12px;">
+      <div style="font-weight:600;margin-bottom:4px;">Any flow type</div>
+      <div style="color:#64748b;">Goal mode doesn't care if the goal is "onboard" or "set up exports" — same loop works for adoption, retention, upsell</div>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:10px 12px;">
+      <div style="font-weight:600;margin-bottom:4px;">No step config needed</div>
+      <div style="color:#64748b;">SaaS owner writes a goal in plain English. Agent figures out selectors at runtime. No pre-configured action maps.</div>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:10px 12px;">
+      <div style="font-weight:600;margin-bottom:4px;">Failure recovery built in</div>
+      <div style="color:#64748b;">observe → retry → degrade_to_manual → escalate ladder already exists in agent.ts</div>
+    </div>
+  </div>
+</div>
+
+<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:12px;">What pivot1 actually needs to build on top of this</div>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Thin Flow Envelope + Extracted Worker <span style="font-size:11px;font-weight:500;color:#22c55e;background:#dcfce7;padding:2px 8px;border-radius:99px;margin-left:6px;">Recommended</span></h3>
+      <p style="margin:6px 0 10px;font-size:13px;color:#64748b;">Minimal schema additions. React loop stays untouched. Worker process handles all background jobs.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+        <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;">
+          <div style="font-weight:600;color:#475569;margin-bottom:6px;font-size:11px;text-transform:uppercase;">Schema (1 migration)</div>
+          <ul style="margin:0;padding-left:14px;color:#334155;line-height:1.8;">
+            <li>Add <code>type</code> to <code>OnboardingFlow</code> — default <code>'onboarding'</code></li>
+            <li>Add <code>goalPrompt</code> (text) — what the agent is trying to achieve</li>
+            <li>Add <code>triggerCondition</code> (JSON) — when to fire</li>
+            <li><code>OnboardingStep</code> becomes optional (legacy only)</li>
+          </ul>
+        </div>
+        <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;">
+          <div style="font-weight:600;color:#475569;margin-bottom:6px;font-size:11px;text-transform:uppercase;">New: apps/worker/</div>
+          <ul style="margin:0;padding-left:14px;color:#334155;line-height:1.8;">
+            <li>Separate Node process, same Prisma client</li>
+            <li>Churn cron → worker</li>
+            <li>Inactivity trigger scan → worker</li>
+            <li>Proactive email dispatch → worker</li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:8px 12px;background:#eff6ff;border-radius:8px;font-size:12px;color:#3b82f6;">
+        <strong>Result:</strong> All 6 pivot1 phases can be built without touching the react loop. Worker handles everything async.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Full Schema Clean-up + Worker</h3>
+      <p style="margin:6px 0 10px;font-size:13px;color:#64748b;">Since you have no customers, do the clean rename now. Pay the cost once, get a clean DB forever.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+        <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;">
+          <div style="font-weight:600;color:#475569;margin-bottom:6px;font-size:11px;text-transform:uppercase;">Schema</div>
+          <ul style="margin:0;padding-left:14px;color:#334155;line-height:1.8;">
+            <li>Rename <code>OnboardingFlow</code> → <code>AgentFlow</code></li>
+            <li>Drop <code>OnboardingStep</code> entirely (or archive)</li>
+            <li>New: <code>type</code>, <code>goalPrompt</code>, <code>triggerCondition</code></li>
+            <li>Update all Prisma queries + routes in one PR</li>
+          </ul>
+        </div>
+        <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;">
+          <div style="font-weight:600;color:#475569;margin-bottom:6px;font-size:11px;text-transform:uppercase;">Trade-offs</div>
+          <ul style="margin:0;padding-left:14px;line-height:1.8;">
+            <li style="color:#22c55e;">Clean schema from day 1</li>
+            <li style="color:#22c55e;">No legacy OnboardingStep baggage</li>
+            <li style="color:#f59e0b;">Half a day of search-and-replace</li>
+            <li style="color:#f59e0b;">More surface area for bugs</li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:8px 12px;background:#fffbeb;border-radius:8px;font-size:12px;color:#d97706;">
+        <strong>Best for:</strong> No customers = no risk. This is actually a good time to do it cleanly.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Goal Orchestrator Layer (Advanced)</h3>
+      <p style="margin:6px 0 10px;font-size:13px;color:#64748b;">Wrap the react loop in a stateful orchestrator that manages multi-session continuity and cross-flow priority.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+        <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;">
+          <div style="font-weight:600;color:#475569;margin-bottom:6px;font-size:11px;text-transform:uppercase;">What it adds</div>
+          <ul style="margin:0;padding-left:14px;color:#334155;line-height:1.8;">
+            <li>FlowOrchestrator service: picks the highest-priority flow for a user</li>
+            <li>Pauses/resumes sessions across browser tabs</li>
+            <li>Handles "user qualifies for adoption AND retention" conflict</li>
+            <li>Turn history persisted in Redis (not just Postgres)</li>
+          </ul>
+        </div>
+        <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;">
+          <div style="font-weight:600;color:#475569;margin-bottom:6px;font-size:11px;text-transform:uppercase;">Trade-offs</div>
+          <ul style="margin:0;padding-left:14px;line-height:1.8;">
+            <li style="color:#22c55e;">Solves real multi-flow conflict problem</li>
+            <li style="color:#ef4444;">3 weeks of work</li>
+            <li style="color:#ef4444;">You don't have the multi-flow conflict yet</li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:8px 12px;background:#fef2f2;border-radius:8px;font-size:12px;color:#ef4444;">
+        <strong>Best for:</strong> Phase 3+ when you have adoption + retention flows both live. Not yet.
+      </div>
+    </div>
+  </div>
+
+</div>

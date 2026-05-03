@@ -50,7 +50,7 @@ export default function TermsPage() {
               <ul className="list-disc list-inside space-y-2 text-sm">
                 <li>You are responsible for maintaining the confidentiality of your account password and API keys.</li>
                 <li>You are responsible for all activity that occurs under your account or API key.</li>
-                <li>You must notify us immediately at <a href="mailto:security@ahaget.com" className="text-indigo-400 hover:underline">security@ahaget.com</a> if you suspect unauthorized access.</li>
+                <li>You must notify us immediately at <a href="mailto:security@ahaget.ai" className="text-indigo-400 hover:underline">security@ahaget.ai</a> if you suspect unauthorized access.</li>
                 <li>You may not share API keys across multiple organizations without explicit written permission.</li>
               </ul>
             </section>
@@ -188,7 +188,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold text-white mb-3">16. Contact</h2>
               <p className="text-sm">
-                Questions about these Terms? Email <a href="mailto:legal@ahaget.com" className="text-indigo-400 hover:underline">legal@ahaget.com</a>.
+                Questions about these Terms? Email <a href="mailto:legal@ahaget.ai" className="text-indigo-400 hover:underline">legal@ahaget.ai</a>.
               </p>
             </section>
 

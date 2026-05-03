@@ -1,8 +1,7 @@
 ﻿import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage } from 'http';
 import { Server } from 'http';
-import { prisma } from './ahageta';
-import { handleMessageStreaming } from '../services/ai';
+import { prisma } from './prisma';
 import { getMonthlyUsage } from '../middleware/rateLimit';
 
 // ─── Message types the client can send ──────────────────────────────────────
@@ -146,76 +145,6 @@ export function attachWebSocketServer(httpServer: Server) {
         return;
       }
 
-      // ── 3. Widget sends a user message → stream AI response ──────────────
-      if (msg.type === 'message') {
-        const now = Date.now();
-        if (now - wsWindow > WS_WIN) { wsCount = 0; wsWindow = now; }
-        if (++wsCount > WS_MAX) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Rate limit exceeded', code: 'RATE_LIMITED' }));
-          return;
-        }
-        if (!state.authenticated || state.mode !== 'widget') {
-          ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }));
-          return;
-        }
-
-        const content = msg.content?.trim();
-        if (!content || content.length > 2000) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Invalid message content' }));
-          return;
-        }
-
-        // Verify conversation belongs to this org
-        const conv = await prisma.conversation.findFirst({
-          where: { id: msg.conversationId, organizationId: state.organizationId! },
-          select: { id: true, status: true },
-        });
-        if (!conv) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Conversation not found' }));
-          return;
-        }
-        if (conv.status === 'closed') {
-          ws.send(JSON.stringify({ type: 'error', message: 'Conversation is closed' }));
-          return;
-        }
-
-        // Enforce monthly message limit
-        const org = await prisma.organization.findUnique({
-          where: { id: state.organizationId! },
-          select: { monthlyMessageLimit: true },
-        });
-        if (org) {
-          const used = await getMonthlyUsage(state.organizationId!);
-          if (used >= org.monthlyMessageLimit) {
-            ws.send(JSON.stringify({
-              type: 'error',
-              message: 'Monthly message limit reached. Please upgrade your plan.',
-              code: 'LIMIT_REACHED',
-            }));
-            return;
-          }
-        }
-
-        // Let the client know streaming is starting
-        ws.send(JSON.stringify({ type: 'stream_start' }));
-
-        try {
-          // Stream — tokens flow back through ws directly inside handleMessageStreaming
-          await handleMessageStreaming(msg.conversationId, content, ws, msg.pageContext);
-
-          // Also push the completed message to any dashboard subscribers watching this conversation
-          notifySubscribers(msg.conversationId, {
-            type: 'new_message',
-            conversationId: msg.conversationId,
-          });
-        } catch (err) {
-          const message = err instanceof Error ? err.message : 'AI error';
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'error', message }));
-          }
-        }
-        return;
-      }
     });
 
     ws.on('close', () => {

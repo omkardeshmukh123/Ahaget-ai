@@ -71,7 +71,7 @@ export default function DocsCTA() {
               Create free account
             </a>
             <a
-              href="mailto:hello@ahaget.com"
+              href="mailto:hello@ahaget.ai"
               className="rounded-xl border border-white/10 bg-white/5 px-8 py-3.5 font-semibold text-white hover:bg-white/10 transition-colors"
             >
               Talk to us

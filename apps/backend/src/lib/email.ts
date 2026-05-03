@@ -4,8 +4,8 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const FROM = 'Ahaget <hello@useahaget.ai>';
-const DASHBOARD_URL = process.env.FRONTEND_URL ?? 'https://app.useahaget.ai';
+const FROM = 'Ahaget <hello@ahaget.ai>';
+const DASHBOARD_URL = process.env.FRONTEND_URL ?? 'https://app.ahaget.ai';
 
 export async function sendMagicLinkEmail(params: {
   to: string;
@@ -71,7 +71,7 @@ export async function sendWelcomeEmail(params: {
   }
 
   const snippet = `<!-- Ahaget Widget -->
-<script src="https://cdn.useahaget.ai/widget.js"></script>
+<script src="https://cdn.ahaget.ai/widget.js"></script>
 <script>
   Ahaget('init', {
     apiKey: '${params.apiKey}',
@@ -179,7 +179,7 @@ export async function sendContactEmail(params: {
 
   await resend.emails.send({
     from: FROM,
-    to: 'hello@useahaget.ai',
+    to: 'hello@ahaget.ai',
     reply_to: params.email,
     subject: `Contact: ${params.name}${params.company ? ` (${params.company})` : ''}`,
     html: `

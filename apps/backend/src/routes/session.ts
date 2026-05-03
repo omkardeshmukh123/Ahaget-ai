@@ -232,7 +232,7 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
   let experimentId: string | null = null;
   let experimentVariant: 'control' | 'variant' | null = null;
 
-  const experiment = await ahageta.flowExperiment.findFirst({
+  const experiment = await prisma.flowExperiment.findFirst({
     where: { controlFlowId: baseFlow.id, status: 'running', organizationId: req.organization!.id },
   });
 
@@ -634,7 +634,7 @@ router.post('/heal', async (req: AuthenticatedRequest, res: Response) => {
 
   const org = req.organization!;
 
-  await ahageta.selectorHealLog.create({
+  await prisma.selectorHealLog.create({
     data: {
       organizationId: org.id,
       sessionId:        sessionId  ?? null,
@@ -650,7 +650,7 @@ router.post('/heal', async (req: AuthenticatedRequest, res: Response) => {
   // ── Webhook alert on repeated failures ─────────────────────────────────────
   if (strategy === 'failed' && org.selectorAlertEnabled && org.selectorAlertWebhook) {
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentFailures = await ahageta.selectorHealLog.count({
+    const recentFailures = await prisma.selectorHealLog.count({
       where: {
         organizationId: org.id,
         originalSelector,

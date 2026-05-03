@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
@@ -8,7 +8,7 @@ const SECTIONS = [
     label: 'AGENT',
     items: [
       { href: '/in-page-assistant', label: 'In-Page Assistant', icon: <SparkleIcon /> },
-      { href: '/flows',             label: 'User Flows',        icon: <FlowIcon /> },
+      { href: '/flows',             label: 'Agent Flows',       icon: <FlowIcon /> },
     ],
   },
   {

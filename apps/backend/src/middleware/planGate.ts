@@ -5,7 +5,7 @@ import { AuthenticatedRequest } from '../types';
 
 const UPGRADE_URL = process.env.FRONTEND_URL
   ? `${process.env.FRONTEND_URL}/settings/billing`
-  : 'https://ahaget-dashboard.onrender.com/settings/billing';
+  : 'https://app.ahaget.ai/settings/billing';
 
 export function requireFeature(feature: keyof PlanFeatures) {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {

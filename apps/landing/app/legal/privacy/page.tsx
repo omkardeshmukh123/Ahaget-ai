@@ -119,7 +119,7 @@ export default function PrivacyPage() {
               <h2 className="text-xl font-semibold text-white mb-3">7. Your rights</h2>
               <p className="text-sm mb-3">
                 Depending on your jurisdiction you may have rights to access, correct, export, or delete your personal data.
-                To exercise any of these rights, email us at <a href="mailto:privacy@ahaget.com" className="text-indigo-400 hover:underline">privacy@ahaget.com</a>.
+                To exercise any of these rights, email us at <a href="mailto:privacy@ahaget.ai" className="text-indigo-400 hover:underline">privacy@ahaget.ai</a>.
                 We will respond within 30 days.
               </p>
               <p className="text-sm">
@@ -146,7 +146,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-xl font-semibold text-white mb-3">10. Contact</h2>
               <p className="text-sm">
-                Questions? Email <a href="mailto:privacy@ahaget.com" className="text-indigo-400 hover:underline">privacy@ahaget.com</a>.
+                Questions? Email <a href="mailto:privacy@ahaget.ai" className="text-indigo-400 hover:underline">privacy@ahaget.ai</a>.
               </p>
             </section>
 

@@ -165,13 +165,20 @@ model FollowUpConfig {
   @@map("follow_up_configs")
 }
 
-// ─── OnboardingFlow (the journey to first value — defined by the SaaS owner) ─
+// ─── AgentFlow types ──────────────────────────────────────────────────────────
+// onboarding | adoption | upsell | retention | support
+// Priority order for selector: retention > upsell > adoption > onboarding > support
+
+// ─── OnboardingFlow (unified AgentFlow — covers full user lifecycle) ──────────
 model OnboardingFlow {
   id             String   @id @default(uuid())
   organizationId String   @map("organization_id")
   name           String
   description    String   @default("")
   isActive       Boolean  @default(true) @map("is_active")
+  // Flow type — determines lifecycle stage and selector priority
+  flowType       String   @default("onboarding") @map("flow_type") // onboarding | adoption | upsell | retention | support
+  triggerCondition Json   @default("{}") @map("trigger_condition") // {type, urlPattern, eventName, inactiveDays, usageThreshold, featureSlug}
   executionMode  String   @default("execute") @map("execution_mode") // recommend | guided | execute
   // Trigger controls — when and where the widget fires
   triggerDelayMs      Int    @default(30000) @map("trigger_delay_ms")     // ms after page load
@@ -188,6 +195,7 @@ model OnboardingFlow {
   variantExperiments FlowExperiment[]       @relation("ExperimentVariant")
 
   @@index([organizationId])
+  @@index([organizationId, flowType])
   @@map("onboarding_flows")
 }
 

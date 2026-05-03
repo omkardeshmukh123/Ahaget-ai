@@ -21,7 +21,7 @@ Go to **Flows → New flow** and pick a template for your SaaS vertical (Analyti
 **2. Add the script tag**
 
 \`\`\`html
-<script src="https://cdn.ahaget.com/widget.js"></script>
+<script src="https://cdn.ahaget.ai/widget.js"></script>
 \`\`\`
 
 **3. Initialize with your API key**
@@ -248,7 +248,7 @@ The widget calls this automatically on session start. You can also call it from 
 **Query params:** \`userId=user_123\`
 
 \`\`\`bash
-curl "https://api.ahaget.com/api/v1/churn/score?userId=user_123" \\
+curl "https://api.ahaget.ai/api/v1/churn/score?userId=user_123" \\
   -H "X-API-Key: org_YOUR_KEY"
 \`\`\`
 
@@ -289,7 +289,7 @@ Use this endpoint from your own backend to build churn dashboards, trigger email
 ### Base URL
 
 \`\`\`
-https://api.ahaget.com   (production)
+https://api.ahaget.ai   (production)
 http://localhost:4000       (local dev)
 \`\`\`
 
@@ -298,7 +298,7 @@ http://localhost:4000       (local dev)
 **Widget / customer-side** — use your org API key:
 
 \`\`\`bash
-curl -H "X-API-Key: org_YOUR_KEY" https://api.ahaget.com/api/v1/session/start \\
+curl -H "X-API-Key: org_YOUR_KEY" https://api.ahaget.ai/api/v1/session/start \\
   -X POST -H "Content-Type: application/json" \\
   -d '{"userId":"user_123"}'
 \`\`\`
@@ -307,13 +307,13 @@ curl -H "X-API-Key: org_YOUR_KEY" https://api.ahaget.com/api/v1/session/start \\
 
 \`\`\`bash
 # 1. Login
-TOKEN=$(curl -s -X POST https://api.ahaget.com/api/v1/auth/login \\
+TOKEN=$(curl -s -X POST https://api.ahaget.ai/api/v1/auth/login \\
   -H "Content-Type: application/json" \\
   -d '{"email":"you@example.com","password":"..."}' | jq -r .token)
 
 # 2. Use token
 curl -H "Authorization: Bearer $TOKEN" \\
-  https://api.ahaget.com/api/v1/activation/funnel
+  https://api.ahaget.ai/api/v1/activation/funnel
 \`\`\`
 
 ### Key endpoints

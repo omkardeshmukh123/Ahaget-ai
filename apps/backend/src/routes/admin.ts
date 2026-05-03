@@ -20,7 +20,7 @@ function requireAdmin(req: Request, res: Response, next: () => void) {
 
 // ─── GET /api/v1/admin/orgs ───────────────────────────────────────────────────
 // Lists all organizations with usage stats — founders dashboard for monitoring beta customers.
-// Usage: curl -H "X-Admin-Secret: $ADMIN_SECRET" https://api.ahaget.com/api/v1/admin/orgs
+// Usage: curl -H "X-Admin-Secret: $ADMIN_SECRET" https://api.ahaget.ai/api/v1/admin/orgs
 router.get('/orgs', requireAdmin, async (_req: Request, res: Response) => {
   const orgs = await prisma.organization.findMany({
     orderBy: { createdAt: 'desc' },

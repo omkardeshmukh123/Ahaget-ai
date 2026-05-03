@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { authenticateJWT } from '../middleware/auth';
@@ -85,7 +85,12 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
 // ─── POST /api/v1/flow — create flow ─────────────────────────────────────────
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
-  const { name, description } = req.body as { name: string; description?: string };
+  const { name, description, flowType, triggerCondition } = req.body as {
+    name: string;
+    description?: string;
+    flowType?: string;
+    triggerCondition?: Record<string, unknown>;
+  };
 
   const limitErr = await checkAgentLimit(req.user!.organizationId);
   if (limitErr) {
@@ -94,7 +99,13 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   }
 
   const flow = await prisma.onboardingFlow.create({
-    data: { organizationId: req.user!.organizationId, name, description: description ?? '' },
+    data: {
+      organizationId: req.user!.organizationId,
+      name,
+      description: description ?? '',
+      flowType: flowType ?? 'onboarding',
+      triggerCondition: (triggerCondition ?? {}) as Prisma.InputJsonValue,
+    },
     include: { steps: true },
   });
   res.status(201).json({ flow });
@@ -102,7 +113,17 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 
 // ─── PUT /api/v1/flow/:id — update flow ──────────────────────────────────────
 router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
-  const { name, description, isActive, triggerDelayMs, urlPattern, maxTriggersPerUser, targetRoles } = req.body as {
+  const {
+    name,
+    description,
+    isActive,
+    triggerDelayMs,
+    urlPattern,
+    maxTriggersPerUser,
+    targetRoles,
+    flowType,
+    triggerCondition,
+  } = req.body as {
     name?: string;
     description?: string;
     isActive?: boolean;
@@ -110,6 +131,8 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
     urlPattern?: string;
     maxTriggersPerUser?: number;
     targetRoles?: string[];
+    flowType?: string;
+    triggerCondition?: Record<string, unknown>;
   };
   const flow = await prisma.onboardingFlow.updateMany({
     where: { id: req.params.id, organizationId: req.user!.organizationId },
@@ -121,12 +144,73 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
       ...(urlPattern !== undefined && { urlPattern }),
       ...(maxTriggersPerUser !== undefined && { maxTriggersPerUser }),
       ...(targetRoles !== undefined && { targetRoles }),
+      ...(flowType !== undefined && { flowType }),
+      ...(triggerCondition !== undefined && { triggerCondition: triggerCondition as Prisma.InputJsonValue }),
     },
   });
   if (flow.count > 0) {
     broadcastToOrgWidgets(req.user!.organizationId, { type: 'flow_updated', flowId: req.params.id });
   }
   res.json({ updated: flow.count > 0 });
+});
+
+// ─── GET /api/v1/flow/select — flow selector: pick best flow for user+page ─────
+// Priority: retention > upsell > adoption > onboarding > support
+// Called by the widget to determine which flow to open.
+const FLOW_TYPE_PRIORITY: Record<string, number> = {
+  retention: 5,
+  upsell: 4,
+  adoption: 3,
+  onboarding: 2,
+  support: 1,
+};
+
+router.get('/select', async (req: AuthenticatedRequest, res: Response) => {
+  const { page, endUserId } = req.query as { page?: string; endUserId?: string };
+  const orgId = req.user!.organizationId;
+
+  // Get all active flows for this org
+  const flows = await prisma.onboardingFlow.findMany({
+    where: { organizationId: orgId, isActive: true },
+    include: { steps: { orderBy: { order: 'asc' }, take: 1 } },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  if (!flows.length) {
+    res.json({ flow: null });
+    return;
+  }
+
+  // Filter by urlPattern if set, and sort by priority
+  const eligible = flows
+    .filter((f) => {
+      if (!f.urlPattern || !page) return true;
+      const patterns = f.urlPattern.split(',').map((p) => p.trim()).filter(Boolean);
+      if (!patterns.length) return true;
+      return patterns.some((p) => {
+        try { return new RegExp(p).test(page); } catch { return page.includes(p); }
+      });
+    })
+    .sort((a, b) => (FLOW_TYPE_PRIORITY[b.flowType] ?? 0) - (FLOW_TYPE_PRIORITY[a.flowType] ?? 0));
+
+  if (!eligible.length) {
+    res.json({ flow: null });
+    return;
+  }
+
+  // Check if user already has an active session for the top candidate
+  const best = eligible[0];
+  if (endUserId) {
+    const existingSession = await prisma.userOnboardingSession.findFirst({
+      where: { endUserId, flowId: best.id, status: 'active' },
+    });
+    if (existingSession) {
+      res.json({ flow: best, sessionId: existingSession.id, resuming: true });
+      return;
+    }
+  }
+
+  res.json({ flow: best, resuming: false });
 });
 
 // ─── DELETE /api/v1/flow/:id ──────────────────────────────────────────────────

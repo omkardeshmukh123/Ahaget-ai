@@ -1,6 +1,6 @@
-﻿import Link from 'next/link';
+import Link from 'next/link';
 
-const snippet = `<script src="https://cdn.ahaget.com/widget.js"></script>
+const snippet = `<script src="https://cdn.ahaget.ai/widget.js"></script>
 <script>
   Ahaget('init', {
     apiKey: 'org_YOUR_KEY',
@@ -20,20 +20,20 @@ export default function Hero() {
         {/* Badge */}
         <div className="inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-500/10 px-4 py-1.5 text-sm text-brand-100 mb-8">
           <span className="h-1.5 w-1.5 rounded-full bg-brand-400 animate-pulse" />
-          AI-powered — works for any B2B SaaS
+          The AI employee for SaaS — activate, retain, expand
         </div>
 
         {/* Headline */}
         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight tracking-tight mb-6">
-          Get every user to their{' '}
-          <span className="gradient-text">first value moment</span>
+          Give your SaaS{' '}
+          <span className="gradient-text">an AI employee</span>
         </h1>
 
         {/* Sub */}
         <p className="text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-          Ahaget is an AI copilot embedded in your SaaS product. It detects what each user
-          is trying to do, asks one smart question, and guides them through setup — automatically.
-          From signup to aha moment, without you lifting a finger.
+          Ahaget is an AI employee embedded inside your SaaS. It activates new users, drives feature
+          adoption, prevents churn, and closes upsells — all automatically, throughout the full user lifecycle.
+          Embed it in two lines of code.
         </p>
 
         {/* CTAs */}

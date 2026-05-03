@@ -170,7 +170,7 @@ router.get('/snippet', authenticateJWT, async (req: AuthenticatedRequest, res: R
     }
   };
 </script>
-<script async src="https://cdn.useahaget.ai/widget.js"></script>`;
+<script async src="https://cdn.ahaget.ai/widget.js"></script>`;
 
   res.json({ snippet, apiKey: org.apiKey, domain: org.websiteUrl });
 });

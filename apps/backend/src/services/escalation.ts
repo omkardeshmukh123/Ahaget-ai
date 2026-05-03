@@ -4,7 +4,7 @@
 import { Resend } from 'resend';
 import { prisma } from '../lib/prisma';
 
-const DASHBOARD_URL = process.env.FRONTEND_URL ?? 'https://app.useahaget.ai';
+const DASHBOARD_URL = process.env.FRONTEND_URL ?? 'https://app.ahaget.ai';
 
 function esc(s: unknown): string {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -81,7 +81,7 @@ export async function notifyTeam(params: {
       .join('');
 
     tasks.push(resend.emails.send({
-      from: `Ahaget <hello@useahaget.ai>`,
+      from: `Ahaget <hello@ahaget.ai>`,
       to: owner.email,
       subject: `[${orgName}] Human escalation — ${context.stepTitle}`,
       html: `

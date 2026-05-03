@@ -7,7 +7,7 @@ function buildSnippet(apiKey: string): string {
   const close = String.fromCharCode(62);
   const slash = String.fromCharCode(47);
   return [
-    `${open}script src="https://cdn.useahaget.ai/widget.js"`,
+    `${open}script src="https://cdn.ahaget.ai/widget.js"`,
     `  data-key="${apiKey}"${close}${open}${slash}script${close}`,
   ].join('\n');
 }
@@ -18,7 +18,7 @@ function buildFullSnippet(apiKey: string): string {
   const slash = String.fromCharCode(47);
   return [
     `${open}!-- Ahaget Widget --${close}`,
-    `${open}script src="https://cdn.useahaget.ai/widget.js"${close}${open}${slash}script${close}`,
+    `${open}script src="https://cdn.ahaget.ai/widget.js"${close}${open}${slash}script${close}`,
     `${open}script${close}`,
     `  Ahaget('init', {`,
     `    apiKey: '${apiKey}',`,

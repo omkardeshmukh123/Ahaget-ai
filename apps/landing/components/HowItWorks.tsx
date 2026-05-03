@@ -1,65 +1,59 @@
-﻿const STEPS = [
+const STEPS = [
   {
     number: '01',
-    title: 'Configure your onboarding flow',
+    title: 'Activate — get users to first value',
     description:
-      'Log into your dashboard and define the steps your users need to complete — "Connect data", "Create first dashboard", "See first insight". Set the AI prompt for each step, add smart questions, configure page actions. Takes 10 minutes.',
-    code: `// Example: Analytics SaaS flow
+      'Define the steps your users need to complete to hit their aha moment. The AI guides every new user through setup — fills forms, highlights buttons, navigates pages. Users activate without getting stuck.',
+    code: `// Onboarding flow example
 Step 1: "Connect your data source"
-  → AI asks: "What's your main data source?"
+  → AI asks: "What's your main source?"
   → Action: highlight the upload button
-
 Step 2: "Create your first dashboard"
-  → AI asks: "What do you want to track?"
-  → Action: fill the dashboard name field
-
-Step 3: "Your first insight" (milestone)
-  → AI celebrates. User is activated.`,
+  → AI: fills the name field, advances
+Step 3: "First insight" (milestone)
+  → AI celebrates. User is activated. ✓`,
     color: 'from-purple-500/20 to-brand-500/20',
   },
   {
     number: '02',
-    title: 'Embed one script tag',
+    title: 'Adopt — drive breadth of usage',
     description:
-      'Copy your API key from the dashboard. Add two lines to your product. The widget loads asynchronously — no impact on page speed, no dependencies, no framework requirements. Works in any SaaS product.',
-    code: `<script src="https://cdn.ahaget.com/widget.js"></script>
-<script>
-  Ahaget('init', {
-    apiKey: 'org_YOUR_KEY',
-    userId: currentUser.id,
-    metadata: { plan: currentUser.plan }
-  });
-</script>`,
+      'After activation, Ahaget monitors which features the user has never visited. After 14 days it surfaces them contextually — "You\'ve been doing this manually. Here\'s a faster way." The AI sets it up for them.',
+    code: `// Adoption trigger (auto-evaluated)
+Trigger: feature_unused
+  feature: "exports"
+  days: 14
+→ AI opens, explains exports,
+  asks: "Want me to run one now?"
+→ User says yes → AI navigates + clicks`,
     color: 'from-blue-500/20 to-cyan-500/20',
   },
   {
     number: '03',
-    title: 'AI guides every new user',
+    title: 'Expand — AI-attributed upsell revenue',
     description:
-      'When a user signs up, the copilot opens with their current step context. The AI detects what they are trying to do, asks one clarifying question, then acts — fills forms, highlights buttons, navigates pages. Users reach first value without getting stuck.',
-    code: `// What the AI does per step:
-→ Detects intent from current page
-→ Asks: "What's your data source?"
-→ User: "CSV"
-→ AI highlights upload button
-→ User uploads → step auto-completes
-→ AI advances to Step 2`,
+      'When a user hits 80% of their plan limit, the AI pitches an upgrade at the exact moment of need — not in a cold email. Conversions attributed to AI are tracked, giving you a clear ROI number.',
+    code: `// Upsell trigger
+Trigger: usage_threshold
+  metric: "api_calls", threshold: 80
+→ AI: "You've used 80% of your API limit.
+  The Growth plan removes it entirely.
+  Want to upgrade now?"
+→ User: "Yes" → deep link to billing`,
     color: 'from-emerald-500/20 to-teal-500/20',
   },
   {
     number: '04',
-    title: 'Track activation in real time',
+    title: 'Retain — re-engage before they churn',
     description:
-      'Your dashboard shows the full drop-off funnel: how many users started each step, completed it, and how long it took. See which steps the AI helped with and which ones need better configuration. Time-to-first-value is your north star metric.',
-    code: `GET /api/v1/activation/funnel
-→ {
-    funnel: [
-      { step: "Connect data",    started: 320, completed: 290, dropOff: 9% },
-      { step: "Build dashboard", started: 290, completed: 201, dropOff: 31% },
-      { step: "First insight",   started: 201, completed: 198, dropOff: 1%  }
-    ],
-    avgTimeToValueMins: 7
-  }`,
+      'At 8 days inactive or churn score ≥ 50, the AI reaches out with a message specific to where they stopped — not a generic "we miss you" email. Back in the product, the widget resumes right where they left off.',
+    code: `// Retention trigger
+Trigger: inactivity, days: 8
+→ Email: "You were on Step 2 of
+   connecting your data source.
+   Want to finish?"
+   Link: /app?ahaget_resume=flow_id
+→ Widget opens immediately on click`,
     color: 'from-orange-500/20 to-red-500/20',
   },
 ];
@@ -70,11 +64,11 @@ export default function HowItWorks() {
       <div className="mx-auto max-w-6xl">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            From signup to aha moment in{' '}
-            <span className="gradient-text">four steps</span>
+            One AI employee.{' '}
+            <span className="gradient-text">Full user lifecycle.</span>
           </h2>
           <p className="text-zinc-400 text-lg max-w-xl mx-auto">
-            You configure the flow once. The AI runs it for every user, forever.
+            Configure your flows once. The AI runs them for every user, forever — from day 1 to renewal.
           </p>
         </div>
 

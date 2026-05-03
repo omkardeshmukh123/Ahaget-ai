@@ -9,7 +9,7 @@
 }
 
 export const DEFAULT_CONFIG: Required<Omit<WidgetConfig, 'apiKey' | 'userId' | 'metadata'>> = {
-  apiUrl: 'https://api.useahaget.ai',
+  apiUrl: 'https://api.ahaget.ai',
   idleThreshold: 30_000,
   primaryColor: '#6366f1', // indigo
 };

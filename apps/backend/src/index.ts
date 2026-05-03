@@ -8,7 +8,6 @@ import morgan from 'morgan';
 
 import authRoutes from './routes/auth';
 import conversationsRoutes from './routes/conversations';
-import messagesRoutes from './routes/messages';
 import eventsRoutes from './routes/events';
 import analyticsRoutes from './routes/analytics';
 import configRoutes from './routes/config';
