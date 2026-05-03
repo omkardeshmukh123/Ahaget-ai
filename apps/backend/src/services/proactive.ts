@@ -65,7 +65,7 @@ export async function runProactiveMessaging(): Promise<void> {
           where: {
             organizationId: orgId,
             eventType: 'feature_used',
-            properties: { path: rule.featureSlug }, // best-effort match
+            properties: { path: ['feature'], equals: rule.featureSlug },
           },
           select: { endUserId: true },
           distinct: ['endUserId'],

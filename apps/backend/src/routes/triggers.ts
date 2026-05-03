@@ -176,7 +176,7 @@ router.get('/evaluate', authenticateApiKey, async (req: AuthenticatedRequest, re
               organizationId: orgId,
               endUserId: endUser.id,
               eventType: 'page_view',
-              properties: { path: page },
+              properties: { path: ['path'], equals: page },
             },
           });
           if (priorVisit) matches = false;
@@ -221,12 +221,16 @@ router.get('/evaluate', authenticateApiKey, async (req: AuthenticatedRequest, re
         });
         // Crude check: see if any page_view event path matches the pattern
         const visitedMatchingPage = await prisma.event.findFirst({
-          where: { organizationId: orgId, endUserId: endUser.id, eventType: 'page_view',
-            properties: { path: { string_contains: rule.urlPattern.replace(/[.*+?^${}()|[\]\\]/g, '') } } },
+          where: {
+            organizationId: orgId,
+            endUserId: endUser.id,
+            eventType: 'page_view',
+            properties: { path: ['path'], string_contains: rule.urlPattern.replace(/[.*+?^${}()|[\\]\\]/g, '') },
+          },
         });
-        void visited; // suppress unused warning
+        void visited;
         if (!visitedMatchingPage) matches = true;
-        void pat; // used above
+        void pat;
         break;
       }
 
@@ -236,8 +240,8 @@ router.get('/evaluate', authenticateApiKey, async (req: AuthenticatedRequest, re
           where: {
             organizationId: orgId,
             endUserId: endUser.id,
-            eventType: `feature_used`,
-            properties: { feature: rule.featureSlug },
+            eventType: 'feature_used',
+            properties: { path: ['feature'], equals: rule.featureSlug },
           },
         });
         if (!featureEvent) {
@@ -258,9 +262,9 @@ router.get('/evaluate', authenticateApiKey, async (req: AuthenticatedRequest, re
     return;
   }
 
-  // Pick highest-priority flow type
   const best = matchingRules.sort(
-    (a, b) => (FLOW_TYPE_PRIORITY[b.flow.flowType] ?? 0) - (FLOW_TYPE_PRIORITY[a.flow.flowType] ?? 0)
+    (a: typeof activeRules[number], b: typeof activeRules[number]) =>
+      (FLOW_TYPE_PRIORITY[b.flow.flowType] ?? 0) - (FLOW_TYPE_PRIORITY[a.flow.flowType] ?? 0)
   )[0];
 
   res.json({

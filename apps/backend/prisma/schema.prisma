@@ -91,6 +91,7 @@ model EndUser {
   onboardingSessions  UserOnboardingSession[]
   escalationTickets   EscalationTicket[]
   proactiveMessages   ProactiveMessage[]
+  upsellAttributions  UpsellAttribution[]
 
   @@unique([organizationId, externalId])
   @@index([organizationId])
@@ -205,6 +206,7 @@ model OnboardingFlow {
   controlExperiments  FlowExperiment[]       @relation("ExperimentControl")
   variantExperiments  FlowExperiment[]       @relation("ExperimentVariant")
   upsellAttributions  UpsellAttribution[]
+  proactiveMessages   ProactiveMessage[]
 
   @@index([organizationId])
   @@index([organizationId, flowType])
@@ -561,8 +563,9 @@ model ProactiveMessage {
   openedAt       DateTime? @map("opened_at")
   clickedAt      DateTime? @map("clicked_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  endUser      EndUser      @relation(fields: [endUserId], references: [id], onDelete: Cascade)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  endUser      EndUser        @relation(fields: [endUserId], references: [id], onDelete: Cascade)
+  flow         OnboardingFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, sentAt(sort: Desc)])
   @@index([endUserId, sentAt(sort: Desc)])
@@ -593,6 +596,7 @@ model UpsellAttribution {
 
   organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   flow         OnboardingFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  endUser      EndUser        @relation(fields: [endUserId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, suggestedAt(sort: Desc)])
   @@index([endUserId, suggestedAt(sort: Desc)])
