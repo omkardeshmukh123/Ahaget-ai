@@ -457,6 +457,69 @@ export function injectStyles(primaryColor: string) {
       50%       { transform: scale(1.15); box-shadow: 0 0 0 5px rgba(239,68,68,0); }
     }
 
+    /* ── Upgrade card (suggest_upgrade action) ─────────────────────────────── */
+    .oai-upgrade-card {
+      background: linear-gradient(135deg, #fdf4ff, #fff1f2);
+      border: 1.5px solid #f0abfc;
+      border-radius: 14px;
+      padding: 16px 16px 14px;
+      align-self: stretch;
+      animation: oai-msg-in 0.25s ease both;
+      box-shadow: 0 4px 16px rgba(217,70,239,0.1);
+    }
+    .oai-upgrade-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #d946ef, #ec4899);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+      letter-spacing: 0.04em;
+      margin-bottom: 9px;
+      text-transform: uppercase;
+    }
+    .oai-upgrade-headline {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+    .oai-upgrade-pitch {
+      font-size: 12.5px;
+      color: #475569;
+      line-height: 1.55;
+      margin-bottom: 14px;
+    }
+    .oai-upgrade-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .oai-upgrade-cta {
+      display: inline-block;
+      background: linear-gradient(135deg, #d946ef, #ec4899);
+      color: white;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .oai-upgrade-cta:hover { opacity: 0.88; transform: translateY(-1px); }
+    .oai-upgrade-dismiss {
+      background: none;
+      border: none;
+      font-size: 12px;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0 4px;
+      transition: color 0.15s;
+    }
+    .oai-upgrade-dismiss:hover { color: #64748b; }
+
     /* ── Mobile: full-width bottom sheet ────────────────────────────────────── */
     @media (max-width: 640px) {
       body.__ahaget-open, body.__ahaget-collapsed {

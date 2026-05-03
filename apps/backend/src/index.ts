@@ -27,6 +27,7 @@ import mcpRoutes from './routes/mcp';
 import contactRoutes from './routes/contact';
 import triggersRoutes from './routes/triggers';
 import proactiveRoutes from './routes/proactive';
+import expansionRoutes from './routes/expansion';
 import { prisma } from './lib/prisma';
 import { errorHandler } from './middleware/errorHandler';
 import { attachWebSocketServer } from './lib/websocket';
@@ -104,6 +105,7 @@ app.use('/api/v1/mcp', mcpRoutes);
 app.use('/api/v1/contact', contactRoutes);
 app.use('/api/v1/triggers', triggersRoutes);
 app.use('/api/v1/proactive', proactiveRoutes);
+app.use('/api/v1/expansion', expansionRoutes);
 
 app.get('/health', async (_req, res) => {
   try {

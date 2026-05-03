@@ -60,7 +60,8 @@ export type AgentAction =
   | { type: 'escalate_to_human'; reason: string; trigger: string; message: string }
   | { type: 'chat'; content: string }
   | { type: 'goal_complete'; summary: string }
-  | { type: 'degrade_to_manual'; instruction: string; reason: string };
+  | { type: 'degrade_to_manual'; instruction: string; reason: string }
+  | { type: 'suggest_upgrade'; plan: string; headline: string; pitch: string; upgradeUrl: string; flowId: string };
 
 export class CopilotManager {
   private apiKey: string;

@@ -727,6 +727,52 @@ export class AhagetWidget {
         addCelebration(this.messagesEl, '✅ Done!', action.summary);
         break;
       }
+
+      case 'suggest_upgrade': {
+        // Record the suggestion for attribution tracking (fire-and-forget)
+        const session = this.copilot.getSession();
+        const apiOpts = { apiKey: this.config.apiKey, apiUrl: this.config.apiUrl ?? DEFAULT_CONFIG.apiUrl };
+        fetch(`${apiOpts.apiUrl}/api/v1/expansion/suggest`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': apiOpts.apiKey },
+          body: JSON.stringify({
+            userId: this.config.userId ?? '',
+            flowId: action.flowId,
+            sessionId: session?.id,
+          }),
+        }).catch(() => {});
+
+        // Render the upgrade card
+        const card = document.createElement('div');
+        card.className = 'oai-upgrade-card';
+        card.innerHTML = `
+          <div class="oai-upgrade-badge">✨ ${action.plan} Plan</div>
+          <div class="oai-upgrade-headline">${action.headline}</div>
+          <div class="oai-upgrade-pitch">${action.pitch}</div>
+          <div class="oai-upgrade-actions">
+            <a href="${action.upgradeUrl}" target="_blank" class="oai-upgrade-cta" data-msgid="${messageId ?? ''}">
+              Upgrade now →
+            </a>
+            <button class="oai-upgrade-dismiss">Maybe later</button>
+          </div>
+        `;
+        this.messagesEl.appendChild(card);
+        this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+
+        card.querySelector('.oai-upgrade-cta')?.addEventListener('click', () => {
+          // Mark clicked for attribution
+          fetch(`${apiOpts.apiUrl}/api/v1/expansion/confirm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': apiOpts.apiKey },
+            body: JSON.stringify({ userId: this.config.userId ?? '', plan: action.plan }),
+          }).catch(() => {});
+        });
+        card.querySelector('.oai-upgrade-dismiss')?.addEventListener('click', () => {
+          card.style.opacity = '0.5';
+          card.style.pointerEvents = 'none';
+        });
+        break;
+      }
     }
 
     this.isSending = false;
