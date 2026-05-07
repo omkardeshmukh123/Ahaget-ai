@@ -199,6 +199,14 @@ describe('GET /api/v1/sessions', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns 400 for invalid to date', async () => {
+    const res = await request(app)
+      .get('/api/v1/sessions?to=not-a-date')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(400);
+  });
+
   it('returns 401 without auth', async () => {
     const res = await request(app).get('/api/v1/sessions');
     expect(res.status).toBe(401);

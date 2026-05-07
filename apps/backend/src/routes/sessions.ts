@@ -16,8 +16,8 @@ router.use(requireFeature('sessionReplay'));
 // Paginated list of all flow sessions for this org.
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const orgId  = req.user!.organizationId;
-  const limit  = Math.min(Number(req.query.limit  ?? 50), 200);
-  const offset = Number(req.query.offset ?? 0);
+  const limit  = Math.min(Math.max(0, parseInt(String(req.query.limit  ?? '50'),  10) || 50),  200);
+  const offset = Math.max(0, parseInt(String(req.query.offset ?? '0'), 10) || 0);
   const status = req.query.status as string | undefined;
   const q      = req.query.q      as string | undefined;
   const from   = req.query.from   as string | undefined;
