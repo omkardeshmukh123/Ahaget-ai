@@ -1,6 +1,3 @@
-// Creates a fresh Express app for each test suite — no HTTP server, no WebSocket.
-// Tests use supertest which calls the app directly without binding to a port.
-
 import 'dotenv/config';
 import 'express-async-errors';
 import express from 'express';
@@ -13,12 +10,13 @@ import eventsRoutes from '../routes/events';
 import analyticsRoutes from '../routes/analytics';
 import configRoutes from '../routes/config';
 import billingRoutes, { stripeWebhookHandler } from '../routes/billing';
+import sessionsRoutes from '../routes/sessions';
+import escalationsRoutes from '../routes/escalations';
 import { errorHandler } from '../middleware/errorHandler';
 
 export function createApp() {
   const app = express();
 
-  // Webhook needs raw body before JSON parser
   app.post('/api/v1/billing/webhook', express.raw({ type: 'application/json' }), stripeWebhookHandler);
 
   app.use(cors());
@@ -31,6 +29,8 @@ export function createApp() {
   app.use('/api/v1/analytics', analyticsRoutes);
   app.use('/api/v1/config', configRoutes);
   app.use('/api/v1/billing', billingRoutes);
+  app.use('/api/v1/sessions', sessionsRoutes);
+  app.use('/api/v1/escalations', escalationsRoutes);
 
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
   app.use(errorHandler);
