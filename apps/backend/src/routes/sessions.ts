@@ -2,6 +2,7 @@
 // Separate from session.ts (which is widget-facing, API-key auth).
 
 import { Router, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { authenticateJWT } from '../middleware/auth';
 import { requireFeature } from '../middleware/planGate';
@@ -17,11 +18,41 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const orgId  = req.user!.organizationId;
   const limit  = Math.min(Number(req.query.limit  ?? 50), 200);
   const offset = Number(req.query.offset ?? 0);
-  const status = req.query.status as string | undefined; // active | completed | abandoned
+  const status = req.query.status as string | undefined;
+  const q      = req.query.q      as string | undefined;
+  const from   = req.query.from   as string | undefined;
+  const to     = req.query.to     as string | undefined;
 
-  const where: Record<string, unknown> = { organizationId: orgId };
+  // Validate date params early
+  if (from && isNaN(new Date(from).getTime())) {
+    res.status(400).json({ error: 'Invalid from date' });
+    return;
+  }
+  if (to && isNaN(new Date(to).getTime())) {
+    res.status(400).json({ error: 'Invalid to date' });
+    return;
+  }
+
+  const where: Prisma.UserOnboardingSessionWhereInput = {
+    organizationId: orgId,
+  };
+
   if (status && ['active', 'completed', 'abandoned'].includes(status)) {
     where.status = status;
+  }
+
+  if (from || to) {
+    where.startedAt = {
+      ...(from ? { gte: new Date(from) } : {}),
+      ...(to   ? { lte: new Date(to)   } : {}),
+    };
+  }
+
+  if (q) {
+    where.OR = [
+      { endUser: { externalId: { contains: q, mode: 'insensitive' } } },
+      { flow:    { name:       { contains: q, mode: 'insensitive' } } },
+    ];
   }
 
   const [sessions, total] = await Promise.all([

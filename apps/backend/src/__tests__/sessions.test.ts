@@ -147,3 +147,60 @@ describe('POST /api/v1/escalations/manual', () => {
     expect(res.status).toBe(401);
   });
 });
+
+// ─── GET /api/v1/sessions ────────────────────────────────────────────────────
+
+describe('GET /api/v1/sessions', () => {
+  it('returns session list with JWT', async () => {
+    const res = await request(app)
+      .get('/api/v1/sessions')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.sessions)).toBe(true);
+    expect(typeof res.body.total).toBe('number');
+  });
+
+  it('filters by status=active', async () => {
+    const res = await request(app)
+      .get('/api/v1/sessions?status=active')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    res.body.sessions.forEach((s: { status: string }) => {
+      expect(s.status).toBe('active');
+    });
+  });
+
+  it('filters by q matching externalId', async () => {
+    const res = await request(app)
+      .get('/api/v1/sessions?q=user-handoff-test')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.sessions.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.sessions[0].endUser.externalId).toBe('user-handoff-test');
+  });
+
+  it('filters by q matching flow name', async () => {
+    const res = await request(app)
+      .get('/api/v1/sessions?q=Onboarding+Flow')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.sessions.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('returns 400 for invalid from date', async () => {
+    const res = await request(app)
+      .get('/api/v1/sessions?from=not-a-date')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 401 without auth', async () => {
+    const res = await request(app).get('/api/v1/sessions');
+    expect(res.status).toBe(401);
+  });
+});
