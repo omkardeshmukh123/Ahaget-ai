@@ -58,6 +58,77 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   });
 });
 
+// ─── POST /api/v1/escalations/manual ─────────────────────────────────────────
+// Dashboard team member manually hands off a session to the support queue.
+router.post('/manual', async (req: AuthenticatedRequest, res: Response) => {
+  const { sessionId, notes } = req.body as { sessionId?: string; notes?: string };
+  const { organizationId } = req.user!;
+
+  if (!sessionId || typeof sessionId !== 'string') {
+    res.status(400).json({ error: 'sessionId is required' });
+    return;
+  }
+
+  // Verify the session belongs to this org
+  const session = await prisma.userOnboardingSession.findFirst({
+    where: { id: sessionId, organizationId },
+    include: {
+      endUser: { select: { id: true } },
+      stepProgress: {
+        where: { status: 'in_progress' },
+        orderBy: { startedAt: 'desc' },
+        take: 1,
+        select: { stepId: true },
+      },
+    },
+  });
+
+  if (!session) {
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
+
+  // Last assistant message becomes the context snippet shown to the team
+  const lastAssistant = await prisma.sessionMessage.findFirst({
+    where: { sessionId, role: 'assistant' },
+    orderBy: { createdAt: 'desc' },
+    select: { content: true },
+  });
+
+  // Last 10 messages for full context
+  const recentRaw = await prisma.sessionMessage.findMany({
+    where: { sessionId },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+    select: { role: true, content: true },
+  });
+  const recentMessages = recentRaw.reverse();
+
+  const currentStepId = session.stepProgress[0]?.stepId ?? null;
+
+  const ticket = await prisma.escalationTicket.create({
+    data: {
+      organizationId,
+      endUserId: session.endUser.id,
+      sessionId,
+      stepId: currentStepId,
+      trigger: 'manual',
+      status: 'open',
+      reason: notes ?? 'Manual handoff from session replay',
+      agentMessage: lastAssistant?.content ?? '',
+      context: { recentMessages },
+    },
+  });
+
+  res.status(201).json({
+    ticket: {
+      id: ticket.id,
+      status: ticket.status,
+      createdAt: ticket.createdAt,
+    },
+  });
+});
+
 // ─── GET /api/v1/escalations/:id ─────────────────────────────────────────────
 router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   const ticket = await prisma.escalationTicket.findFirst({

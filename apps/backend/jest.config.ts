@@ -5,7 +5,18 @@ const config: Config = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.ts'],
-  setupFilesAfterFramework: [],
+  setupFilesAfterEnv: [],
+  globals: {
+    'ts-jest': {
+      tsconfig: {
+        strict: true,
+        esModuleInterop: true,
+        skipLibCheck: true,
+        resolveJsonModule: true,
+        types: ['jest', 'node'],
+      },
+    },
+  },
   // Don't import the whole app in every test — use the test app factory
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

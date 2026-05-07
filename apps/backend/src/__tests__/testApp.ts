@@ -5,7 +5,6 @@ import cors from 'cors';
 
 import authRoutes from '../routes/auth';
 import conversationsRoutes from '../routes/conversations';
-import messagesRoutes from '../routes/messages';
 import eventsRoutes from '../routes/events';
 import analyticsRoutes from '../routes/analytics';
 import configRoutes from '../routes/config';
@@ -24,7 +23,6 @@ export function createApp() {
 
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/conversations', conversationsRoutes);
-  app.use('/api/v1/messages', messagesRoutes);
   app.use('/api/v1/events', eventsRoutes);
   app.use('/api/v1/analytics', analyticsRoutes);
   app.use('/api/v1/config', configRoutes);
