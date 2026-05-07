@@ -212,3 +212,51 @@ describe('GET /api/v1/sessions', () => {
     expect(res.status).toBe(401);
   });
 });
+
+// ─── GET /api/v1/sessions/:id ────────────────────────────────────────────────
+
+describe('GET /api/v1/sessions/:id', () => {
+  it('returns session detail with escalationTicketId null when none exists', async () => {
+    // Create a fresh session with no escalation
+    const endUser2 = await prisma.endUser.create({
+      data: { organizationId: orgId, externalId: 'user-detail-test', metadata: {} },
+    });
+    const session2 = await prisma.userOnboardingSession.create({
+      data: {
+        organizationId: orgId,
+        endUserId: endUser2.id,
+        flowId,
+        status: 'active',
+        collectedData: {},
+        lastActiveAt: new Date(),
+      },
+    });
+
+    const res = await request(app)
+      .get(`/api/v1/sessions/${session2.id}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.session.id).toBe(session2.id);
+    expect(res.body.session.escalationTicketId).toBeNull();
+  });
+
+  it('returns escalationTicketId when a manual ticket exists', async () => {
+    // Use the main sessionId which already has a ticket from Task 2 tests
+    const res = await request(app)
+      .get(`/api/v1/sessions/${sessionId}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(typeof res.body.session.escalationTicketId).toBe('string');
+    expect(res.body.session.escalationTicketId.length).toBeGreaterThan(0);
+  });
+
+  it('returns 404 for unknown session', async () => {
+    const res = await request(app)
+      .get('/api/v1/sessions/does-not-exist')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(404);
+  });
+});

@@ -143,7 +143,7 @@ router.get('/audit', async (req: AuthenticatedRequest, res: Response) => {
 router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   const { organizationId } = req.user!;
 
-  const [session, rawMessages] = await Promise.all([
+  const [session, rawMessages, escalationTicket] = await Promise.all([
     prisma.userOnboardingSession.findFirst({
       where: { id: req.params.id, organizationId },
       include: {
@@ -177,6 +177,11 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
         feedback: true,
         createdAt: true,
       },
+    }),
+    prisma.escalationTicket.findFirst({
+      where: { sessionId: req.params.id, organizationId },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
     }),
   ]);
 
@@ -220,6 +225,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
       completedAt: session.completedAt,
       lastActiveAt: session.lastActiveAt,
       firstValueAt: session.firstValueAt,
+      escalationTicketId: escalationTicket?.id ?? null,
       collectedData: session.collectedData,
       flow: {
         id: session.flow.id,
