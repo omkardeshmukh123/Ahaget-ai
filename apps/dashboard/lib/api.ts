@@ -84,8 +84,10 @@ export const api = {
     overview: () => apiFetch<OverviewStats>('/api/v1/analytics/overview'),
     timeline: (days = 30) => apiFetch<TimelinePoint[]>(`/api/v1/analytics/timeline?days=${days}`),
     triggers: () => apiFetch<TriggerStat[]>('/api/v1/analytics/triggers'),
-    intents: (days = 30) => apiFetch<IntentsResponse>(`/api/v1/analytics/intents?days=${days}`),
+    intents: (days = 30, page?: string) => apiFetch<IntentsResponse>(`/api/v1/analytics/intents?days=${days}${page ? `&page=${encodeURIComponent(page)}` : ''}`),
     health: () => apiFetch<AgentHealth>('/api/v1/analytics/health'),
+    chokePoints: (days = 30) =>
+      apiFetch<ChokePointsResponse>(`/api/v1/analytics/choke-points?days=${days}`),
   },
 
   config: {
@@ -229,6 +231,11 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
+    createManual: (sessionId: string, notes?: string) =>
+      apiFetch<{ ticket: { id: string; status: string; createdAt: string } }>('/api/v1/escalations/manual', {
+        method: 'POST',
+        body: JSON.stringify({ sessionId, notes }),
+      }),
   },
 
   users: {
@@ -325,18 +332,38 @@ export const api = {
 
   activation: {
     overview: () => apiFetch<ActivationOverview>('/api/v1/activation/overview'),
-    funnel: () => apiFetch<{ flowName: string | null; totalSessions: number; funnel: FunnelStep[] }>('/api/v1/activation/funnel'),
+    funnel: (flowId?: string) => {
+      const qs = flowId ? `?flowId=${encodeURIComponent(flowId)}` : '';
+      return apiFetch<{ flowName: string | null; totalSessions: number; funnel: FunnelStep[] }>(`/api/v1/activation/funnel${qs}`);
+    },
     timeline: (days = 30) => apiFetch<{ timeline: ActivationTimeline[] }>(`/api/v1/activation/timeline?days=${days}`),
     trend: () => apiFetch<ActivationTrend>('/api/v1/activation/trend'),
+    flows: () => apiFetch<{ flows: FlowActivationStat[] }>('/api/v1/activation/flows'),
+    flowTimeline: (flowId: string, days = 30) =>
+      apiFetch<{ flowId: string; flowName: string; days: number; timeline: FlowTimeline[] }>(
+        `/api/v1/activation/flow-timeline?flowId=${encodeURIComponent(flowId)}&days=${days}`
+      ),
+    adoption: (flowId: string) =>
+      apiFetch<AdoptionStats>(`/api/v1/activation/adoption?flowId=${encodeURIComponent(flowId)}`),
   },
 
   sessions: {
-    list: (params?: { limit?: number; offset?: number; status?: 'active' | 'completed' | 'abandoned' }) => {
-      const q = new URLSearchParams();
-      if (params?.limit)  q.set('limit',  String(params.limit));
-      if (params?.offset) q.set('offset', String(params.offset));
-      if (params?.status) q.set('status', params.status);
-      return apiFetch<{ sessions: SessionListItem[]; total: number; limit: number; offset: number }>(`/api/v1/sessions?${q}`);
+    list: (params?: {
+      limit?: number;
+      offset?: number;
+      status?: 'active' | 'completed' | 'abandoned';
+      q?: string;
+      from?: string;
+      to?: string;
+    }) => {
+      const qs = new URLSearchParams();
+      if (params?.limit)  qs.set('limit',  String(params.limit));
+      if (params?.offset) qs.set('offset', String(params.offset));
+      if (params?.status) qs.set('status', params.status);
+      if (params?.q)      qs.set('q',      params.q);
+      if (params?.from)   qs.set('from',   params.from);
+      if (params?.to)     qs.set('to',     params.to);
+      return apiFetch<{ sessions: SessionListItem[]; total: number; limit: number; offset: number }>(`/api/v1/sessions?${qs}`);
     },
     get: (id: string) => apiFetch<{ session: SessionDetail }>(`/api/v1/sessions/${id}`),
   },
@@ -771,6 +798,36 @@ export interface ActivationTimeline {
   firstValue: number;
 }
 
+export interface FlowTimeline {
+  date: string;
+  started: number;
+  completed: number;
+  firstValue: number;
+  completionRate: number;
+}
+
+export interface AdoptionStats {
+  flowId: string;
+  flowName: string;
+  flowType: string;
+  featureSlug: string | null;
+  totalSessions: number;
+  adoptedCount: number;
+  adoptionRate: number;
+}
+
+export interface FlowActivationStat {
+  flowId: string;
+  flowName: string;
+  flowType: string;
+  isActive: boolean;
+  totalSessions: number;
+  completedSessions: number;
+  completionRate: number;
+  worstStepTitle: string | null;
+  worstDropOffRate: number;
+}
+
 export interface ChurnUser {
   sessionId: string;
   userId: string | null;
@@ -921,7 +978,7 @@ export interface IntegrationConfig {
 export interface EscalationTicket {
   id: string;
   status: 'open' | 'in_progress' | 'resolved';
-  trigger: 'agent_detected' | 'user_requested';
+  trigger: 'agent_detected' | 'user_requested' | 'manual';
   reason: string;
   agentMessage: string;
   notes: string | null;
@@ -1076,6 +1133,7 @@ export interface IntentQuestion {
   count: number;
   lastSeen: string;
   intent: 'how_to' | 'stuck' | 'navigation' | 'question' | 'other';
+  pageUrl: string | null;
 }
 
 export interface IntentsResponse {
@@ -1083,6 +1141,7 @@ export interface IntentsResponse {
   categorySummary: Record<string, number>;
   totalMessages: number;
   days: number;
+  pages: { url: string; questionCount: number }[];
 }
 
 export interface FlowTemplateMeta {
@@ -1146,6 +1205,7 @@ export interface SessionDetail {
   lastActiveAt: string;
   firstValueAt: string | null;
   collectedData: Record<string, unknown>;
+  escalationTicketId: string | null;
   flow: { id: string; name: string };
   endUser: {
     id: string;
@@ -1192,6 +1252,37 @@ export interface Insight {
 export interface InsightsResponse {
   insights: Insight[];
   generatedAt: string;
+  days: number;
+}
+
+export interface ChokePoint {
+  rank: number;
+  step_id: string;
+  step_title: string;
+  flow_id: string;
+  flow_name: string;
+  action_type: string | null;
+  field_choke: boolean;
+  frequency: number;
+  drop_rate: number;
+  avg_attempts: number;
+  avg_time_stuck_secs: number;
+  neg_feedback_rate: number;
+  severity_score: number;
+  severity_label: 'critical' | 'high' | 'medium' | 'low';
+  example_messages: string[];
+  trend: 'worsening' | 'improving' | 'stable' | 'new';
+}
+
+export interface PageSummary {
+  url: string;
+  sessions: number;
+}
+
+export interface ChokePointsResponse {
+  choke_points: ChokePoint[];
+  page_summary: PageSummary[];
+  generated_at: string;
   days: number;
 }
 
