@@ -75,6 +75,50 @@ router.put('/alerts', authenticateJWT, async (req: AuthenticatedRequest, res: Re
   res.json({ saved: true });
 });
 
+// ─── GET /api/v1/config/playbook ─────────────────────────────────────────────
+router.get('/playbook', authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
+  const config = await prisma.playbookConfig.findUnique({
+    where: { organizationId: req.user!.organizationId },
+  });
+  res.json({
+    config: config ?? {
+      agentName: 'AI Assistant',
+      tone: 'friendly',
+      language: 'en',
+      mustAlwaysDo: [],
+      mustNeverDo: [],
+      escalateOnUserRequest: true,
+      escalateOnRepeatedFail: true,
+      escalateOnBillingTopics: false,
+      escalationWebhook: null,
+    },
+  });
+});
+
+const PlaybookSchema = z.object({
+  agentName: z.string().min(1).max(60).optional(),
+  tone: z.enum(['friendly', 'formal', 'concise', 'custom']).optional(),
+  language: z.string().max(10).optional(),
+  mustAlwaysDo: z.array(z.string().max(200)).max(20).optional(),
+  mustNeverDo: z.array(z.string().max(200)).max(20).optional(),
+  escalateOnUserRequest: z.boolean().optional(),
+  escalateOnRepeatedFail: z.boolean().optional(),
+  escalateOnBillingTopics: z.boolean().optional(),
+  escalationWebhook: z.string().url().nullable().optional(),
+});
+
+// ─── PUT /api/v1/config/playbook ──────────────────────────────────────────────
+router.put('/playbook', authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
+  const data = PlaybookSchema.parse(req.body);
+  const orgId = req.user!.organizationId;
+  const config = await prisma.playbookConfig.upsert({
+    where: { organizationId: orgId },
+    update: data,
+    create: { organizationId: orgId, ...data },
+  });
+  res.json({ config });
+});
+
 // ─── POST /api/v1/config/rotate-key ─────────────────────────────────────────
 // Generates a new API key (old one stops working immediately)
 router.post('/rotate-key', authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {

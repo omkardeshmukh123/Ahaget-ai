@@ -10,6 +10,7 @@ const TRIGGER_TYPES = [
   { value: 'usage_threshold',     label: 'Usage Threshold',     icon: '📊', desc: 'User hits X% of a plan metric' },
   { value: 'inactivity',          label: 'Inactivity',          icon: '💤', desc: 'User hasn\'t logged in for N days' },
   { value: 'feature_unused',      label: 'Feature Unused',      icon: '🔇', desc: 'User hasn\'t used a feature slug for N days' },
+  { value: 'error_state',         label: 'Error State',         icon: '🔴', desc: 'Fire when an error is detected on the page' },
 ] as const;
 
 type TriggerType = typeof TRIGGER_TYPES[number]['value'];
@@ -44,6 +45,7 @@ const apiFetch = async <T,>(path: string, opts?: RequestInit): Promise<T> => {
 const TYPE_COLORS: Record<string, string> = {
   page_visit: '#6366f1', page_never_visited: '#8b5cf6', event_fired: '#f59e0b',
   usage_threshold: '#10b981', inactivity: '#ef4444', feature_unused: '#3b82f6',
+  error_state: '#dc2626',
 };
 
 function TriggerBadge({ type }: { type: string }) {

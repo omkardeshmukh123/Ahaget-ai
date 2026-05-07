@@ -69,6 +69,7 @@ export class CopilotManager {
   private userId: string | null = null;
   private session: CopilotSession | null = null;
   private triggerConfig: TriggerConfig = { delayMs: 30000, urlPattern: '', maxTriggersPerUser: 0 };
+  private agentName = 'AI Assistant';
   private onActionCallbacks: Array<(action: AgentAction) => void> = [];
   private onSessionUpdateCallbacks: Array<(session: CopilotSession) => void> = [];
 
@@ -210,6 +211,10 @@ export class CopilotManager {
     return matchesUrlPattern(this.triggerConfig.urlPattern);
   }
 
+  getAgentName(): string {
+    return this.agentName;
+  }
+
   getProgress(): { completed: number; total: number; percent: number } {
     if (!this.session) return { completed: 0, total: 0, percent: 0 };
     const completed = this.session.completedStepIds.length;
@@ -237,6 +242,9 @@ export class CopilotManager {
       const data = await res.json();
       if (data.trigger) {
         this.triggerConfig = data.trigger as TriggerConfig;
+      }
+      if (data.agentName) {
+        this.agentName = data.agentName as string;
       }
       if (data.session) {
         const fresh: CopilotSession = { ...data.session, isReturning: data.isReturning ?? false };
@@ -272,6 +280,7 @@ export class CopilotManager {
       });
       const data = await res.json();
       if (data.trigger) this.triggerConfig = data.trigger as TriggerConfig;
+      if (data.agentName) this.agentName = data.agentName as string;
       if (data.session) {
         const fresh: CopilotSession = { ...data.session, isReturning: data.isReturning ?? false };
         this.session = fresh;

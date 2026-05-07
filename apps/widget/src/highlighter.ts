@@ -457,7 +457,7 @@ export function hoverTip(selector: string, text: string, color = '#6366f1'): (()
   tip.textContent = text;
 
   function position() {
-    const rect = el.getBoundingClientRect();
+    const rect = el!.getBoundingClientRect();
     badge.style.left = `${rect.right - 8}px`;
     badge.style.top  = `${rect.top - 8}px`;
     const tipTop = rect.top - 8 < 40 ? rect.bottom + 6 : rect.top - 42;

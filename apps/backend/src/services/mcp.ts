@@ -1,4 +1,4 @@
-﻿// ─── MCP (Model Context Protocol) client ─────────────────────────────────────
+// ─── MCP (Model Context Protocol) client ─────────────────────────────────────
 // Fetches tool lists from configured MCP servers and proxies tool calls back.
 // Tool lists are cached per connector for 5 minutes — avoids a network round-
 // trip on every agent call while staying reasonably fresh.
@@ -31,6 +31,8 @@ interface ConnectorRow {
   serverUrl: string;
   authType: string;
   authValue: string | null;
+  allowedTools: string[];  // empty = all tools permitted
+  readOnly: boolean;       // true = block write-verb tool calls
 }
 
 export interface ConnectorToolBundle {
@@ -47,6 +49,80 @@ const CACHE_TTL_MS  = 5 * 60 * 1000; // 5 minutes per-connector tool list
 // Connector list cache — avoids a DB hit on every agent turn (60s TTL)
 const connectorListCache = new Map<string, { connectors: ConnectorRow[]; fetchedAt: number }>();
 const CONNECTOR_CACHE_TTL_MS = 60_000;
+
+// REST endpoint + auth cache (60s TTL)
+const restContextCache = new Map<string, { ctx: RestConnectorContext; fetchedAt: number }>();
+
+// ─── REST connector types ─────────────────────────────────────────────────────
+
+interface RestEndpointRow {
+  method: string;
+  urlPattern: string;
+  readOnly: boolean;
+}
+
+export interface RestConnectorContext {
+  authType: string;
+  authValue: string | null;
+  readOnly: boolean;
+  endpoints: RestEndpointRow[];
+}
+
+/**
+ * Load the first enabled REST connector for an org plus its allowed endpoints.
+ * Returns null if no REST connector is configured.
+ * Result is cached for 60 s.
+ */
+export async function loadRestContext(orgId: string): Promise<RestConnectorContext | null> {
+  const cached = restContextCache.get(orgId);
+  if (cached && Date.now() - cached.fetchedAt < CONNECTOR_CACHE_TTL_MS) return cached.ctx;
+
+  const connector = await prisma.mcpConnector.findFirst({
+    where: { organizationId: orgId, connectorType: 'rest', enabled: true },
+    select: { authType: true, authValue: true, readOnly: true },
+  });
+
+  const endpoints = await prisma.restApiEndpoint.findMany({
+    where: { connector: { organizationId: orgId, enabled: true, connectorType: 'rest' } },
+    select: { method: true, urlPattern: true, readOnly: true },
+  });
+
+  const ctx: RestConnectorContext = {
+    authType:  connector?.authType  ?? 'none',
+    authValue: connector?.authValue ?? null,
+    readOnly:  connector?.readOnly  ?? false,
+    endpoints,
+  };
+
+  restContextCache.set(orgId, { ctx, fetchedAt: Date.now() });
+  return ctx;
+}
+
+/**
+ * Validate a proposed call_api request against the operator's endpoint allowlist.
+ * If the org has no endpoint rows, all public URLs are permitted (backward-compat).
+ */
+export function matchesRestEndpoint(
+  url: string,
+  method: string,
+  ctx: RestConnectorContext,
+): { allowed: boolean; reason?: string } {
+  if (ctx.endpoints.length === 0) return { allowed: true };
+
+  const urlLc = url.toLowerCase();
+  const matching = ctx.endpoints.filter((ep) => urlLc.startsWith(ep.urlPattern.toLowerCase()));
+  if (matching.length === 0) return { allowed: false, reason: 'URL not in approved endpoint list' };
+
+  const m = method.toUpperCase();
+  const methodMatch = matching.find((ep) => ep.method === m || ep.method === 'GET');
+  if (!methodMatch) return { allowed: false, reason: `Method ${m} not permitted for this endpoint` };
+
+  if ((methodMatch.readOnly || ctx.readOnly) && m !== 'GET') {
+    return { allowed: false, reason: 'Endpoint is read-only; only GET is permitted' };
+  }
+
+  return { allowed: true };
+}
 
 // ─── Auth headers ─────────────────────────────────────────────────────────────
 function authHeaders(authType: string, authValue: string | null): Record<string, string> {
@@ -113,6 +189,9 @@ function sanitizeMcpTool(tool: McpTool): McpTool {
   };
 }
 
+// ─── Write-verb guard ─────────────────────────────────────────────────────────
+const WRITE_VERB_RE = /\b(create|update|delete|remove|set|post|put|patch|write|insert|upsert|destroy|reset|clear)\b/i;
+
 // ─── Fetch tools for one connector ───────────────────────────────────────────
 async function fetchConnectorTools(c: ConnectorRow): Promise<McpTool[]> {
   const cached = toolListCache.get(c.id);
@@ -127,7 +206,13 @@ async function fetchConnectorTools(c: ConnectorRow): Promise<McpTool[]> {
   );
 
   const raw = result?.tools ?? [];
-  const tools = raw.map(sanitizeMcpTool);
+  const sanitized = raw.map(sanitizeMcpTool);
+
+  // ── Scoped permissions: filter by allowedTools whitelist ──────────────────
+  const tools = c.allowedTools.length > 0
+    ? sanitized.filter((t) => c.allowedTools.includes(t.name))
+    : sanitized;
+
   toolListCache.set(c.id, { tools, fetchedAt: Date.now() });
   return tools;
 }
@@ -139,7 +224,7 @@ export async function loadMcpTools(orgId: string): Promise<ConnectorToolBundle[]
     ? cached.connectors
     : await prisma.mcpConnector.findMany({
         where: { organizationId: orgId, enabled: true },
-        select: { id: true, name: true, serverUrl: true, authType: true, authValue: true },
+        select: { id: true, name: true, serverUrl: true, authType: true, authValue: true, allowedTools: true, readOnly: true },
       }).then((rows) => { connectorListCache.set(orgId, { connectors: rows, fetchedAt: Date.now() }); return rows; });
 
   if (connectors.length === 0) return [];
@@ -157,9 +242,14 @@ export async function loadMcpTools(orgId: string): Promise<ConnectorToolBundle[]
       r.status === 'fulfilled' && r.value.tools.length > 0
     )
     .map(({ value: { connector, tools } }) => {
+      // ── readOnly: exclude write-verb tools from agent's tool list ──────────
+      const permittedTools = connector.readOnly
+        ? tools.filter((t) => !WRITE_VERB_RE.test(t.name))
+        : tools;
+
       const nameMap = new Map<string, string>();
-      for (const t of tools) nameMap.set(toOpenAIName(connector.id, t.name), t.name);
-      return { connector, tools, nameMap };
+      for (const t of permittedTools) nameMap.set(toOpenAIName(connector.id, t.name), t.name);
+      return { connector, tools: permittedTools, nameMap };
     });
 }
 
@@ -189,6 +279,15 @@ export async function callMcpTool(
   toolName: string,
   args: Record<string, unknown>,
 ): Promise<McpToolResult> {
+  // ── readOnly enforcement at call-time (second line of defence) ────────────
+  if (connector.readOnly && WRITE_VERB_RE.test(toolName)) {
+    logger.warn('[mcp] blocked write-verb tool call on readOnly connector', { connectorId: connector.id, toolName });
+    return {
+      content: [{ type: 'text', text: `Permission denied: connector is read-only. Tool "${toolName}" requires write access.` }],
+      isError: true,
+    };
+  }
+
   const result = await rpc<McpToolResult>(
     connector.serverUrl,
     { type: connector.authType, value: connector.authValue },

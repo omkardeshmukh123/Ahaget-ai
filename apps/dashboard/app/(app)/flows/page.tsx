@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { api, OnboardingFlow } from '@/lib/api';
+import { api, OnboardingFlow, FlowTemplateMeta } from '@/lib/api';
 
 const FLOW_TYPES = [
   { value: 'onboarding', label: 'Onboarding', color: 'bg-indigo-50 text-indigo-700', desc: 'Get new users to their first value moment' },
@@ -28,6 +28,8 @@ export default function FlowsPage() {
   const [newType, setNewType] = useState<FlowTypeValue>('onboarding');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [templates, setTemplates] = useState<FlowTemplateMeta[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
   useEffect(() => {
     api.flow.list().then((d) => {
@@ -36,11 +38,23 @@ export default function FlowsPage() {
     });
   }, []);
 
+  function openNewModal() {
+    setShowNew(true);
+    setSelectedTemplate(null);
+    setNewName('');
+    api.flow.listTemplates().then((d) => setTemplates(d.templates)).catch(() => {});
+  }
+
   async function createFlow() {
     if (!newName.trim()) return;
     setCreating(true);
-    const d = await api.flow.create(newName.trim(), undefined, newType);
-    router.push(`/flows/${d.flow.id}`);
+    if (selectedTemplate) {
+      const d = await api.flow.createFromTemplate(selectedTemplate);
+      router.push(`/flows/${d.flow.id}`);
+    } else {
+      const d = await api.flow.create(newName.trim(), undefined, newType);
+      router.push(`/flows/${d.flow.id}`);
+    }
   }
 
   async function toggleActive(flow: OnboardingFlow) {
@@ -75,7 +89,7 @@ export default function FlowsPage() {
             className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-52 focus:outline-none focus:ring-2 focus:ring-indigo-300"
           />
           <button
-            onClick={() => setShowNew(true)}
+            onClick={openNewModal}
             className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
           >
             + New flow
@@ -105,23 +119,56 @@ export default function FlowsPage() {
       {/* New flow form */}
       {showNew && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-4 mb-6 space-y-3">
-          <p className="text-sm font-semibold text-slate-700">What type of flow?</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-            {FLOW_TYPES.map((t) => (
-              <button
-                key={t.value}
-                onClick={() => setNewType(t.value)}
-                className={`text-left rounded-lg border-2 px-3 py-2 transition-colors ${
-                  newType === t.value
-                    ? 'border-indigo-500 bg-indigo-50'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                }`}
-              >
-                <span className={`inline-block text-xs font-bold px-1.5 py-0.5 rounded mb-1 ${t.color}`}>{t.label}</span>
-                <p className="text-xs text-slate-500 leading-tight">{t.desc}</p>
-              </button>
-            ))}
-          </div>
+          {templates.length > 0 && (
+            <>
+              <p className="text-sm font-semibold text-slate-700">Start from a template</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                {templates.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => { setSelectedTemplate(t.id); setNewName(t.name); }}
+                    className={`text-left rounded-lg border-2 px-3 py-2 transition-colors ${
+                      selectedTemplate === t.id
+                        ? 'border-indigo-500 bg-white'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="text-base mr-1">{t.icon}</span>
+                    <span className="text-xs font-semibold text-slate-700">{t.name}</span>
+                    <p className="text-xs text-slate-400 leading-tight mt-0.5">{t.stepCount} steps</p>
+                  </button>
+                ))}
+                <button
+                  onClick={() => { setSelectedTemplate(null); setNewName(''); }}
+                  className={`text-left rounded-lg border-2 px-3 py-2 transition-colors ${
+                    selectedTemplate === null
+                      ? 'border-indigo-500 bg-white'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <span className="text-base mr-1">+</span>
+                  <span className="text-xs font-semibold text-slate-700">Blank flow</span>
+                  <p className="text-xs text-slate-400 leading-tight mt-0.5">Start from scratch</p>
+                </button>
+              </div>
+            </>
+          )}
+          {!selectedTemplate && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              {FLOW_TYPES.map((t) => (
+                <button
+                  key={t.value}
+                  onClick={() => setNewType(t.value)}
+                  className={`text-left rounded-lg border-2 px-3 py-2 transition-colors ${
+                    newType === t.value ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <span className={`inline-block text-xs font-bold px-1.5 py-0.5 rounded mb-1 ${t.color}`}>{t.label}</span>
+                  <p className="text-xs text-slate-500 leading-tight">{t.desc}</p>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex items-center gap-3">
             <input
               autoFocus
@@ -139,7 +186,7 @@ export default function FlowsPage() {
               {creating ? 'Creating…' : 'Create'}
             </button>
             <button
-              onClick={() => { setShowNew(false); setNewName(''); setNewType('onboarding'); }}
+              onClick={() => { setShowNew(false); setNewName(''); setNewType('onboarding'); setSelectedTemplate(null); }}
               className="text-sm text-slate-500 hover:text-slate-700"
             >
               Cancel

@@ -252,6 +252,12 @@ router.get('/evaluate', authenticateApiKey, async (req: AuthenticatedRequest, re
         }
         break;
       }
+
+      case 'error_state': {
+        // Widget sends metadata.hasError = true when it detects error DOM patterns
+        if (meta.hasError === true) matches = true;
+        break;
+      }
     }
 
     if (matches) matchingRules.push(rule);

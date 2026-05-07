@@ -1,4 +1,4 @@
-﻿// ─── Dashboard-facing session detail routes ────────────────────────────────
+// ─── Dashboard-facing session detail routes ────────────────────────────────
 // Separate from session.ts (which is widget-facing, API-key auth).
 
 import { Router, Response } from 'express';
@@ -10,6 +10,72 @@ import { AuthenticatedRequest } from '../types';
 const router = Router();
 router.use(authenticateJWT);
 router.use(requireFeature('sessionReplay'));
+
+// ─── GET /api/v1/sessions ─────────────────────────────────────────────────────
+// Paginated list of all flow sessions for this org.
+router.get('/', async (req: AuthenticatedRequest, res: Response) => {
+  const orgId  = req.user!.organizationId;
+  const limit  = Math.min(Number(req.query.limit  ?? 50), 200);
+  const offset = Number(req.query.offset ?? 0);
+  const status = req.query.status as string | undefined; // active | completed | abandoned
+
+  const where: Record<string, unknown> = { organizationId: orgId };
+  if (status && ['active', 'completed', 'abandoned'].includes(status)) {
+    where.status = status;
+  }
+
+  const [sessions, total] = await Promise.all([
+    prisma.userOnboardingSession.findMany({
+      where,
+      orderBy: { startedAt: 'desc' },
+      take: limit,
+      skip: offset,
+      include: {
+        flow:    { select: { id: true, name: true, flowType: true } },
+        endUser: { select: { id: true, externalId: true, metadata: true } },
+        stepProgress: {
+          select: {
+            status: true,
+            stepId: true,
+            completedAt: true,
+            dropReason: true,
+            outcome: true,
+          },
+        },
+      },
+    }),
+    prisma.userOnboardingSession.count({ where }),
+  ]);
+
+  const items = sessions.map((s) => {
+    const completed = s.stepProgress.filter((p) => p.status === 'completed').length;
+    const dropped   = s.stepProgress.find((p) => p.status === 'dropped');
+    const durationMs = s.completedAt
+      ? new Date(s.completedAt).getTime() - new Date(s.startedAt).getTime()
+      : new Date(s.lastActiveAt).getTime() - new Date(s.startedAt).getTime();
+
+    return {
+      id:             s.id,
+      status:         s.status,
+      startedAt:      s.startedAt,
+      completedAt:    s.completedAt,
+      lastActiveAt:   s.lastActiveAt,
+      firstValueAt:   s.firstValueAt,
+      durationMs,
+      stepsCompleted: completed,
+      dropStepId:     dropped?.stepId ?? null,
+      dropReason:     dropped?.dropReason ?? null,
+      flow: s.flow,
+      endUser: {
+        id:         s.endUser.id,
+        externalId: s.endUser.externalId,
+        metadata:   s.endUser.metadata,
+      },
+    };
+  });
+
+  res.json({ sessions: items, total, limit, offset });
+});
 
 // ─── GET /api/v1/sessions/audit ──────────────────────────────────────────────
 // Dashboard audit log — every AI action for this org (JWT auth).
@@ -42,35 +108,56 @@ router.get('/audit', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // ─── GET /api/v1/sessions/:id ─────────────────────────────────────────────────
-// Full session detail: flow, steps with progress, collected data, user info.
+// Full session detail: flow, steps with progress, collected data, user info, transcript.
 router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   const { organizationId } = req.user!;
 
-  const session = await prisma.userOnboardingSession.findFirst({
-    where: { id: req.params.id, organizationId },
-    include: {
-      flow: {
-        include: {
-          steps: { orderBy: { order: 'asc' } },
+  const [session, rawMessages] = await Promise.all([
+    prisma.userOnboardingSession.findFirst({
+      where: { id: req.params.id, organizationId },
+      include: {
+        flow: {
+          include: {
+            steps: { orderBy: { order: 'asc' } },
+          },
         },
-      },
-      endUser: {
-        select: {
-          id: true,
-          externalId: true,
-          metadata: true,
-          firstSeenAt: true,
-          lastSeenAt: true,
+        endUser: {
+          select: {
+            id: true,
+            externalId: true,
+            metadata: true,
+            firstSeenAt: true,
+            lastSeenAt: true,
+          },
         },
+        stepProgress: true,
       },
-      stepProgress: true,
-    },
-  });
+    }),
+    prisma.sessionMessage.findMany({
+      where: { sessionId: req.params.id },
+      orderBy: { createdAt: 'asc' },
+      take: 200,
+      select: {
+        id: true,
+        role: true,
+        content: true,
+        actionType: true,
+        stepId: true,
+        feedback: true,
+        createdAt: true,
+      },
+    }),
+  ]);
 
   if (!session) {
     res.status(404).json({ error: 'Session not found' });
     return;
   }
+
+  // Filter out internal sentinel messages — users never see these
+  const messages = rawMessages.filter(
+    (m) => m.content !== '__init__' && m.content !== '__verify__'
+  );
 
   // Merge flow steps with their progress records
   const steps = session.flow.steps.map((step) => {
@@ -109,6 +196,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
       },
       endUser: session.endUser,
       steps,
+      messages,
     },
   });
 });

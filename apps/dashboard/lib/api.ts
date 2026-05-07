@@ -331,22 +331,42 @@ export const api = {
   },
 
   sessions: {
+    list: (params?: { limit?: number; offset?: number; status?: 'active' | 'completed' | 'abandoned' }) => {
+      const q = new URLSearchParams();
+      if (params?.limit)  q.set('limit',  String(params.limit));
+      if (params?.offset) q.set('offset', String(params.offset));
+      if (params?.status) q.set('status', params.status);
+      return apiFetch<{ sessions: SessionListItem[]; total: number; limit: number; offset: number }>(`/api/v1/sessions?${q}`);
+    },
     get: (id: string) => apiFetch<{ session: SessionDetail }>(`/api/v1/sessions/${id}`),
   },
 
   mcp: {
     list: () => apiFetch<{ connectors: McpConnector[] }>('/api/v1/mcp'),
-    create: (data: { name: string; serverUrl: string; authType: 'none' | 'bearer' | 'api_key'; authValue?: string; enabled?: boolean }) =>
+    create: (data: {
+      name: string; description?: string; connectorType?: 'mcp' | 'rest';
+      serverUrl: string; authType: 'none' | 'bearer' | 'api_key';
+      authValue?: string; enabled?: boolean;
+      allowedTools?: string[]; readOnly?: boolean;
+    }) =>
       apiFetch<{ connector: McpConnector }>('/api/v1/mcp', {
-        method: 'POST',
-        body: JSON.stringify(data),
+        method: 'POST', body: JSON.stringify(data),
       }),
-    update: (id: string, data: Partial<{ name: string; serverUrl: string; authType: string; authValue: string; enabled: boolean }>) =>
+    update: (id: string, data: Partial<{
+      name: string; description: string; connectorType: 'mcp' | 'rest';
+      serverUrl: string; authType: string; authValue: string;
+      enabled: boolean; allowedTools: string[]; readOnly: boolean;
+    }>) =>
       apiFetch<{ connector: McpConnector }>(`/api/v1/mcp/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
+        method: 'PUT', body: JSON.stringify(data),
       }),
-    delete: (id: string) => apiFetch<{ deleted: boolean }>(`/api/v1/mcp/${id}`, { method: 'DELETE' }),
+    delete:  (id: string) => apiFetch<{ deleted: boolean }>(`/api/v1/mcp/${id}`, { method: 'DELETE' }),
+    test:    (id: string) => apiFetch<{ ok: boolean; tools: Array<{ name: string; description: string }>; error?: string; connectorType?: string }>(`/api/v1/mcp/${id}/test`, { method: 'POST' }),
+    listEndpoints:  (id: string) => apiFetch<{ endpoints: RestApiEndpoint[] }>(`/api/v1/mcp/${id}/endpoints`),
+    addEndpoint:    (id: string, data: { method: string; urlPattern: string; description?: string; readOnly?: boolean }) =>
+      apiFetch<{ endpoint: RestApiEndpoint }>(`/api/v1/mcp/${id}/endpoints`, { method: 'POST', body: JSON.stringify(data) }),
+    deleteEndpoint: (id: string, endpointId: string) =>
+      apiFetch<{ deleted: boolean }>(`/api/v1/mcp/${id}/endpoints/${endpointId}`, { method: 'DELETE' }),
   },
 
   audit: {
@@ -468,10 +488,68 @@ export const api = {
       period: string;
     }>('/api/v1/analytics/lifecycle'),
   },
+
+  interfaceMap: {
+    listSnapshots: () =>
+      apiFetch<{ snapshots: InterfaceSnapshot[] }>('/api/v1/interface-map/snapshots'),
+    getSnapshot: (id: string) =>
+      apiFetch<{ snapshot: InterfaceSnapshot & { elements: InterfaceElement[] } }>(
+        `/api/v1/interface-map/snapshots/${id}`
+      ),
+    capture: (data: {
+      url: string; title: string; stateLabel?: string; framework?: string;
+      elements: Array<{
+        tag: string; selector: string; text: string; elementType?: string;
+        inputType?: string; ariaLabel?: string; placeholder?: string;
+        name?: string; dataTestId?: string; role?: string;
+        classes?: string[]; rect?: { x: number; y: number; w: number; h: number };
+      }>;
+    }) =>
+      apiFetch<{ snapshot: InterfaceSnapshot }>('/api/v1/interface-map/capture', {
+        method: 'POST', body: JSON.stringify(data),
+      }),
+    annotateElement: (
+      id: string,
+      data: {
+        customLabel?: string; customDescription?: string;
+        businessRule?: string; isSensitive?: boolean; elementType?: string;
+      }
+    ) =>
+      apiFetch<{ element: InterfaceElement }>(`/api/v1/interface-map/elements/${id}`, {
+        method: 'PATCH', body: JSON.stringify(data),
+      }),
+    archiveSnapshot: (id: string) =>
+      apiFetch<{ archived: boolean }>(`/api/v1/interface-map/snapshots/${id}`, { method: 'DELETE' }),
+  },
+
+  playbook: {
+    get: () => apiFetch<{ config: PlaybookConfig }>('/api/v1/config/playbook'),
+    update: (data: Partial<Omit<PlaybookConfig, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>>) =>
+      apiFetch<{ config: PlaybookConfig }>('/api/v1/config/playbook', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+  },
 };
 
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface PlaybookConfig {
+  id?: string;
+  organizationId?: string;
+  agentName: string;
+  tone: 'friendly' | 'formal' | 'concise' | 'custom';
+  language: string;
+  mustAlwaysDo: string[];
+  mustNeverDo: string[];
+  escalateOnUserRequest: boolean;
+  escalateOnRepeatedFail: boolean;
+  escalateOnBillingTopics: boolean;
+  escalationWebhook: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 export interface User {
   id: string;
@@ -611,11 +689,25 @@ export interface BillingStatus {
 export interface McpConnector {
   id: string;
   name: string;
+  description: string;
+  connectorType: 'mcp' | 'rest';
   serverUrl: string;
   authType: 'none' | 'bearer' | 'api_key';
   enabled: boolean;
+  allowedTools: string[];
+  readOnly: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface RestApiEndpoint {
+  id: string;
+  connectorId: string;
+  method: string;
+  urlPattern: string;
+  description: string;
+  readOnly: boolean;
+  createdAt: string;
 }
 
 export interface OnboardingStep {
@@ -632,6 +724,7 @@ export interface OnboardingStep {
   allowedActions: string[]; // [] = all; ['highlight','navigate'] = read-only
   completionEvent: string | null;
   isMilestone: boolean;
+  targetUrl: string | null;
   createdAt: string;
 }
 
@@ -1002,6 +1095,21 @@ export interface FlowTemplateMeta {
   stepCount: number;
 }
 
+export interface SessionListItem {
+  id: string;
+  status: 'active' | 'completed' | 'abandoned';
+  startedAt: string;
+  completedAt: string | null;
+  lastActiveAt: string;
+  firstValueAt: string | null;
+  durationMs: number;
+  stepsCompleted: number;
+  dropStepId: string | null;
+  dropReason: string | null;
+  flow: { id: string; name: string; flowType: string };
+  endUser: { id: string; externalId: string | null; metadata: Record<string, unknown> };
+}
+
 export interface SessionStepDetail {
   stepId: string;
   order: number;
@@ -1018,6 +1126,16 @@ export interface SessionStepDetail {
   attempts: number;
   outcome: string | null;
   dropReason: string | null;
+}
+
+export interface SessionMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  actionType: string | null;
+  stepId: string | null;
+  feedback: number | null;
+  createdAt: string;
 }
 
 export interface SessionDetail {
@@ -1037,6 +1155,7 @@ export interface SessionDetail {
     lastSeenAt: string;
   };
   steps: SessionStepDetail[];
+  messages: SessionMessage[];
 }
 
 export interface AgentHealthSession {
@@ -1084,4 +1203,44 @@ export interface AuditLogEntry {
   actionType: string;
   payload: Record<string, unknown>;
   createdAt: string;
+}
+
+// ─── Interface Map types ──────────────────────────────────────────────────────
+
+export interface InterfaceSnapshot {
+  id: string;
+  organizationId: string;
+  url: string;
+  title: string;
+  stateLabel: string;
+  framework: string;
+  elementCount: number;
+  annotatedCount: number;
+  capturedAt: string;
+  isActive: boolean;
+  elements?: InterfaceElement[];
+}
+
+export interface InterfaceElement {
+  id: string;
+  snapshotId: string;
+  tag: string;
+  selector: string;
+  text: string;
+  elementType: string;
+  inputType: string | null;
+  ariaLabel: string | null;
+  placeholder: string | null;
+  name: string | null;
+  dataTestId: string | null;
+  role: string | null;
+  classes: string[];
+  rect: { x?: number; y?: number; w?: number; h?: number };
+  customLabel: string | null;
+  customDescription: string | null;
+  businessRule: string | null;
+  isSensitive: boolean;
+  annotatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

@@ -1,230 +1,386 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { api, McpConnector } from '@/lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import { api, McpConnector, RestApiEndpoint } from '@/lib/api';
 
-export default function McpPage() {
-  const [connectors, setConnectors] = useState<McpConnector[]>([]);
-  const [fetching, setFetching] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ name: '', serverUrl: '', authType: 'none' as 'none' | 'bearer' | 'api_key', authValue: '' });
-  const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState('');
+// ─── Small helpers ────────────────────────────────────────────────────────────
+const s = (obj: React.CSSProperties): React.CSSProperties => obj;
+const inp = s({ width:'100%', padding:'8px 12px', background:'var(--surface)', border:'1px solid rgba(99,102,241,0.2)', borderRadius:8, color:'var(--on-surface)', fontSize:13, outline:'none', boxSizing:'border-box', fontFamily:'inherit' });
+const btn = (variant: 'primary'|'ghost'|'danger' = 'primary'): React.CSSProperties => ({
+  padding:'9px 18px', borderRadius:9, fontSize:13, fontWeight:700, cursor:'pointer', border:'none',
+  ...(variant==='primary' ? { background:'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff' }
+    : variant==='ghost'   ? { background:'rgba(99,102,241,0.08)', color:'var(--muted)', border:'1px solid rgba(99,102,241,0.18)' }
+    : { background:'rgba(239,68,68,0.1)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.2)' }),
+});
+function Label({ t }: { t: string }) {
+  return <p style={{ fontSize:10, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:5 }}>{t}</p>;
+}
+function Toast({ msg }: { msg: string }) {
+  if (!msg) return null;
+  return <div style={{ position:'fixed', bottom:24, right:24, background:'#1e1b4b', color:'#fff', padding:'10px 18px', borderRadius:10, fontSize:13, zIndex:300, boxShadow:'0 8px 24px rgba(0,0,0,0.3)' }}>{msg}</div>;
+}
+
+// ─── Tool list preview ────────────────────────────────────────────────────────
+function ToolPreview({ connectorId, allowedTools, onToggle }: { connectorId: string; allowedTools: string[]; onToggle:(tool:string,allowed:boolean)=>void }) {
+  const [tools, setTools] = useState<Array<{name:string;description:string}>>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const test = useCallback(async () => {
+    setLoading(true); setErr('');
+    try {
+      const r = await api.mcp.test(connectorId);
+      if (r.ok) setTools(r.tools); else setErr(r.error ?? 'Connection failed');
+    } catch(e) { setErr((e as Error).message); }
+    finally { setLoading(false); }
+  }, [connectorId]);
+
+  return (
+    <div>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+        <Label t="Live Tool List" />
+        <button onClick={test} disabled={loading} style={{ ...btn('ghost'), padding:'5px 12px', fontSize:11 }}>
+          {loading ? 'Connecting…' : 'Test Connection'}
+        </button>
+      </div>
+      {err && <p style={{ fontSize:12, color:'#ef4444', marginBottom:8 }}>{err}</p>}
+      {tools.length > 0 ? (
+        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+          {tools.map(t => {
+            const allowed = allowedTools.length===0 || allowedTools.includes(t.name);
+            return (
+              <div key={t.name} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', background:'var(--surface)', borderRadius:8, border:'1px solid rgba(99,102,241,0.1)' }}>
+                <span style={{ width:8, height:8, borderRadius:'50%', background:allowed?'#10b981':'rgba(107,114,128,0.3)', flexShrink:0 }} />
+                <div style={{ flex:1, minWidth:0 }}>
+                  <p style={{ fontSize:12, fontWeight:600, color:'var(--on-surface)' }}>{t.name}</p>
+                  {t.description && <p style={{ fontSize:11, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.description}</p>}
+                </div>
+                <button onClick={() => onToggle(t.name, !allowed)} style={{ fontSize:11, color: allowed?'#6366f1':'var(--muted)', cursor:'pointer', background:'none', border:'none' }}>
+                  {allowed ? 'Block' : 'Allow'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : !loading && <p style={{ fontSize:12, color:'var(--muted)', textAlign:'center', padding:'16px 0' }}>Click "Test Connection" to preview available tools.</p>}
+    </div>
+  );
+}
+
+// ─── REST Endpoints manager ───────────────────────────────────────────────────
+function EndpointManager({ connectorId }: { connectorId: string }) {
+  const [endpoints, setEndpoints] = useState<RestApiEndpoint[]>([]);
+  const [form, setForm] = useState({ method:'GET', urlPattern:'', description:'' });
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
-    api.mcp.list().then((r) => {
-      setConnectors(r.connectors);
-      setFetching(false);
-    }).catch(() => setFetching(false));
-  }, []);
+    api.mcp.listEndpoints(connectorId).then(r => setEndpoints(r.endpoints)).catch(()=>{});
+  }, [connectorId]);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3000);
+  const add = async () => {
+    if (!form.urlPattern) return;
+    setAdding(true);
+    try {
+      const r = await api.mcp.addEndpoint(connectorId, form);
+      setEndpoints(p => [...p, r.endpoint]);
+      setForm({ method:'GET', urlPattern:'', description:'' });
+    } catch(e) { alert((e as Error).message); }
+    finally { setAdding(false); }
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const res = await api.mcp.create({
-        name: form.name,
-        serverUrl: form.serverUrl,
-        authType: form.authType,
-        authValue: form.authValue || undefined,
-        enabled: true,
-      });
-      setConnectors((prev) => [res.connector, ...prev]);
-      setShowModal(false);
-      setForm({ name: '', serverUrl: '', authType: 'none', authValue: '' });
-      showToast('MCP connector created!');
-    } catch {
-      showToast('Failed to create connector.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await api.mcp.delete(id);
-      setConnectors((prev) => prev.filter((c) => c.id !== id));
-      showToast('Connector removed.');
-    } catch {
-      showToast('Failed to remove connector.');
-    }
-  };
-
-  const handleToggle = async (connector: McpConnector) => {
-    try {
-      const res = await api.mcp.update(connector.id, { enabled: !connector.enabled });
-      setConnectors((prev) => prev.map((c) => c.id === connector.id ? res.connector : c));
-    } catch {}
+  const remove = async (id: string) => {
+    await api.mcp.deleteEndpoint(connectorId, id);
+    setEndpoints(p => p.filter(e => e.id !== id));
   };
 
   return (
-    <div className="max-w-4xl">
-      {toast && (
-        <div className="fixed bottom-6 right-6 bg-slate-900 text-white text-sm px-4 py-2.5 rounded-xl shadow-xl z-50">
-          {toast}
+    <div>
+      <Label t="Allowed REST Endpoints" />
+      <div style={{ display:'flex', gap:6, marginBottom:8 }}>
+        <select value={form.method} onChange={e=>setForm({...form,method:e.target.value})} style={{ ...inp, width:90 }}>
+          {['GET','POST','PUT','PATCH','DELETE'].map(m=><option key={m}>{m}</option>)}
+        </select>
+        <input value={form.urlPattern} onChange={e=>setForm({...form,urlPattern:e.target.value})} placeholder="https://api.example.com/v1/" style={{ ...inp, flex:1 }} />
+        <button onClick={add} disabled={adding||!form.urlPattern} style={btn('primary')}>Add</button>
+      </div>
+      {endpoints.map(ep => (
+        <div key={ep.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 10px', background:'var(--surface)', borderRadius:7, marginBottom:4, border:'1px solid rgba(99,102,241,0.1)' }}>
+          <span style={{ fontSize:10, fontWeight:700, color:'#6366f1', background:'rgba(99,102,241,0.1)', padding:'2px 6px', borderRadius:4 }}>{ep.method}</span>
+          <span style={{ fontSize:11, fontFamily:'monospace', color:'var(--on-surface)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{ep.urlPattern}</span>
+          <button onClick={()=>remove(ep.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:12 }}>✕</button>
         </div>
+      ))}
+      {endpoints.length===0 && <p style={{ fontSize:12, color:'var(--muted)' }}>No approved endpoints yet. The agent will be unable to call any REST URLs.</p>}
+    </div>
+  );
+}
+
+// ─── Detail Panel ─────────────────────────────────────────────────────────────
+function DetailPanel({ connector, onClose, onSave }: { connector: McpConnector; onClose:()=>void; onSave:(c:McpConnector)=>void }) {
+  const [form, setForm] = useState({ name:connector.name, description:connector.description, serverUrl:connector.serverUrl, authType:connector.authType as 'none'|'bearer'|'api_key', authValue:'', readOnly:connector.readOnly, connectorType:connector.connectorType });
+  const [allowedTools, setAllowedTools] = useState<string[]>(connector.allowedTools);
+  const [saving, setSaving] = useState(false);
+
+  const toggleTool = (tool: string, allow: boolean) => {
+    setAllowedTools(prev => allow ? prev.filter(t=>t!==tool) : [...prev, tool].filter((v,i,a)=>a.indexOf(v)===i));
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await api.mcp.update(connector.id, { ...form, allowedTools, authValue: form.authValue || undefined });
+      onSave(r.connector);
+      onClose();
+    } catch(e) { alert((e as Error).message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:199 }} />
+      <div style={{ position:'fixed', top:0, right:0, width:420, height:'100vh', background:'var(--surface-low)', borderLeft:'1px solid rgba(99,102,241,0.2)', zIndex:200, display:'flex', flexDirection:'column', boxShadow:'-12px 0 40px rgba(0,0,0,0.3)' }}>
+        {/* Header */}
+        <div style={{ padding:'18px 20px', borderBottom:'1px solid rgba(99,102,241,0.12)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <p style={{ fontWeight:700, fontSize:15, color:'var(--on-surface)' }}>Configure Connector</p>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:20, cursor:'pointer' }}>✕</button>
+        </div>
+        {/* Body */}
+        <div style={{ flex:1, overflowY:'auto', padding:20, display:'flex', flexDirection:'column', gap:16 }}>
+          <div><Label t="Name" /><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} style={inp} /></div>
+          <div><Label t="Description" /><input value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="What does this connector do?" style={inp} /></div>
+          <div>
+            <Label t="Type" />
+            <select value={form.connectorType} onChange={e=>setForm({...form,connectorType:e.target.value as 'mcp'|'rest'})} style={inp}>
+              <option value="mcp">MCP Server (JSON-RPC)</option>
+              <option value="rest">REST API (direct HTTP)</option>
+            </select>
+          </div>
+          <div><Label t={form.connectorType==='mcp'?'MCP Server URL':'REST Base URL'} /><input value={form.serverUrl} onChange={e=>setForm({...form,serverUrl:e.target.value})} style={inp} /></div>
+          <div>
+            <Label t="Auth" />
+            <select value={form.authType} onChange={e=>setForm({...form,authType:e.target.value as 'none'|'bearer'|'api_key'})} style={{ ...inp, marginBottom:6 }}>
+              <option value="none">None</option>
+              <option value="bearer">Bearer Token</option>
+              <option value="api_key">API Key</option>
+            </select>
+            {form.authType!=='none' && <input type="password" value={form.authValue} onChange={e=>setForm({...form,authValue:e.target.value})} placeholder="Leave blank to keep existing" style={inp} />}
+          </div>
+          <label style={{ display:'flex', alignItems:'center', gap:10, fontSize:13, color:'var(--muted)', cursor:'pointer' }}>
+            <input type="checkbox" checked={form.readOnly} onChange={e=>setForm({...form,readOnly:e.target.checked})} />
+            Read-only — block any write-verb tool calls (create, update, delete…)
+          </label>
+
+          <div style={{ borderTop:'1px solid rgba(99,102,241,0.1)', paddingTop:16 }}>
+            {form.connectorType==='mcp'
+              ? <ToolPreview connectorId={connector.id} allowedTools={allowedTools} onToggle={toggleTool} />
+              : <EndpointManager connectorId={connector.id} />
+            }
+          </div>
+        </div>
+        {/* Footer */}
+        <div style={{ padding:'16px 20px', borderTop:'1px solid rgba(99,102,241,0.12)', display:'flex', gap:10 }}>
+          <button onClick={save} disabled={saving} style={{ ...btn('primary'), flex:1, opacity:saving?0.6:1 }}>{saving?'Saving…':'Save Changes'}</button>
+          <button onClick={onClose} style={btn('ghost')}>Cancel</button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Connector Card ───────────────────────────────────────────────────────────
+function ConnectorCard({ c, onEdit, onToggle, onDelete }: { c:McpConnector; onEdit:()=>void; onToggle:()=>void; onDelete:()=>void }) {
+  const typeColor = c.connectorType==='rest' ? '#f59e0b' : '#6366f1';
+  return (
+    <div style={{ background:'var(--surface-low)', border:'1px solid rgba(99,102,241,0.12)', borderRadius:14, padding:20, display:'flex', flexDirection:'column', gap:12, transition:'box-shadow 0.15s' }}
+      onMouseEnter={e=>(e.currentTarget.style.boxShadow='0 4px 20px rgba(99,102,241,0.12)')}
+      onMouseLeave={e=>(e.currentTarget.style.boxShadow='none')}
+    >
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+            <span style={{ fontSize:10, fontWeight:700, color:typeColor, background:`${typeColor}18`, border:`1px solid ${typeColor}30`, padding:'2px 7px', borderRadius:5, textTransform:'uppercase', letterSpacing:'0.06em' }}>{c.connectorType}</span>
+            {c.readOnly && <span style={{ fontSize:10, color:'#f59e0b', background:'rgba(245,158,11,0.1)', border:'1px solid rgba(245,158,11,0.25)', padding:'2px 7px', borderRadius:5 }}>Read-only</span>}
+          </div>
+          <p style={{ fontWeight:700, fontSize:14, color:'var(--on-surface)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.name}</p>
+          {c.description && <p style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>{c.description}</p>}
+        </div>
+        <button onClick={onToggle} style={{
+          padding:'4px 12px', borderRadius:20, fontSize:11, fontWeight:700, cursor:'pointer', border:'none',
+          background: c.enabled ? 'rgba(16,185,129,0.12)' : 'rgba(107,114,128,0.1)',
+          color: c.enabled ? '#10b981' : 'var(--muted)',
+        }}>{c.enabled ? '● Active' : '○ Disabled'}</button>
+      </div>
+
+      <p style={{ fontSize:11, fontFamily:'monospace', color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', background:'rgba(99,102,241,0.05)', padding:'5px 8px', borderRadius:6 }}>{c.serverUrl}</p>
+
+      {c.allowedTools.length > 0 && (
+        <p style={{ fontSize:11, color:'var(--muted)' }}>
+          <span style={{ color:'#6366f1', fontWeight:700 }}>{c.allowedTools.length}</span> allowed tools
+        </p>
       )}
 
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">MCP Integrations</h1>
-          <p className="text-slate-500 text-sm">Connect Model Context Protocol servers to give the AI agent access to your tools and data.</p>
+      <div style={{ display:'flex', gap:8, marginTop:'auto' }}>
+        <button onClick={onEdit} style={{ ...btn('ghost'), flex:1, padding:'7px' }}>Configure</button>
+        <button onClick={onDelete} style={{ ...btn('danger'), padding:'7px 14px' }}>Remove</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Create Modal ─────────────────────────────────────────────────────────────
+function CreateModal({ onClose, onCreate }: { onClose:()=>void; onCreate:(c:McpConnector)=>void }) {
+  const [form, setForm] = useState({ name:'', description:'', connectorType:'mcp' as 'mcp'|'rest', serverUrl:'', authType:'none' as 'none'|'bearer'|'api_key', authValue:'' });
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setSaving(true);
+    try {
+      const r = await api.mcp.create({ ...form, enabled:true });
+      onCreate(r.connector); onClose();
+    } catch(err) { alert((err as Error).message); }
+    finally { setSaving(false); }
+  };
+
+  const overlay: React.CSSProperties = { position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:20 };
+  const modal: React.CSSProperties  = { background:'var(--surface-low)', border:'1px solid rgba(99,102,241,0.2)', borderRadius:16, width:'100%', maxWidth:460, boxShadow:'0 20px 60px rgba(0,0,0,0.4)' };
+
+  return (
+    <div style={overlay} onClick={onClose}>
+      <div style={modal} onClick={e=>e.stopPropagation()}>
+        <div style={{ padding:'20px 24px', borderBottom:'1px solid rgba(99,102,241,0.1)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <p style={{ fontWeight:800, fontSize:16, color:'var(--on-surface)' }}>New Connector</p>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:20, cursor:'pointer' }}>✕</button>
         </div>
-        <button
-          id="btn-mcp-create"
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shadow-indigo-200"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          + Create new
+        <form onSubmit={submit} style={{ padding:24, display:'flex', flexDirection:'column', gap:14 }}>
+          <div><Label t="Name" /><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Production DB" style={inp} /></div>
+          <div><Label t="Description" /><input value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="What does this connector do?" style={inp} /></div>
+          <div>
+            <Label t="Type" />
+            <select value={form.connectorType} onChange={e=>setForm({...form,connectorType:e.target.value as 'mcp'|'rest'})} style={inp}>
+              <option value="mcp">MCP Server (JSON-RPC)</option>
+              <option value="rest">REST API (direct HTTP)</option>
+            </select>
+          </div>
+          <div><Label t={form.connectorType==='mcp'?'MCP Server URL':'REST Base URL'} /><input required value={form.serverUrl} onChange={e=>setForm({...form,serverUrl:e.target.value})} placeholder="https://mcp.yourapp.com" style={inp} /></div>
+          <div>
+            <Label t="Auth" />
+            <select value={form.authType} onChange={e=>setForm({...form,authType:e.target.value as 'none'|'bearer'|'api_key'})} style={{ ...inp, marginBottom:6 }}>
+              <option value="none">None</option>
+              <option value="bearer">Bearer Token</option>
+              <option value="api_key">API Key</option>
+            </select>
+            {form.authType!=='none' && <input type="password" value={form.authValue} onChange={e=>setForm({...form,authValue:e.target.value})} placeholder={form.authType==='bearer'?'Bearer token':'API key'} style={inp} />}
+          </div>
+          <button type="submit" disabled={saving||!form.name||!form.serverUrl} style={{ ...btn('primary'), width:'100%', padding:12, opacity:(saving||!form.name||!form.serverUrl)?0.5:1 }}>
+            {saving ? 'Creating…' : 'Create Connector'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+export default function McpPage() {
+  const [connectors, setConnectors] = useState<McpConnector[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing]       = useState<McpConnector | null>(null);
+  const [toast, setToast]           = useState('');
+
+  const notify = (msg: string) => { setToast(msg); setTimeout(()=>setToast(''), 3000); };
+
+  useEffect(() => {
+    api.mcp.list().then(r => setConnectors(r.connectors)).catch(()=>{}).finally(()=>setLoading(false));
+  }, []);
+
+  const handleToggle = async (c: McpConnector) => {
+    try {
+      const r = await api.mcp.update(c.id, { enabled: !c.enabled });
+      setConnectors(p => p.map(x => x.id===c.id ? r.connector : x));
+    } catch { notify('Failed to update connector.'); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Remove this connector? The agent will lose access to its tools.')) return;
+    try {
+      await api.mcp.delete(id);
+      setConnectors(p => p.filter(x => x.id!==id));
+      notify('Connector removed.');
+    } catch { notify('Failed to remove connector.'); }
+  };
+
+  return (
+    <div style={{ maxWidth:1100, margin:'0 auto' }}>
+      <Toast msg={toast} />
+
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:28, flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h1 style={{ fontSize:22, fontWeight:800, color:'var(--on-surface)', letterSpacing:'-0.03em', marginBottom:4 }}>MCPs & APIs</h1>
+          <p style={{ fontSize:13, color:'var(--muted)', maxWidth:520 }}>Connect MCP servers and REST APIs so the agent can fetch live data, create records, and trigger workflows. Define exactly what it can access.</p>
+        </div>
+        <button onClick={()=>setShowCreate(true)} style={{ ...btn('primary'), display:'flex', alignItems:'center', gap:6 }}>
+          <span style={{ fontSize:18, lineHeight:1 }}>+</span> New Connector
         </button>
       </div>
 
-      {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100">
-          <p className="text-sm font-semibold text-slate-700">Connectors</p>
-        </div>
-
-        {fetching ? (
-          <div className="px-5 py-12 text-center text-slate-400 text-sm">Loading…</div>
-        ) : connectors.length === 0 ? (
-          <div className="px-5 py-14 text-center">
-            <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
-              <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064" />
-              </svg>
-            </div>
-            <p className="text-sm text-slate-500">No MCP connectors yet</p>
-            <p className="text-xs text-slate-400 mt-1">Create one to give the AI agent access to your tools</p>
+      {/* How-to callout */}
+      <div style={{ background:'rgba(99,102,241,0.06)', border:'1px solid rgba(99,102,241,0.15)', borderRadius:12, padding:'14px 18px', marginBottom:24, display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:12 }}>
+        {[
+          { icon:'🔌', title:'MCP Servers', desc:'JSON-RPC tools the agent can call (databases, internal services)' },
+          { icon:'🌐', title:'REST APIs',   desc:'Pre-approve HTTP endpoints for call_api to reach' },
+          { icon:'🔒', title:'Permissions', desc:'Whitelist tools and set read-only mode per connector' },
+          { icon:'👤', title:'User Context',desc:'Pass plan/role/segment via script tag — agent personalizes responses' },
+        ].map(({icon,title,desc}) => (
+          <div key={title}>
+            <p style={{ fontSize:13, fontWeight:700, color:'var(--on-surface)', marginBottom:2 }}>{icon} {title}</p>
+            <p style={{ fontSize:11, color:'var(--muted)', lineHeight:1.5 }}>{desc}</p>
           </div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-100">
-                <th className="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Name</th>
-                <th className="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Server</th>
-                <th className="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Connection</th>
-                <th className="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {connectors.map((c) => (
-                <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                  <td className="px-5 py-3.5">
-                    <p className="text-sm font-medium text-slate-800">{c.name}</p>
-                    <p className="text-xs text-slate-400 capitalize">{c.authType}</p>
-                  </td>
-                  <td className="px-5 py-3.5 text-xs text-slate-500 font-mono max-w-[200px] truncate">{c.serverUrl}</td>
-                  <td className="px-5 py-3.5">
-                    <button
-                      onClick={() => handleToggle(c)}
-                      className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
-                        c.enabled
-                          ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${c.enabled ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                      {c.enabled ? 'Connected' : 'Disabled'}
-                    </button>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <button
-                      onClick={() => handleDelete(c.id)}
-                      className="text-xs text-slate-400 hover:text-red-500 transition-colors"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        ))}
       </div>
 
-      {/* Create Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-slate-900">New MCP Connector</h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Name</label>
-                <input
-                  id="input-mcp-name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Production DB"
-                  required
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Server URL</label>
-                <input
-                  id="input-mcp-server"
-                  value={form.serverUrl}
-                  onChange={(e) => setForm({ ...form, serverUrl: e.target.value })}
-                  placeholder="https://mcp.yourapp.com"
-                  required
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Auth type</label>
-                <select
-                  id="select-mcp-auth"
-                  value={form.authType}
-                  onChange={(e) => setForm({ ...form, authType: e.target.value as 'none' | 'bearer' | 'api_key' })}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
-                >
-                  <option value="none">None</option>
-                  <option value="bearer">Bearer token</option>
-                  <option value="api_key">API key</option>
-                </select>
-              </div>
-              {form.authType !== 'none' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    {form.authType === 'bearer' ? 'Bearer token' : 'API key'}
-                  </label>
-                  <input
-                    id="input-mcp-auth-value"
-                    type="password"
-                    value={form.authValue}
-                    onChange={(e) => setForm({ ...form, authValue: e.target.value })}
-                    placeholder="••••••••••••"
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
-                  />
-                </div>
-              )}
-              <button
-                id="btn-mcp-save"
-                type="submit"
-                disabled={saving || !form.name || !form.serverUrl}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
-              >
-                {saving ? 'Creating…' : 'Create connector'}
-              </button>
-            </form>
-          </div>
+      {/* Script-tag snippet */}
+      <details style={{ marginBottom:24 }}>
+        <summary style={{ fontSize:12, fontWeight:700, color:'#6366f1', cursor:'pointer', marginBottom:8 }}>▸ Pass user context via script tag (no extra JS needed)</summary>
+        <pre style={{ background:'rgba(0,0,0,0.3)', borderRadius:10, padding:14, fontSize:11, color:'#a5b4fc', overflowX:'auto', border:'1px solid rgba(99,102,241,0.2)' }}>{`<script
+  src="https://widget.ahaget.ai/widget.js"
+  data-ahaget-key="ak_live_..."
+  data-ahaget-user-id="{{ user.id }}"
+  data-ahaget-plan="{{ user.plan }}"
+  data-ahaget-role="{{ user.role }}"
+  data-ahaget-segment="{{ user.segment }}"
+></script>`}</pre>
+      </details>
+
+      {/* Cards */}
+      {loading ? (
+        <div style={{ textAlign:'center', padding:'60px 0', color:'var(--muted)' }}>
+          <div style={{ width:32, height:32, border:'3px solid rgba(99,102,241,0.2)', borderTopColor:'#6366f1', borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 12px' }} />
+          Loading connectors…
+        </div>
+      ) : connectors.length===0 ? (
+        <div style={{ textAlign:'center', padding:'60px 20px', background:'var(--surface-low)', border:'1px dashed rgba(99,102,241,0.2)', borderRadius:16, color:'var(--muted)' }}>
+          <div style={{ fontSize:36, marginBottom:12 }}>🔌</div>
+          <p style={{ fontSize:14, fontWeight:700, color:'var(--on-surface)', marginBottom:6 }}>No connectors yet</p>
+          <p style={{ fontSize:13 }}>Create your first MCP server or REST API connector to give the agent backend access.</p>
+          <button onClick={()=>setShowCreate(true)} style={{ ...btn('primary'), marginTop:18 }}>+ Create Connector</button>
+        </div>
+      ) : (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:16 }}>
+          {connectors.map(c => (
+            <ConnectorCard key={c.id} c={c}
+              onEdit={()=>setEditing(c)}
+              onToggle={()=>handleToggle(c)}
+              onDelete={()=>handleDelete(c.id)}
+            />
+          ))}
         </div>
       )}
+
+      {showCreate && <CreateModal onClose={()=>setShowCreate(false)} onCreate={c=>{ setConnectors(p=>[c,...p]); notify('Connector created!'); }} />}
+      {editing    && <DetailPanel connector={editing} onClose={()=>setEditing(null)} onSave={c=>{ setConnectors(p=>p.map(x=>x.id===c.id?c:x)); notify('Saved!'); }} />}
+
+      <style>{`@keyframes spin { to { transform:rotate(360deg); } }`}</style>
     </div>
   );
 }

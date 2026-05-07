@@ -4,9 +4,10 @@ import { OnboardingStep, Organization } from '@prisma/client';
 import { executeApiCall, interpolate } from './apicall';
 import { assertPublicUrl } from '../lib/ipGuard';
 import { searchKnowledgeBase } from './knowledge';
-import { loadMcpTools, toOpenAITools, callMcpTool, resolveMcpCall, ConnectorToolBundle } from './mcp';
+import { loadMcpTools, toOpenAITools, callMcpTool, resolveMcpCall, ConnectorToolBundle, loadRestContext, matchesRestEndpoint } from './mcp';
 import { logger, withRetry, timer } from '../lib/logger';
 import { extractJsonField } from '../lib/streaming';
+import { prisma } from '../lib/prisma';
 
 let _openai: OpenAI | null = null;
 const openai = () => { if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); return _openai; };
@@ -179,6 +180,55 @@ function selectModel(opts: {
   return 'gpt-4o-mini';
 }
 
+// ─── Interface map context loader ────────────────────────────────────────────
+// Looks up annotated elements for the current page URL and returns
+// a prompt-ready string section.
+async function loadInterfaceContext(orgId: string, pageUrl: string | undefined): Promise<string> {
+  if (!pageUrl) return '';
+  try {
+    const snapshots = await prisma.interfacePageSnapshot.findMany({
+      where: { organizationId: orgId, isActive: true },
+      include: {
+        elements: {
+          where: {
+            OR: [
+              { customLabel: { not: null } },
+              { customDescription: { not: null } },
+              { businessRule: { not: null } },
+            ],
+          },
+          select: {
+            selector: true, tag: true, text: true, elementType: true,
+            customLabel: true, customDescription: true, businessRule: true, isSensitive: true,
+          },
+        },
+      },
+    });
+
+    // Fuzzy URL match
+    const pagePathLc = pageUrl.toLowerCase().replace(/\/$/, '');
+    const matching = snapshots.filter((s) => {
+      const stored = s.url.toLowerCase().replace(/\/$/, '');
+      return stored === pagePathLc || pagePathLc.startsWith(stored) || stored.startsWith(pagePathLc);
+    });
+
+    const annotated = matching.flatMap((s) => s.elements);
+    if (annotated.length === 0) return '';
+
+    const lines = annotated.map((e) => {
+      const parts = [`[${e.elementType}] "${e.customLabel || e.text}" (${e.selector})` ];
+      if (e.customDescription) parts.push(`  Desc: ${e.customDescription}`);
+      if (e.businessRule)      parts.push(`  Rule: ${e.businessRule}`);
+      if (e.isSensitive)       parts.push(`  Sensitive: do NOT read or log this field's value`);
+      return parts.join('\n');
+    });
+
+    return `\nINTERFACE MAP — Element-Level Business Logic:\n${lines.join('\n\n')}\n`;
+  } catch {
+    return ''; // never crash agent due to interface map failure
+  }
+}
+
 // ─── System prompt builder ────────────────────────────────────────────────────
 function buildSystemPrompt(opts: {
   orgName: string;
@@ -191,16 +241,26 @@ function buildSystemPrompt(opts: {
   domSummary: string;
   kbSection: string;
   mcpSection: string;
+  interfaceMapSection: string;
   isInit: boolean;
   isVerify: boolean;
   unansweredQuestions: string[];
   actionHint: string;
   detectedLang?: string;
+  flowGoal?: string;
+  playbook?: {
+    agentName: string;
+    tone: string;
+    mustAlwaysDo: string[];
+    mustNeverDo: string[];
+  } | null;
 }): string {
   const {
     orgName, customInstructions, step, collectedData, isLastStep,
     userMetadata, userHistoryFormatted, domSummary, kbSection, mcpSection,
-    isInit, isVerify, unansweredQuestions, actionHint, detectedLang,
+    interfaceMapSection,
+    isInit, isVerify, unansweredQuestions, actionHint, detectedLang, flowGoal,
+    playbook,
   } = opts;
 
   const metaKeys = userMetadata ? Object.keys(userMetadata) : [];
@@ -263,12 +323,28 @@ RESPONSE TURN: The user has replied or taken an action.
   // Fix #5: truncate collectedData to 500 chars to avoid runaway context growth
   const collectedDataStr = JSON.stringify(collectedData).slice(0, 500);
 
-  return `You are Ahaget, an AI onboarding guide inside "${orgName}". You ALWAYS call exactly one tool — never respond with plain text.
+  const agentName = playbook?.agentName || 'Ahaget';
+  const toneMap: Record<string, string> = {
+    friendly: 'Be warm, encouraging, and approachable.',
+    formal:   'Be professional and precise. Avoid colloquialisms.',
+    concise:  'Be extremely brief. Use short sentences only.',
+  };
+  const toneInstruction = playbook?.tone && toneMap[playbook.tone]
+    ? `\nTONE: ${toneMap[playbook.tone]}`
+    : '';
+  const mustAlwaysSection = playbook?.mustAlwaysDo?.length
+    ? `\nMUST ALWAYS:\n${playbook.mustAlwaysDo.map((r) => `- ${r}`).join('\n')}`
+    : '';
+  const mustNeverSection = playbook?.mustNeverDo?.length
+    ? `\nMUST NEVER:\n${playbook.mustNeverDo.map((r) => `- ${r}`).join('\n')}`
+    : '';
+
+  return `You are ${agentName}, an AI onboarding guide inside "${orgName}". You ALWAYS call exactly one tool — never respond with plain text.
 ${userProfile}${historySection}
-STEP: "${step.title}"
+${flowGoal ? `FLOW GOAL: ${flowGoal}\n` : ''}STEP: "${step.title}"
 Goal: ${step.description || step.title}
 ${step.aiPrompt ? `Instructions: ${step.aiPrompt}` : ''}
-${actionHint}${trimmedDomSummary}${trimmedKbSection}${mcpSection}
+${actionHint}${trimmedDomSummary}${interfaceMapSection}${trimmedKbSection}${mcpSection}
 Collected so far: ${collectedDataStr}
 ${isLastStep ? 'FINAL STEP: use celebrate_milestone when done (not complete_step).' : ''}
 ${verifyInstructions}${initInstructions}${generalInstructions}
@@ -278,7 +354,7 @@ ABSOLUTE RULES:
 - Never confirm, summarise, or ask "are you ready?".
 - Never call complete_step speculatively — only when the user has provably finished.
 - Keep all user-facing text under 25 words.
-${customInstructions ?? ''}${langInstruction}`.trim();
+${customInstructions ?? ''}${toneInstruction}${mustAlwaysSection}${mustNeverSection}${langInstruction}`.trim();
 }
 
 // ─── Parse tool call → AgentAction ───────────────────────────────────────────
@@ -418,10 +494,11 @@ async function prepareAgentCall(opts: {
   userHistoryFormatted?: string;
   userMetadata?: Record<string, unknown>;
   detectedLang?: string;
+  flowGoal?: string;
 }) {
   const {
     org, step, userMessage, collectedData, conversationHistory,
-    isLastStep, pageContext, userHistoryFormatted, userMetadata, detectedLang,
+    isLastStep, pageContext, userHistoryFormatted, userMetadata, detectedLang, flowGoal,
   } = opts;
 
   const isInit   = userMessage === '__init__';
@@ -488,12 +565,24 @@ ${actionConfig!.fields   ? `- fields: ${JSON.stringify(actionConfig!.fields)} (r
     ? `\nMCP TOOLS AVAILABLE: You have ${mcpOAITools.length} external tool(s) from ${mcpBundles.length} connector(s). Use them when they help complete this step.\n`
     : '';
 
+  // ── Interface map context ─────────────────────────────────────────────────────
+  // Load annotated element business logic for the current page (≤100ms budget).
+  const interfaceMapSection = await Promise.race([
+    loadInterfaceContext(org.id, pageContext?.url),
+    new Promise<string>((resolve) => setTimeout(() => resolve(''), 100)),
+  ]);
+
   const model = selectModel({
     isInit,
     isVerify,
     hasActionConfig,
     hasUnansweredQuestions: unansweredQuestions.length > 0,
     hasKbResults: kbResults.length > 0,
+  });
+
+  const playbookConfig = await prisma.playbookConfig.findUnique({
+    where: { organizationId: org.id },
+    select: { agentName: true, tone: true, mustAlwaysDo: true, mustNeverDo: true },
   });
 
   const systemPrompt = buildSystemPrompt({
@@ -507,11 +596,14 @@ ${actionConfig!.fields   ? `- fields: ${JSON.stringify(actionConfig!.fields)} (r
     domSummary,
     kbSection,
     mcpSection,
+    interfaceMapSection,
     isInit,
     isVerify,
     unansweredQuestions,
     actionHint,
     detectedLang,
+    flowGoal,
+    playbook: playbookConfig,
   });
 
   // Fix #8: parallelize KB search and summarizeHistory — they're independent
@@ -627,6 +719,7 @@ export async function runAgent(opts: {
   userHistoryFormatted?: string;
   userMetadata?: Record<string, unknown>;
   detectedLang?: string;
+  flowGoal?: string;
 }): Promise<AgentAction> {
   const { model, systemPrompt, messages, toolsForStep, mcpBundles, collectedData } = await prepareAgentCall(opts);
 
@@ -669,6 +762,17 @@ export async function runAgent(opts: {
       try { await assertPublicUrl(input.url as string); }
       catch (err) { return { type: 'chat', content: `Cannot reach that URL: ${(err as Error).message}` }; }
 
+      // REST endpoint allowlist + auth
+      const restCtx = await loadRestContext(opts.org.id).catch(() => null);
+      if (restCtx) {
+        const { allowed, reason } = matchesRestEndpoint(input.url as string, (input.method as string ?? 'GET').toUpperCase(), restCtx);
+        if (!allowed) return { type: 'chat', content: `API call blocked: ${reason}. Ask your administrator to approve this endpoint in Settings → MCPs & APIs.` };
+      }
+      const connectorHeaders: Record<string, string> =
+        restCtx?.authType === 'bearer' && restCtx.authValue ? { Authorization: `Bearer ${restCtx.authValue}` } :
+        restCtx?.authType === 'api_key' && restCtx.authValue ? { 'X-API-Key': restCtx.authValue } :
+        {};
+
       // Fix #6: sanitize string values in collectedData before interpolation
       const sanitizedData = Object.fromEntries(
         Object.entries(collectedData).map(([k, v]) => [k, typeof v === 'string' ? v.slice(0, 500) : v])
@@ -681,7 +785,7 @@ export async function runAgent(opts: {
         executeApiCall({
           url:     input.url as string,
           method:  (input.method as string ?? 'GET') as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-          headers: input.headers as Record<string, string> | undefined,
+          headers: { ...connectorHeaders, ...(input.headers as Record<string, string> | undefined) },
           body:    resolvedBody,
         }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out after 10s')), CALL_API_TIMEOUT_MS)),
@@ -854,6 +958,17 @@ export async function* runAgentStream(
     try { await assertPublicUrl(input.url as string); }
     catch (err) { yield { type: 'action', action: { type: 'chat', content: `Cannot reach that URL: ${(err as Error).message}` } }; return; }
 
+    // REST endpoint allowlist + auth
+    const restCtx = await loadRestContext(opts.org.id).catch(() => null);
+    if (restCtx) {
+      const { allowed, reason } = matchesRestEndpoint(input.url as string, (input.method as string ?? 'GET').toUpperCase(), restCtx);
+      if (!allowed) { yield { type: 'action', action: { type: 'chat', content: `API call blocked: ${reason}. Ask your administrator to approve this endpoint in Settings → MCPs & APIs.` } }; return; }
+    }
+    const connectorHeaders: Record<string, string> =
+      restCtx?.authType === 'bearer' && restCtx.authValue ? { Authorization: `Bearer ${restCtx.authValue}` } :
+      restCtx?.authType === 'api_key' && restCtx.authValue ? { 'X-API-Key': restCtx.authValue } :
+      {};
+
     // Fix #6: sanitize string values in collectedData before interpolation
     const sanitizedData = Object.fromEntries(
       Object.entries(collectedData).map(([k, v]) => [k, typeof v === 'string' ? v.slice(0, 500) : v])
@@ -866,7 +981,7 @@ export async function* runAgentStream(
       executeApiCall({
         url:     input.url as string,
         method:  (input.method as string ?? 'GET') as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-        headers: input.headers as Record<string, string> | undefined,
+        headers: { ...connectorHeaders, ...(input.headers as Record<string, string> | undefined) },
         body:    resolvedBody,
       }),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out after 10s')), CALL_API_TIMEOUT_MS)),

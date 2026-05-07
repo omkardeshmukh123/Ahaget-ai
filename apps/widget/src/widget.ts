@@ -6,7 +6,7 @@
 
 import { WidgetConfig, DEFAULT_CONFIG } from './config';
 import { DropOffDetector } from './detector';
-import { trackEvent, evaluateTriggers, fetchPendingProactiveMessage, markProactiveMessage } from './api';
+import { trackEvent, evaluateTriggers, fetchPendingProactiveMessage, markProactiveMessage, beaconAbandon } from './api';
 import { injectStyles } from './styles';
 import { CopilotManager, AgentAction, CopilotSession } from './copilot';
 import {
@@ -101,6 +101,13 @@ export class AhagetWidget {
 
     const session = await this.copilot.start(userId, window.location.pathname, this.config.metadata ?? {});
     let active = session ?? this.copilot.getSession();
+
+    // Apply configured agent name to the widget header
+    const agentName = this.copilot.getAgentName();
+    const titleEl = document.getElementById('oai-header-title');
+    const subEl = document.getElementById('oai-header-sub');
+    if (titleEl) titleEl.textContent = agentName;
+    if (subEl) subEl.textContent = `Your AI employee · ${agentName}`;
 
     // ── Phase 2: if no active flow session, evaluate trigger rules ────────────
     if (!active) {
@@ -813,6 +820,17 @@ export class AhagetWidget {
       this.inputEl.style.height = 'auto';
       this.inputEl.style.height = Math.min(this.inputEl.scrollHeight, 90) + 'px';
     });
+
+    const abandonIfActive = () => {
+      const session = this.copilot.getSession();
+      if (!session) return;
+      const apiOpts = { apiKey: this.config.apiKey, apiUrl: this.config.apiUrl ?? DEFAULT_CONFIG.apiUrl };
+      beaconAbandon(apiOpts, session.id);
+    };
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') abandonIfActive();
+    });
+    window.addEventListener('beforeunload', abandonIfActive);
   }
 
   private enableInput() {

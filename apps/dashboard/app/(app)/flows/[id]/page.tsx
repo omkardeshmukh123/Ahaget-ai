@@ -23,6 +23,7 @@ const BLANK_STEP: Omit<OnboardingStep, 'id' | 'flowId' | 'createdAt'> = {
   allowedActions: [],
   completionEvent: '',
   isMilestone: false,
+  targetUrl: null,
   order: 0,
 };
 
@@ -43,6 +44,12 @@ export default function FlowEditorPage() {
   const [savingTrigger, setSavingTrigger] = useState(false);
   const [triggerSaved, setTriggerSaved] = useState(false);
 
+  // Flow goal + feature slug state
+  const [flowGoal, setFlowGoal] = useState('');
+  const [featureSlug, setFeatureSlug] = useState('');
+  const [savingMeta, setSavingMeta] = useState(false);
+  const [metaSaved, setMetaSaved] = useState(false);
+
   useEffect(() => {
     api.flow.get(id).then((d) => {
       setFlow(d.flow);
@@ -50,9 +57,26 @@ export default function FlowEditorPage() {
       setTriggerDelaySec(Math.round((d.flow.triggerDelayMs ?? 30000) / 1000));
       setUrlPattern(d.flow.urlPattern ?? '');
       setMaxTriggers(d.flow.maxTriggersPerUser ?? 0);
+      setFlowGoal(d.flow.description ?? '');
+      setFeatureSlug((d.flow.triggerCondition as Record<string, unknown>)?.featureSlug as string ?? '');
       setLoading(false);
     });
   }, [id]);
+
+  async function saveMeta() {
+    setSavingMeta(true);
+    const updates: Parameters<typeof api.flow.update>[1] = { description: flowGoal };
+    if (flow?.flowType === 'adoption' && featureSlug) {
+      (updates as Record<string, unknown>).triggerCondition = {
+        ...(flow.triggerCondition as Record<string, unknown>),
+        featureSlug,
+      };
+    }
+    await api.flow.update(id, updates);
+    setSavingMeta(false);
+    setMetaSaved(true);
+    setTimeout(() => setMetaSaved(false), 2000);
+  }
 
   async function saveTriggerConfig() {
     setSavingTrigger(true);
@@ -100,9 +124,44 @@ export default function FlowEditorPage() {
       </button>
 
       <h1 className="text-2xl font-bold text-slate-900 mb-1">{flow.name}</h1>
-      <p className="text-slate-500 text-sm mb-8">
+      <p className="text-slate-500 text-sm mb-6">
         Define each step of the journey. The AI copilot will guide users through these steps automatically.
       </p>
+
+      {/* Flow goal + feature slug */}
+      <div className="border border-slate-200 rounded-xl p-6 mb-6 bg-white">
+        <h2 className="font-semibold text-slate-800 mb-1">Flow Goal</h2>
+        <p className="text-xs text-slate-400 mb-4">What does success look like? The AI uses this to know when the flow is truly complete.</p>
+        <textarea
+          value={flowGoal}
+          onChange={(e) => setFlowGoal(e.target.value)}
+          placeholder="User has connected their first data source and seen their first chart."
+          rows={2}
+          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none mb-4"
+        />
+        {flow.flowType === 'adoption' && (
+          <div className="mb-4">
+            <label className="text-xs font-medium text-slate-500 block mb-1">Feature slug</label>
+            <input
+              value={featureSlug}
+              onChange={(e) => setFeatureSlug(e.target.value)}
+              placeholder="csv-import"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            <p className="text-xs text-slate-400 mt-1">Identifier for the feature this flow teaches — used by trigger rules.</p>
+          </div>
+        )}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={saveMeta}
+            disabled={savingMeta}
+            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
+          >
+            {savingMeta ? 'Saving…' : 'Save'}
+          </button>
+          {metaSaved && <span className="text-xs text-green-600 font-medium">Saved</span>}
+        </div>
+      </div>
 
       {/* Trigger settings */}
       <div className="border border-slate-200 rounded-xl p-6 mb-8 bg-white">
@@ -325,17 +384,28 @@ function StepForm({
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </div>
-        <div className="flex items-end pb-1">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={step.isMilestone as boolean}
-              onChange={(e) => set('isMilestone', e.target.checked)}
-              className="w-4 h-4 accent-brand-600"
-            />
-            <span className="text-sm text-slate-700">First value milestone</span>
-          </label>
+        <div>
+          <label className="text-xs font-medium text-slate-500 block mb-1">Target page (optional)</label>
+          <input
+            value={(step as OnboardingStep).targetUrl ?? ''}
+            onChange={(e) => set('targetUrl', e.target.value || null)}
+            placeholder="/settings/billing"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          <p className="text-xs text-slate-400 mt-1">Widget offers to navigate if user is elsewhere.</p>
         </div>
+      </div>
+
+      <div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={step.isMilestone as boolean}
+            onChange={(e) => set('isMilestone', e.target.checked)}
+            className="w-4 h-4 accent-brand-600"
+          />
+          <span className="text-sm text-slate-700">First value milestone</span>
+        </label>
       </div>
 
       {/* Guardrails — allowed AI action types */}

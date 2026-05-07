@@ -28,11 +28,13 @@ import contactRoutes from './routes/contact';
 import triggersRoutes from './routes/triggers';
 import proactiveRoutes from './routes/proactive';
 import expansionRoutes from './routes/expansion';
+import interfaceMapRoutes from './routes/interfaceMap';
 import { prisma } from './lib/prisma';
 import { errorHandler } from './middleware/errorHandler';
 import { attachWebSocketServer } from './lib/websocket';
 import { checkFlowAlerts } from './services/alerting';
 import { runProactiveMessaging } from './services/proactive';
+import { runKbRefresh } from './jobs/kbRefresh';
 
 // ─── Startup env validation ───────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
@@ -108,6 +110,7 @@ app.use('/api/v1/contact', contactRoutes);
 app.use('/api/v1/triggers', triggersRoutes);
 app.use('/api/v1/proactive', proactiveRoutes);
 app.use('/api/v1/expansion', expansionRoutes);
+app.use('/api/v1/interface-map', interfaceMapRoutes);
 
 app.get('/health', async (_req, res) => {
   try {
@@ -171,6 +174,58 @@ httpServer.listen(PORT, () => {
       runProactiveMessaging().catch((e) => console.error('[proactive] cron error:', e));
     }, PROACTIVE_INTERVAL_MS);
   }, 10 * 60 * 1000); // 10 min after startup
+
+  // ── KB auto-refresh cron ─────────────────────────────────────────────────
+  // Re-crawls URL sources older than 24 h. Runs every 6 h; first run 60 s after boot.
+  const KB_CRON_MS = 6 * 60 * 60 * 1000;
+  setTimeout(() => {
+    runKbRefresh().catch((e) => console.error('[kb-refresh] startup run error:', e));
+    setInterval(() => {
+      runKbRefresh().catch((e) => console.error('[kb-refresh] cron error:', e));
+    }, KB_CRON_MS);
+  }, 60_000);
+
+  // ── Session abandonment sweeper ───────────────────────────────────────────
+  // Marks sessions inactive for >30 min as abandoned. Runs every 5 minutes.
+  const ABANDON_THRESHOLD_MS = 30 * 60 * 1000; // 30 min
+  const ABANDON_INTERVAL_MS  = 5 * 60 * 1000;  // 5 min
+
+  const sweepAbandonedSessions = async () => {
+    const cutoff = new Date(Date.now() - ABANDON_THRESHOLD_MS);
+    try {
+      const stale = await prisma.userOnboardingSession.findMany({
+        where: { status: 'active', lastActiveAt: { lt: cutoff } },
+        select: { id: true, currentStepId: true },
+        take: 200,
+      });
+      if (stale.length === 0) return;
+
+      const sessionIds = stale.map((s) => s.id);
+
+      // Mark sessions abandoned
+      await prisma.userOnboardingSession.updateMany({
+        where: { id: { in: sessionIds } },
+        data: { status: 'abandoned' },
+      });
+
+      // Mark each session's current in-progress step as dropped
+      for (const s of stale) {
+        if (!s.currentStepId) continue;
+        await prisma.userStepProgress.updateMany({
+          where: { sessionId: s.id, stepId: s.currentStepId, status: 'in_progress' },
+          data: { outcome: 'dropped', dropReason: 'idle_timeout' },
+        });
+      }
+
+      console.log(`[sweeper] Marked ${stale.length} sessions abandoned`);
+    } catch (e) {
+      console.error('[sweeper] abandonment sweep error:', e);
+    }
+  };
+
+  setInterval(() => {
+    sweepAbandonedSessions();
+  }, ABANDON_INTERVAL_MS);
 });
 
 export default app;

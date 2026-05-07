@@ -184,6 +184,11 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
 
   const org = req.organization!;
   const plan = PLANS[org.planType] ?? PLANS.free;
+  const playbookConfig = await prisma.playbookConfig.findUnique({
+    where: { organizationId: org.id },
+    select: { agentName: true },
+  });
+  const agentName = playbookConfig?.agentName ?? 'AI Assistant';
 
   // Upsert end user first (idempotent) — eliminates MTU TOCTOU race
   const endUser = await getOrCreateEndUser(org.id, userId, metadata ?? {});
@@ -310,6 +315,7 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
         collectedData: session.collectedData,
         flow: flow ? { id: flow.id, name: flow.name, steps: flow.steps } : null,
       },
+      agentName,
     });
     return;
   }
@@ -353,6 +359,7 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
       flow: { id: flow.id, name: flow.name, steps: flow.steps },
     },
     isReturning: otherSessionCount > 0,
+    agentName,
     // Trigger controls — widget reads these to decide when/where to show
     trigger: {
       delayMs: flow.triggerDelayMs,
@@ -566,15 +573,35 @@ async function applyActionSideEffects(opts: {
       reason: action.reason,
       agentMessage: action.message,
       context,
-    }).then((ticket) =>
-      notifyTeam({
+    }).then(async (ticket) => {
+      await notifyTeam({
         orgId,
         orgName: session.flow.name,
         ticketId: ticket.id,
         context,
         reason: action.reason,
-      })
-    ).catch((e) => console.error('[escalation] ticket creation failed:', e));
+      });
+      // Fire playbook escalation webhook if configured
+      const playbook = await prisma.playbookConfig.findUnique({
+        where: { organizationId: orgId },
+        select: { escalationWebhook: true },
+      });
+      if (playbook?.escalationWebhook) {
+        fetch(playbook.escalationWebhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'escalation_created',
+            ticketId: ticket.id,
+            userId: context.userId,
+            reason: action.reason,
+            trigger: action.trigger,
+            sessionId: session.id,
+            context,
+          }),
+        }).catch(() => {}); // fire-and-forget
+      }
+    }).catch((e) => console.error('[escalation] ticket creation failed:', e));
 
     await prisma.userOnboardingSession.update({
       where: { id: session.id },
@@ -798,6 +825,7 @@ router.post('/act', async (req: AuthenticatedRequest, res: Response) => {
     userMetadata: (session.endUser.metadata ?? {}) as Record<string, unknown>,
     sessionId: session.id,
     detectedLang,
+    flowGoal: session.flow.description || undefined,
   });
 
   // ── Guard: block premature complete_step ─────────────────────────────────
@@ -936,6 +964,7 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
       userHistoryFormatted: userHistory?.formatted,
       userMetadata: (session.endUser.metadata ?? {}) as Record<string, unknown>,
       detectedLang: streamDetectedLang,
+      flowGoal: session.flow.description || undefined,
     })) {
       if (event.type === 'word') {
         if (!firstTokenLogged) {
@@ -1058,7 +1087,24 @@ router.post('/act/goal', async (req: AuthenticatedRequest, res: Response) => {
   const localizedGoalAction = await localizeAction(action, goalDetectedLang);
   const done = localizedGoalAction.type === 'goal_complete' || localizedGoalAction.type === 'escalate_to_human';
 
-  // Persist to audit log for traceability (SessionMessage requires stepId FK — skip it for goal mode)
+  // Persist turn as SessionMessage (stepId null = goal mode, not step-scoped)
+  const agentContent =
+    localizedGoalAction.type === 'ask_clarification'  ? localizedGoalAction.question :
+    localizedGoalAction.type === 'execute_page_action' ? localizedGoalAction.message :
+    localizedGoalAction.type === 'goal_complete'        ? localizedGoalAction.summary :
+    localizedGoalAction.type === 'escalate_to_human'    ? localizedGoalAction.message :
+    localizedGoalAction.type === 'degrade_to_manual'    ? localizedGoalAction.instruction :
+    localizedGoalAction.type === 'chat'                 ? localizedGoalAction.content :
+    '';
+
+  prisma.sessionMessage.createMany({
+    data: [
+      { sessionId, stepId: null, role: 'user',      content: goal },
+      { sessionId, stepId: null, role: 'assistant', content: agentContent, actionType: localizedGoalAction.type },
+    ],
+  }).catch(() => {}); // non-blocking
+
+  // Persist to audit log for traceability
   prisma.auditLog.create({
     data: {
       organizationId: req.organization!.id,
@@ -1151,6 +1197,47 @@ router.post('/page-change', async (req: AuthenticatedRequest, res: Response) => 
   });
 
   res.json({ advanced: true, newStepId: detectedStepId, newStepTitle: detectedStep.title });
+});
+
+// ─── POST /api/v1/session/abandon ────────────────────────────────────────────
+// Widget calls this via sendBeacon on visibilitychange/beforeunload.
+router.post('/abandon', async (req: AuthenticatedRequest, res: Response) => {
+  const { sessionId, stepId, reason } = req.body as {
+    sessionId: string;
+    stepId?: string;
+    reason?: string;
+  };
+
+  if (!sessionId) {
+    res.status(400).json({ error: 'sessionId required' });
+    return;
+  }
+
+  const session = await prisma.userOnboardingSession.findFirst({
+    where: { id: sessionId, organizationId: req.organization!.id, status: 'active' },
+    select: { id: true, currentStepId: true },
+  });
+
+  if (!session) {
+    res.json({ abandoned: false });
+    return;
+  }
+
+  const targetStepId = stepId ?? session.currentStepId;
+
+  await prisma.userOnboardingSession.update({
+    where: { id: session.id },
+    data: { status: 'abandoned', lastActiveAt: new Date() },
+  });
+
+  if (targetStepId) {
+    await prisma.userStepProgress.updateMany({
+      where: { sessionId: session.id, stepId: targetStepId, status: 'in_progress' },
+      data: { outcome: 'dropped', dropReason: reason ?? 'user_closed' },
+    });
+  }
+
+  res.json({ abandoned: true });
 });
 
 // ─── POST /api/v1/session/event ───────────────────────────────────────────────

@@ -53,6 +53,8 @@ model Organization {
   triggerRules          TriggerRule[]
   proactiveMessages     ProactiveMessage[]
   upsellAttributions    UpsellAttribution[]
+  interfaceSnapshots    InterfacePageSnapshot[]
+  playbookConfig        PlaybookConfig?
 
   @@map("organizations")
 }
@@ -296,7 +298,7 @@ model UserOnboardingSession {
 model SessionMessage {
   id         String   @id @default(uuid())
   sessionId  String   @map("session_id")
-  stepId     String   @map("step_id")
+  stepId     String?  @map("step_id")
   role       String   // user | assistant
   content    String   // raw text or JSON action summary
   actionType String?  @map("action_type") // ask_clarification | execute_page_action | complete_step | etc.
@@ -487,17 +489,41 @@ model McpConnector {
   id             String   @id @default(uuid())
   organizationId String   @map("organization_id")
   name           String                              // human label, e.g. "Production DB"
-  serverUrl      String   @map("server_url")        // MCP server endpoint
+  description    String   @default("")               // shown in dashboard
+  connectorType  String   @default("mcp") @map("connector_type") // mcp | rest
+  serverUrl      String   @map("server_url")        // MCP server URL or REST base URL
   authType       String   @default("none") @map("auth_type") // none | bearer | api_key
   authValue      String?  @map("auth_value")        // bearer token or API key
   enabled        Boolean  @default(true)
+  // Scoped permissions
+  allowedTools   String[] @default([]) @map("allowed_tools") // empty = all tools allowed
+  readOnly       Boolean  @default(false) @map("read_only")  // block write-verb tool calls
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  restEndpoints  RestApiEndpoint[]
 
   @@index([organizationId])
   @@map("mcp_connectors")
+}
+
+// ─── RestApiEndpoint (pre-approved REST endpoints for call_api guardrails) ────
+// Operators define which URL patterns the agent is permitted to call.
+// The `call_api` agent tool validates the target URL against these patterns.
+model RestApiEndpoint {
+  id          String   @id @default(uuid())
+  connectorId String   @map("connector_id")
+  method      String   @default("GET")          // GET | POST | PUT | PATCH | DELETE
+  urlPattern  String   @map("url_pattern")      // exact URL or prefix, e.g. https://api.example.com/v1/
+  description String   @default("")             // what this endpoint does
+  readOnly    Boolean  @default(false) @map("read_only") // true = GET only
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  connector McpConnector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+
+  @@index([connectorId])
+  @@map("rest_api_endpoints")
 }
 
 // ─── AuditLog (every action the AI took, per org — for compliance + debugging) ─
@@ -614,3 +640,84 @@ model UpsellAttribution {
   @@index([status])
   @@map("upsell_attributions")
 }
+
+// ─── InterfacePageSnapshot ────────────────────────────────────────────────────
+// One captured DOM state of a page in the customer's product.
+// Multiple snapshots per URL are supported (different UI states: modal open, etc.)
+// isActive=false means archived/replaced by a newer capture.
+model InterfacePageSnapshot {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  url            String                            // captured page path (e.g. /settings/billing)
+  title          String                            // document.title at capture time
+  stateLabel     String   @default("Default") @map("state_label") // e.g. "Default" | "Modal open" | "After payment added"
+  framework      String   @default("unknown")      // react | vue | angular | vanilla | server
+  elementCount   Int      @default(0) @map("element_count")
+  annotatedCount Int      @default(0) @map("annotated_count")
+  capturedAt     DateTime @default(now()) @map("captured_at")
+  isActive       Boolean  @default(true) @map("is_active")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  elements     InterfaceElement[]
+
+  @@index([organizationId])
+  @@index([organizationId, url])
+  @@map("interface_page_snapshots")
+}
+
+// ─── InterfaceElement ──────────────────────────────────────────────────────────
+// One captured and optionally annotated DOM element within a snapshot.
+model InterfaceElement {
+  id          String   @id @default(uuid())
+  snapshotId  String   @map("snapshot_id")
+  // ── Raw scanner data ──────────────────────────────────────────────────────────
+  tag         String
+  selector    String
+  text        String   @default("")
+  elementType String   @default("unknown") @map("element_type") // button|input|select|textarea|link|modal_trigger|error_indicator
+  inputType   String?  @map("input_type")
+  ariaLabel   String?  @map("aria_label")
+  placeholder String?
+  name        String?
+  dataTestId  String?  @map("data_test_id")
+  role        String?
+  classes     String[] @default([])
+  rect        Json     @default("{}") // {x, y, w, h}
+  // ── Human annotation ─────────────────────────────────────────────────────────
+  customLabel       String? @map("custom_label")
+  customDescription String? @map("custom_description")
+  businessRule      String? @map("business_rule")
+  isSensitive       Boolean @default(false) @map("is_sensitive")
+  // ── Meta ─────────────────────────────────────────────────────────────────────
+  annotatedAt DateTime? @map("annotated_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  snapshot InterfacePageSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([snapshotId])
+  @@index([snapshotId, selector])
+  @@map("interface_elements")
+}
+
+// ─── PlaybookConfig (per-org agent persona, guardrails, escalation rules) ─────
+model PlaybookConfig {
+  id                      String   @id @default(uuid())
+  organizationId          String   @unique @map("organization_id")
+  agentName               String   @default("AI Assistant") @map("agent_name")
+  tone                    String   @default("friendly")           // friendly | formal | concise | custom
+  language                String   @default("en")
+  mustAlwaysDo            String[] @default([]) @map("must_always_do")
+  mustNeverDo             String[] @default([]) @map("must_never_do")
+  escalateOnUserRequest   Boolean  @default(true)  @map("escalate_on_user_request")
+  escalateOnRepeatedFail  Boolean  @default(true)  @map("escalate_on_repeated_fail")
+  escalateOnBillingTopics Boolean  @default(false) @map("escalate_on_billing_topics")
+  escalationWebhook       String?  @map("escalation_webhook")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("playbook_configs")
+}
+

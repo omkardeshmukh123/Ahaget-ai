@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { authenticateJWT } from '../middleware/auth';
@@ -8,12 +8,31 @@ import { AuthenticatedRequest } from '../types';
 const router = Router();
 router.use(authenticateJWT);
 
+const SAFE_SELECT = {
+  id: true, name: true, description: true, connectorType: true,
+  serverUrl: true, authType: true, enabled: true,
+  allowedTools: true, readOnly: true,
+  createdAt: true, updatedAt: true,
+  // never return authValue in list responses
+} as const;
+
 const ConnectorSchema = z.object({
-  name: z.string().min(1).max(100),
-  serverUrl: z.string().url(),
-  authType: z.enum(['none', 'bearer', 'api_key']).default('none'),
-  authValue: z.string().optional(),
-  enabled: z.boolean().default(true),
+  name:          z.string().min(1).max(100),
+  description:   z.string().max(500).optional().default(''),
+  connectorType: z.enum(['mcp', 'rest']).optional().default('mcp'),
+  serverUrl:     z.string().url(),
+  authType:      z.enum(['none', 'bearer', 'api_key']).default('none'),
+  authValue:     z.string().optional(),
+  enabled:       z.boolean().default(true),
+  allowedTools:  z.array(z.string()).optional().default([]),
+  readOnly:      z.boolean().optional().default(false),
+});
+
+const EndpointSchema = z.object({
+  method:      z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).default('GET'),
+  urlPattern:  z.string().url(),
+  description: z.string().max(500).optional().default(''),
+  readOnly:    z.boolean().optional().default(false),
 });
 
 // ─── GET /api/v1/mcp — list connectors ───────────────────────────────────────
@@ -21,11 +40,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const connectors = await prisma.mcpConnector.findMany({
     where: { organizationId: req.user!.organizationId },
     orderBy: { createdAt: 'asc' },
-    select: {
-      id: true, name: true, serverUrl: true,
-      authType: true, enabled: true, createdAt: true, updatedAt: true,
-      // never return authValue in list responses
-    },
+    select: SAFE_SELECT,
   });
   res.json({ connectors });
 });
@@ -43,10 +58,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 
   const connector = await prisma.mcpConnector.create({
     data: { organizationId: orgId, ...data },
-    select: {
-      id: true, name: true, serverUrl: true,
-      authType: true, enabled: true, createdAt: true, updatedAt: true,
-    },
+    select: SAFE_SELECT,
   });
   res.status(201).json({ connector });
 });
@@ -68,10 +80,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
   const connector = await prisma.mcpConnector.findFirst({
     where: { id: req.params.id, organizationId: orgId },
-    select: {
-      id: true, name: true, serverUrl: true,
-      authType: true, enabled: true, createdAt: true, updatedAt: true,
-    },
+    select: SAFE_SELECT,
   });
   res.json({ connector });
 });
@@ -80,6 +89,112 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
 router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
   await prisma.mcpConnector.deleteMany({
     where: { id: req.params.id, organizationId: req.user!.organizationId },
+  });
+  res.json({ deleted: true });
+});
+
+// ─── POST /api/v1/mcp/:id/test — ping MCP server, return tool list ───────────
+router.post('/:id/test', async (req: AuthenticatedRequest, res: Response) => {
+  const orgId = req.user!.organizationId;
+  const connector = await prisma.mcpConnector.findFirst({
+    where: { id: req.params.id, organizationId: orgId },
+    select: { id: true, serverUrl: true, authType: true, authValue: true, connectorType: true },
+  });
+  if (!connector) {
+    res.status(404).json({ error: 'Connector not found' });
+    return;
+  }
+
+  if (connector.connectorType === 'rest') {
+    // For REST connectors just do a HEAD/GET to the base URL
+    try {
+      const resp = await fetch(connector.serverUrl, {
+        method: 'GET',
+        signal: AbortSignal.timeout(4000),
+        headers: connector.authType === 'bearer' && connector.authValue
+          ? { Authorization: `Bearer ${connector.authValue}` }
+          : connector.authType === 'api_key' && connector.authValue
+          ? { 'X-API-Key': connector.authValue }
+          : {},
+      });
+      res.json({ ok: resp.ok, status: resp.status, tools: [], connectorType: 'rest' });
+    } catch (err) {
+      res.json({ ok: false, error: (err as Error).message, tools: [], connectorType: 'rest' });
+    }
+    return;
+  }
+
+  // MCP: call tools/list
+  try {
+    const authHeader: Record<string, string> = {};
+    if (connector.authType === 'bearer' && connector.authValue) authHeader['Authorization'] = `Bearer ${connector.authValue}`;
+    if (connector.authType === 'api_key' && connector.authValue) authHeader['X-API-Key'] = connector.authValue;
+
+    const rpcRes = await fetch(connector.serverUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!rpcRes.ok) {
+      res.json({ ok: false, error: `HTTP ${rpcRes.status}`, tools: [] });
+      return;
+    }
+
+    const data = await rpcRes.json() as { result?: { tools: unknown[] }; error?: { message: string } };
+    if (data.error) {
+      res.json({ ok: false, error: data.error.message, tools: [] });
+      return;
+    }
+
+    const tools = (data.result?.tools ?? []) as Array<{ name: string; description?: string }>;
+    res.json({ ok: true, tools: tools.map((t) => ({ name: t.name, description: t.description ?? '' })) });
+  } catch (err) {
+    res.json({ ok: false, error: (err as Error).message, tools: [] });
+  }
+});
+
+// ─── GET /api/v1/mcp/:id/endpoints ───────────────────────────────────────────
+router.get('/:id/endpoints', async (req: AuthenticatedRequest, res: Response) => {
+  const orgId = req.user!.organizationId;
+  const connector = await prisma.mcpConnector.findFirst({
+    where: { id: req.params.id, organizationId: orgId },
+  });
+  if (!connector) { res.status(404).json({ error: 'Connector not found' }); return; }
+
+  const endpoints = await prisma.restApiEndpoint.findMany({
+    where: { connectorId: req.params.id },
+    orderBy: { createdAt: 'asc' },
+  });
+  res.json({ endpoints });
+});
+
+// ─── POST /api/v1/mcp/:id/endpoints ──────────────────────────────────────────
+router.post('/:id/endpoints', async (req: AuthenticatedRequest, res: Response) => {
+  const orgId = req.user!.organizationId;
+  const connector = await prisma.mcpConnector.findFirst({
+    where: { id: req.params.id, organizationId: orgId },
+  });
+  if (!connector) { res.status(404).json({ error: 'Connector not found' }); return; }
+
+  const data = EndpointSchema.parse(req.body);
+  const endpoint = await prisma.restApiEndpoint.create({
+    data: { connectorId: req.params.id, ...data },
+  });
+  res.status(201).json({ endpoint });
+});
+
+// ─── DELETE /api/v1/mcp/:connectorId/endpoints/:endpointId ───────────────────
+router.delete('/:id/endpoints/:endpointId', async (req: AuthenticatedRequest, res: Response) => {
+  const orgId = req.user!.organizationId;
+  const connector = await prisma.mcpConnector.findFirst({
+    where: { id: req.params.id, organizationId: orgId },
+  });
+  if (!connector) { res.status(404).json({ error: 'Connector not found' }); return; }
+
+  await prisma.restApiEndpoint.deleteMany({
+    where: { id: req.params.endpointId, connectorId: req.params.id },
   });
   res.json({ deleted: true });
 });

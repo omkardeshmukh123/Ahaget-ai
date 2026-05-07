@@ -96,6 +96,24 @@ export async function fetchPendingProactiveMessage(
 }
 
 /**
+ * Fire-and-forget beacon on widget close/hide to mark session abandoned.
+ * Uses sendBeacon so it survives page unload.
+ */
+export function beaconAbandon(
+  opts: ApiOptions,
+  sessionId: string,
+  stepId?: string,
+): void {
+  const url = `${opts.apiUrl}/api/v1/session/abandon`;
+  const body = JSON.stringify({ sessionId, stepId, reason: 'user_closed' });
+  try {
+    navigator.sendBeacon(url + '?key=' + encodeURIComponent(opts.apiKey), new Blob([body], { type: 'application/json' }));
+  } catch {
+    // sendBeacon not supported — silent fail, sweeper will catch it
+  }
+}
+
+/**
  * Mark a proactive message as opened or clicked.
  */
 export async function markProactiveMessage(

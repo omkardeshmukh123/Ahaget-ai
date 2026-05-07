@@ -304,6 +304,7 @@ router.put('/:id/steps/:stepId', async (req: AuthenticatedRequest, res: Response
     completionEvent,
     isMilestone,
     order,
+    targetUrl,
   } = req.body as Record<string, unknown>;
 
   const step = await prisma.onboardingStep.update({
@@ -319,6 +320,7 @@ router.put('/:id/steps/:stepId', async (req: AuthenticatedRequest, res: Response
       ...(completionEvent !== undefined && { completionEvent: completionEvent as string | null }),
       ...(isMilestone !== undefined && { isMilestone: isMilestone as boolean }),
       ...(order !== undefined && { order: order as number }),
+      ...(targetUrl !== undefined && { targetUrl: targetUrl as string | null }),
     },
   });
   res.json({ step });
