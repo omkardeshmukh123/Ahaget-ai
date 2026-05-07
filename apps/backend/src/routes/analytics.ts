@@ -6,6 +6,55 @@ import { AuthenticatedRequest } from '../types';
 
 const router = Router();
 
+// 60-second in-memory cache keyed by "orgId:days"
+const chokeCache = new Map<string, { data: unknown; expiresAt: number }>();
+
+function normalise(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120);
+}
+
+function classifyIntent(text: string): 'how_to' | 'stuck' | 'navigation' | 'question' | 'other' {
+  const t = text.toLowerCase();
+  if (/\bhow\b/.test(t) || /steps to/.test(t)) return 'how_to';
+  if (/can'?t|cannot|error|broken|doesn'?t work|not working|fail|issue|problem|stuck/.test(t)) return 'stuck';
+  if (/\bwhere\b|\bfind\b|\bnavigate\b|\bgo to\b|\btake me\b|\bshow me\b/.test(t)) return 'navigation';
+  if (/\bwhat\b|\bwhy\b|\bwhich\b|\bexplain\b|\btell me\b|\bdoes\b/.test(t) || t.includes('?')) return 'question';
+  return 'other';
+}
+
+function computeSeverityScore({
+  dropRate,
+  avgAttempts,
+  avgTimeStuckSecs,
+  negFeedbackRate,
+}: {
+  dropRate: number;
+  avgAttempts: number;
+  avgTimeStuckSecs: number;
+  negFeedbackRate: number;
+}): number {
+  const attemptsNorm = Math.min(avgAttempts / 5, 1) * 100;
+  const timeNorm = Math.min(avgTimeStuckSecs / 120, 1) * 100;
+  return Math.round(
+    dropRate * 0.40 +
+    attemptsNorm * 0.25 +
+    timeNorm * 0.20 +
+    negFeedbackRate * 0.15,
+  );
+}
+
+function severityLabel(score: number): 'critical' | 'high' | 'medium' | 'low' {
+  if (score >= 70) return 'critical';
+  if (score >= 50) return 'high';
+  if (score >= 30) return 'medium';
+  return 'low';
+}
+
 // ─── GET /api/v1/analytics/overview ─────────────────────────────────────────
 router.get('/overview', authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
   const { organizationId } = req.user!;
@@ -112,49 +161,36 @@ router.get('/intents', authenticateJWT, async (req: AuthenticatedRequest, res: R
   const { organizationId } = req.user!;
   const days = Math.min(parseInt(req.query.days as string) || 30, 90);
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const pageFilter = req.query.page as string | undefined;
 
-  // Fetch recent user messages in the window — capped at 2000 to avoid OOM on busy orgs
-  const messages = await prisma.message.findMany({
+  const messages = await prisma.sessionMessage.findMany({
     where: {
       role: 'user',
       createdAt: { gte: since },
-      conversation: { organizationId },
+      session: {
+        organizationId,
+        ...(pageFilter ? { pageUrl: { contains: pageFilter } } : {}),
+      },
     },
-    select: { content: true, createdAt: true },
+    select: {
+      content: true,
+      createdAt: true,
+      session: { select: { pageUrl: true } },
+    },
     orderBy: { createdAt: 'desc' },
     take: 2000,
   });
-
-  // Classify intent from normalised text
-  function classifyIntent(text: string): 'how_to' | 'stuck' | 'navigation' | 'question' | 'other' {
-    const t = text.toLowerCase();
-    if (/\bhow\b/.test(t) || /steps to/.test(t)) return 'how_to';
-    if (/can'?t|cannot|error|broken|doesn'?t work|not working|fail|issue|problem|stuck/.test(t)) return 'stuck';
-    if (/\bwhere\b|\bfind\b|\bnavigate\b|\bgo to\b|\btake me\b|\bshow me\b/.test(t)) return 'navigation';
-    if (/\bwhat\b|\bwhy\b|\bwhich\b|\bexplain\b|\btell me\b|\bdoes\b/.test(t) || t.includes('?')) return 'question';
-    return 'other';
-  }
-
-  // Normalise: lowercase, collapse whitespace, strip leading punctuation
-  function normalise(text: string): string {
-    return text
-      .toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 120); // cap length so long rambling messages still group
-  }
 
   // Skip internal widget system messages — never expose these in intent analytics
   const SKIP = new Set(['__init__', '__verify__']);
 
   // Group by normalised content
-  const map = new Map<string, { raw: string; count: number; lastSeen: Date; intent: ReturnType<typeof classifyIntent> }>();
+  const map = new Map<string, { raw: string; count: number; lastSeen: Date; intent: ReturnType<typeof classifyIntent>; pageUrl: string | null }>();
   for (const msg of messages) {
     const norm = normalise(msg.content);
     if (!norm || SKIP.has(norm)) continue;
     if (!map.has(norm)) {
-      map.set(norm, { raw: msg.content.trim().slice(0, 200), count: 0, lastSeen: msg.createdAt, intent: classifyIntent(norm) });
+      map.set(norm, { raw: msg.content.trim().slice(0, 200), count: 0, lastSeen: msg.createdAt, intent: classifyIntent(norm), pageUrl: msg.session.pageUrl });
     }
     const entry = map.get(norm)!;
     entry.count++;
@@ -171,7 +207,17 @@ router.get('/intents', authenticateJWT, async (req: AuthenticatedRequest, res: R
   const categorySummary: Record<string, number> = { how_to: 0, stuck: 0, navigation: 0, question: 0, other: 0 };
   for (const q of questions) categorySummary[q.intent] += q.count;
 
-  res.json({ questions, categorySummary, totalMessages: messages.length, days });
+  const pageMap = new Map<string, number>();
+  for (const q of questions) {
+    if (q.pageUrl) {
+      pageMap.set(q.pageUrl, (pageMap.get(q.pageUrl) ?? 0) + q.count);
+    }
+  }
+  const pages = [...pageMap.entries()]
+    .map(([url, questionCount]) => ({ url, questionCount }))
+    .sort((a, b) => b.questionCount - a.questionCount);
+
+  res.json({ questions, categorySummary, totalMessages: messages.length, days, pages });
 });
 
 // ─── GET /api/v1/analytics/health ────────────────────────────────────────────
@@ -280,19 +326,6 @@ router.get('/insights', authenticateJWT, async (req: AuthenticatedRequest, res: 
     prisma.conversation.count({ where: { organizationId } }),
     prisma.message.count({ where: { conversation: { organizationId } } }),
   ]);
-
-  function classifyIntent(text: string): 'how_to' | 'stuck' | 'navigation' | 'question' | 'other' {
-    const t = text.toLowerCase();
-    if (/\bhow\b/.test(t) || /steps to/.test(t)) return 'how_to';
-    if (/can'?t|cannot|error|broken|doesn'?t work|not working|fail|issue|problem|stuck/.test(t)) return 'stuck';
-    if (/\bwhere\b|\bfind\b|\bnavigate\b|\bgo to\b|\btake me\b|\bshow me\b/.test(t)) return 'navigation';
-    if (/\bwhat\b|\bwhy\b|\bwhich\b|\bexplain\b|\btell me\b|\bdoes\b/.test(t) || t.includes('?')) return 'question';
-    return 'other';
-  }
-
-  function normalise(text: string): string {
-    return text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
-  }
 
   const SKIP = new Set(['__init__', '__verify__']);
   const map = new Map<string, { raw: string; count: number; lastSeen: Date; intent: ReturnType<typeof classifyIntent> }>();
@@ -492,6 +525,243 @@ router.get('/lifecycle', authenticateJWT, async (req: AuthenticatedRequest, res:
       conversionRate: upsellPitched > 0 ? Math.round((upsellConverted / upsellPitched) * 100) : 0,
     },
   });
+});
+
+// ─── GET /api/v1/analytics/intents/export?days=30&page= ──────────────────────
+router.get('/intents/export', authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
+  const { organizationId } = req.user!;
+  const days = Math.min(parseInt(req.query.days as string) || 30, 90);
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const pageFilter = req.query.page as string | undefined;
+
+  const messages = await prisma.sessionMessage.findMany({
+    where: {
+      role: 'user',
+      createdAt: { gte: since },
+      session: {
+        organizationId,
+        ...(pageFilter ? { pageUrl: { contains: pageFilter } } : {}),
+      },
+    },
+    select: {
+      content: true,
+      createdAt: true,
+      session: { select: { pageUrl: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const SKIP = new Set(['__init__', '__verify__']);
+  const map = new Map<string, { raw: string; count: number; lastSeen: Date; intent: ReturnType<typeof classifyIntent>; pageUrl: string | null }>();
+  for (const msg of messages) {
+    const norm = normalise(msg.content);
+    if (!norm || SKIP.has(norm)) continue;
+    if (!map.has(norm)) {
+      map.set(norm, { raw: msg.content.trim().slice(0, 200), count: 0, lastSeen: msg.createdAt, intent: classifyIntent(norm), pageUrl: msg.session.pageUrl });
+    }
+    const entry = map.get(norm)!;
+    entry.count++;
+    if (msg.createdAt > entry.lastSeen) entry.lastSeen = msg.createdAt;
+  }
+
+  const rows = [...map.values()].sort((a, b) => b.count - a.count);
+
+  const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
+  const lines: string[] = ['question,count,intent,lastSeen,page'];
+  for (const r of rows) {
+    lines.push([escape(r.raw), r.count, r.intent, r.lastSeen.toISOString(), escape(r.pageUrl ?? '')].join(','));
+  }
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="questions.csv"');
+  res.send(lines.join('\n'));
+});
+
+// ─── GET /api/v1/analytics/choke-points?days=30 ──────────────────────────────
+// Ranked list of flow steps where users struggle most, with composite severity.
+router.get('/choke-points', authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
+  const { organizationId } = req.user!;
+  const days = Math.min(parseInt(req.query.days as string) || 30, 90);
+  const cacheKey = `${organizationId}:${days}`;
+
+  const hit = chokeCache.get(cacheKey);
+  if (hit && Date.now() < hit.expiresAt) {
+    res.json(hit.data);
+    return;
+  }
+
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const priorSince = new Date(Date.now() - 2 * days * 24 * 60 * 60 * 1000);
+
+  // Fetch all steps belonging to this org
+  const steps = await prisma.onboardingStep.findMany({
+    where: { flow: { organizationId } },
+    select: {
+      id: true,
+      title: true,
+      order: true,
+      actionType: true,
+      flow: { select: { id: true, name: true } },
+    },
+  });
+
+  const chokePoints = await Promise.all(
+    steps.map(async (step) => {
+      const [started, completed, droppedProgress] = await Promise.all([
+        prisma.userStepProgress.count({
+          where: {
+            stepId: step.id,
+            session: { startedAt: { gte: since } },
+            status: { in: ['in_progress', 'completed', 'skipped'] },
+          },
+        }),
+        prisma.userStepProgress.count({
+          where: {
+            stepId: step.id,
+            session: { startedAt: { gte: since } },
+            status: 'completed',
+          },
+        }),
+        prisma.userStepProgress.findMany({
+          where: {
+            stepId: step.id,
+            session: { startedAt: { gte: since } },
+            outcome: 'dropped',
+          },
+          select: { attempts: true, timeSpentMs: true, sessionId: true },
+        }),
+      ]);
+
+      if (started < 3) return null;
+
+      const dropRate = started > 0 ? Math.round(((started - completed) / started) * 100) : 0;
+
+      const avgAttempts =
+        droppedProgress.length > 0
+          ? droppedProgress.reduce((s, p) => s + p.attempts, 0) / droppedProgress.length
+          : 0;
+
+      const avgTimeStuckSecs =
+        droppedProgress.length > 0
+          ? Math.round(
+              droppedProgress.reduce((s, p) => s + p.timeSpentMs, 0) /
+                droppedProgress.length /
+                1000,
+            )
+          : 0;
+
+      const [negMessages, totalMessages] = await Promise.all([
+        prisma.sessionMessage.count({
+          where: { stepId: step.id, feedback: -1, session: { startedAt: { gte: since } } },
+        }),
+        prisma.sessionMessage.count({
+          where: { stepId: step.id, session: { startedAt: { gte: since } } },
+        }),
+      ]);
+
+      const negFeedbackRate =
+        totalMessages > 0 ? Math.round((negMessages / totalMessages) * 100) : 0;
+
+      const score = computeSeverityScore({
+        dropRate,
+        avgAttempts,
+        avgTimeStuckSecs,
+        negFeedbackRate,
+      });
+
+      // Example user messages from dropped sessions (distinct, max 3)
+      const droppedSessionIds = droppedProgress.slice(0, 20).map((p) => p.sessionId);
+      const exampleMessages =
+        droppedSessionIds.length > 0
+          ? (
+              await prisma.sessionMessage.findMany({
+                where: {
+                  stepId: step.id,
+                  role: 'user',
+                  sessionId: { in: droppedSessionIds },
+                  content: { notIn: ['__init__', '__verify__'] },
+                },
+                select: { content: true },
+                orderBy: { createdAt: 'desc' },
+                take: 20,
+              })
+            )
+              .map((m) => m.content.trim().slice(0, 200))
+              .filter((c, i, arr) => arr.indexOf(c) === i)
+              .slice(0, 3)
+          : [];
+
+      // Trend: compare drop_rate to prior period
+      const [priorStarted, priorCompleted] = await Promise.all([
+        prisma.userStepProgress.count({
+          where: {
+            stepId: step.id,
+            session: { startedAt: { gte: priorSince, lt: since } },
+            status: { in: ['in_progress', 'completed', 'skipped'] },
+          },
+        }),
+        prisma.userStepProgress.count({
+          where: {
+            stepId: step.id,
+            session: { startedAt: { gte: priorSince, lt: since } },
+            status: 'completed',
+          },
+        }),
+      ]);
+
+      let trend: 'worsening' | 'improving' | 'stable' | 'new';
+      if (priorStarted < 3) {
+        trend = 'new';
+      } else {
+        const priorDropRate = Math.round(
+          ((priorStarted - priorCompleted) / priorStarted) * 100,
+        );
+        const delta = dropRate - priorDropRate;
+        trend = delta > 5 ? 'worsening' : delta < -5 ? 'improving' : 'stable';
+      }
+
+      return {
+        step_id: step.id,
+        step_title: step.title,
+        flow_id: step.flow.id,
+        flow_name: step.flow.name,
+        action_type: step.actionType,
+        field_choke: step.actionType === 'fill_form',
+        frequency: started,
+        drop_rate: dropRate,
+        avg_attempts: Math.round(avgAttempts * 10) / 10,
+        avg_time_stuck_secs: avgTimeStuckSecs,
+        neg_feedback_rate: negFeedbackRate,
+        severity_score: score,
+        severity_label: severityLabel(score),
+        example_messages: exampleMessages,
+        trend,
+      };
+    }),
+  );
+
+  const ranked = chokePoints
+    .filter((cp): cp is NonNullable<typeof cp> => cp !== null)
+    .sort((a, b) => b.severity_score - a.severity_score)
+    .map((cp, i) => ({ rank: i + 1, ...cp }));
+
+  // Page summary: top URLs by session count in the window
+  const pageSessions = await prisma.userOnboardingSession.groupBy({
+    by: ['pageUrl'],
+    where: { organizationId, startedAt: { gte: since }, pageUrl: { not: null } },
+    _count: { id: true },
+    orderBy: { _count: { id: 'desc' } },
+    take: 10,
+  });
+
+  const pageSummary = pageSessions
+    .filter((r) => r.pageUrl)
+    .map((r) => ({ url: r.pageUrl!, sessions: r._count.id }));
+
+  const result = { choke_points: ranked, page_summary: pageSummary, generated_at: new Date().toISOString(), days };
+  chokeCache.set(cacheKey, { data: result, expiresAt: Date.now() + 60_000 });
+
+  res.json(result);
 });
 
 export default router;
