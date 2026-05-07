@@ -88,6 +88,20 @@ router.post('/manual', async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
+  // Prevent duplicate tickets for the same session
+  const existingTicket = await prisma.escalationTicket.findFirst({
+    where: { sessionId, organizationId },
+    select: { id: true },
+  });
+
+  if (existingTicket) {
+    res.status(409).json({
+      error: 'An escalation ticket already exists for this session',
+      ticketId: existingTicket.id,
+    });
+    return;
+  }
+
   // Last assistant message becomes the context snippet shown to the team
   const lastAssistant = await prisma.sessionMessage.findFirst({
     where: { sessionId, role: 'assistant' },

@@ -96,13 +96,47 @@ describe('POST /api/v1/escalations/manual', () => {
     expect(res.body.error).toMatch(/sessionId/);
   });
 
-  it('returns 404 for a session that does not belong to this org', async () => {
+  it('returns 404 for a session belonging to a different org', async () => {
+    // Seed a second org with its own session
+    const otherOrg = await createTestOrg('Other Org');
+    const otherFlow = await prisma.onboardingFlow.create({
+      data: { organizationId: otherOrg.id, name: 'Other Flow', description: '', isActive: true },
+    });
+    const otherUser = await prisma.endUser.create({
+      data: { organizationId: otherOrg.id, externalId: 'other-user', metadata: {} },
+    });
+    const otherSession = await prisma.userOnboardingSession.create({
+      data: {
+        organizationId: otherOrg.id,
+        endUserId: otherUser.id,
+        flowId: otherFlow.id,
+        status: 'active',
+        collectedData: {},
+        lastActiveAt: new Date(),
+      },
+    });
+
+    // Attempt to hand off other org's session using our org's token
     const res = await request(app)
       .post('/api/v1/escalations/manual')
       .set('Authorization', `Bearer ${token}`)
-      .send({ sessionId: 'nonexistent-id' });
+      .send({ sessionId: otherSession.id });
 
     expect(res.status).toBe(404);
+
+    // Cleanup the second org
+    await cleanupOrg(otherOrg.id);
+  });
+
+  it('returns 409 when a ticket already exists for this session', async () => {
+    // sessionId already has a ticket from the first test
+    const res = await request(app)
+      .post('/api/v1/escalations/manual')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ sessionId, notes: 'Trying to create a second ticket.' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.ticketId).toBeTruthy();
   });
 
   it('returns 401 without auth', async () => {
