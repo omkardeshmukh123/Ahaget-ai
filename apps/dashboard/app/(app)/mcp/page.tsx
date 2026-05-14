@@ -536,7 +536,6 @@ function RecentActivity() {
   const [calls, setCalls]     = useState<McpCallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr]         = useState('');
-  const [, forceUpdate]       = useState(0); // trigger re-renders for relative time
 
   const fetchCalls = useCallback(async () => {
     try {
@@ -553,9 +552,7 @@ function RecentActivity() {
   useEffect(() => {
     fetchCalls();
     const pollInterval = setInterval(fetchCalls, 30_000);
-    // Refresh relative timestamps every 30s too
-    const relInterval  = setInterval(() => forceUpdate(n => n + 1), 30_000);
-    return () => { clearInterval(pollInterval); clearInterval(relInterval); };
+    return () => { clearInterval(pollInterval); };
   }, [fetchCalls]);
 
   const thStyle = s({ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '0 12px 10px', textAlign: 'left' as const, whiteSpace: 'nowrap' as const });
@@ -583,7 +580,7 @@ function RecentActivity() {
         {loading ? (
           <p style={{ fontSize: 12, color: 'var(--muted)', padding: '28px 20px', textAlign: 'center' }}>Loading…</p>
         ) : err ? (
-          <p style={{ fontSize: 12, color: 'var(--muted)', padding: '28px 20px', textAlign: 'center' }}>
+          <p style={{ fontSize: 12, color: '#ef4444', padding: '28px 20px', textAlign: 'center' }}>
             Could not load activity log: {err}
           </p>
         ) : calls.length === 0 ? (
