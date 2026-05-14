@@ -9,6 +9,7 @@ import { detectIntent } from '../services/intent';
 import { detectLanguage, translateText, transcribeAudio, synthesizeSpeech, isSarvamEnabled } from '../services/sarvam';
 
 import { getUserHistory } from '../services/userhistory';
+import { fetchSessionContext } from '../services/contextSources';
 import { logger } from '../lib/logger';
 import { createEscalationTicket, notifyTeam } from '../services/escalation';
 import { AuthenticatedRequest } from '../types';
@@ -207,8 +208,10 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
     }
   }
 
-  // find the org's active flow — prefer role-targeted, fall back to global (empty targetRoles)
-  const userRole = (metadata?.role as string | undefined) ?? '';
+  // find the org's active flow — priority: role > segment > plan > global
+  const userRole    = (metadata?.role    as string | undefined) ?? '';
+  const userSegment = (metadata?.segment as string | undefined) ?? '';
+  const userPlan    = (metadata?.plan    as string | undefined) ?? '';
   const baseFlow = await (async () => {
     if (userRole) {
       const roleFlow = await prisma.onboardingFlow.findFirst({
@@ -218,8 +221,27 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
       });
       if (roleFlow) return roleFlow;
     }
+    if (userSegment) {
+      const segFlow = await prisma.onboardingFlow.findFirst({
+        where: { organizationId: req.organization!.id, isActive: true, targetSegments: { has: userSegment } },
+        include: { steps: { orderBy: { order: 'asc' } } },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (segFlow) return segFlow;
+    }
+    if (userPlan) {
+      const planFlow = await prisma.onboardingFlow.findFirst({
+        where: { organizationId: req.organization!.id, isActive: true, targetPlans: { has: userPlan } },
+        include: { steps: { orderBy: { order: 'asc' } } },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (planFlow) return planFlow;
+    }
     return prisma.onboardingFlow.findFirst({
-      where: { organizationId: req.organization!.id, isActive: true, targetRoles: { isEmpty: true } },
+      where: {
+        organizationId: req.organization!.id, isActive: true,
+        targetRoles: { isEmpty: true }, targetSegments: { isEmpty: true }, targetPlans: { isEmpty: true },
+      },
       include: { steps: { orderBy: { order: 'asc' } } },
       orderBy: { createdAt: 'asc' },
     });
@@ -291,6 +313,7 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
         endUserId: endUser.id,
         organizationId: req.organization!.id,
         flowId: flow.id,
+        pageUrl: page ?? null,
         currentStepId: flow.steps[0].id,
         status: 'active',
         experimentId,
@@ -347,6 +370,23 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
   const otherSessionCount = await prisma.userOnboardingSession.count({
     where: { endUserId: endUser.id, NOT: { id: session.id } },
   });
+
+  // Fetch live context from configured context sources and store in session snapshot.
+  // Fire-and-forget: doesn't block the start response.
+  const userVars: Record<string, string> = {
+    userId,
+    ...(typeof metadata?.plan    === 'string' ? { plan:    metadata.plan    } : {}),
+    ...(typeof metadata?.role    === 'string' ? { role:    metadata.role    } : {}),
+    ...(typeof metadata?.segment === 'string' ? { segment: metadata.segment } : {}),
+  };
+  fetchSessionContext(org.id, userVars).then((liveContext) => {
+    if (liveContext && session) {
+      prisma.userOnboardingSession.update({
+        where: { id: session.id },
+        data: { liveContextSnapshot: liveContext },
+      }).catch(() => {}); // non-blocking, best-effort
+    }
+  }).catch(() => {}); // never block the start response
 
   res.json({
     session: {
@@ -813,6 +853,10 @@ router.post('/act', async (req: AuthenticatedRequest, res: Response) => {
     ? await translateText(userMessage, 'en', detectedLang)
     : userMessage;
 
+  const liveContext = typeof session.liveContextSnapshot === 'string'
+    ? session.liveContextSnapshot
+    : undefined;
+
   const action = await runAgentSafe({
     org: req.organization!,
     step: currentStep,
@@ -826,6 +870,7 @@ router.post('/act', async (req: AuthenticatedRequest, res: Response) => {
     sessionId: session.id,
     detectedLang,
     flowGoal: session.flow.description || undefined,
+    liveContext,
   });
 
   // ── Guard: block premature complete_step ─────────────────────────────────
@@ -949,6 +994,10 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
       ? await translateText(userMessage, 'en', streamDetectedLang)
       : userMessage;
 
+    const streamLiveContext = typeof session.liveContextSnapshot === 'string'
+      ? session.liveContextSnapshot
+      : undefined;
+
     let finalAction: import('../services/agent').AgentAction | null = null;
     const streamStart = Date.now();
     let firstTokenLogged = false;
@@ -965,6 +1014,7 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
       userMetadata: (session.endUser.metadata ?? {}) as Record<string, unknown>,
       detectedLang: streamDetectedLang,
       flowGoal: session.flow.description || undefined,
+      liveContext: streamLiveContext,
     })) {
       if (event.type === 'word') {
         if (!firstTokenLogged) {
@@ -1053,12 +1103,16 @@ router.post('/act/goal', async (req: AuthenticatedRequest, res: Response) => {
 
   let userMetadata: Record<string, unknown> | undefined;
   let userHistoryFormatted: string | undefined;
+  let goalLiveContext: string | undefined;
   if (turnCount === 0) {
     const goalSession = await prisma.userOnboardingSession.findFirst({
       where: { id: sessionId, organizationId: req.organization!.id },
-      select: { endUserId: true, endUser: { select: { metadata: true } } },
+      select: { endUserId: true, liveContextSnapshot: true, endUser: { select: { metadata: true } } },
     }).catch(() => null);
     userMetadata = (goalSession?.endUser.metadata ?? {}) as Record<string, unknown>;
+    goalLiveContext = typeof goalSession?.liveContextSnapshot === 'string'
+      ? goalSession.liveContextSnapshot
+      : undefined;
     if (goalSession) {
       const history = await getUserHistory(goalSession.endUserId, sessionId).catch(() => null);
       userHistoryFormatted = history?.formatted;
@@ -1082,6 +1136,7 @@ router.post('/act/goal', async (req: AuthenticatedRequest, res: Response) => {
     userMetadata,
     userHistoryFormatted,
     detectedLang: goalDetectedLang,
+    liveContext: goalLiveContext,
   });
 
   const localizedGoalAction = await localizeAction(action, goalDetectedLang);
