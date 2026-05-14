@@ -168,7 +168,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ name, description, flowType: flowType ?? 'onboarding' }),
       }),
-    update: (id: string, data: Partial<Pick<OnboardingFlow, 'name' | 'description' | 'isActive' | 'triggerDelayMs' | 'urlPattern' | 'maxTriggersPerUser'>>) =>
+    update: (id: string, data: Partial<Pick<OnboardingFlow, 'name' | 'description' | 'isActive' | 'triggerDelayMs' | 'urlPattern' | 'maxTriggersPerUser' | 'targetRoles' | 'targetSegments' | 'targetPlans'>>) =>
       apiFetch<{ updated: boolean }>(`/api/v1/flow/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
@@ -394,6 +394,13 @@ export const api = {
       apiFetch<{ endpoint: RestApiEndpoint }>(`/api/v1/mcp/${id}/endpoints`, { method: 'POST', body: JSON.stringify(data) }),
     deleteEndpoint: (id: string, endpointId: string) =>
       apiFetch<{ deleted: boolean }>(`/api/v1/mcp/${id}/endpoints/${endpointId}`, { method: 'DELETE' }),
+    listCalls: (params?: { connectorId?: string; limit?: number }) => {
+      const qs = new URLSearchParams();
+      if (params?.limit) qs.set('limit', String(params.limit));
+      if (params?.connectorId) qs.set('connectorId', params.connectorId);
+      const query = qs.toString() ? `?${qs.toString()}` : '';
+      return apiFetch<{ calls: McpCallLog[] }>(`/api/v1/mcp/calls${query}`);
+    },
   },
 
   audit: {
@@ -547,6 +554,30 @@ export const api = {
       }),
     archiveSnapshot: (id: string) =>
       apiFetch<{ archived: boolean }>(`/api/v1/interface-map/snapshots/${id}`, { method: 'DELETE' }),
+  },
+
+  contextSources: {
+    list: () => apiFetch<{ sources: ContextSource[] }>('/api/v1/context-sources'),
+    create: (data: {
+      name: string; description?: string; enabled?: boolean;
+      connectorId?: string | null; mcpToolName?: string | null;
+      mcpToolArgs?: Record<string, unknown>;
+      restUrl?: string | null; restMethod?: string;
+      contextKey: string; allowedFields?: string[];
+    }) => apiFetch<{ source: ContextSource }>('/api/v1/context-sources', {
+      method: 'POST', body: JSON.stringify(data),
+    }),
+    update: (id: string, data: Partial<{
+      name: string; description: string; enabled: boolean;
+      connectorId: string | null; mcpToolName: string | null;
+      mcpToolArgs: Record<string, unknown>;
+      restUrl: string | null; restMethod: string;
+      contextKey: string; allowedFields: string[];
+    }>) => apiFetch<{ source: ContextSource }>(`/api/v1/context-sources/${id}`, {
+      method: 'PUT', body: JSON.stringify(data),
+    }),
+    delete: (id: string) => apiFetch<{ deleted: boolean }>(`/api/v1/context-sources/${id}`, { method: 'DELETE' }),
+    test: (id: string) => apiFetch<{ raw: unknown; filtered: unknown; error?: string }>(`/api/v1/context-sources/${id}/test`, { method: 'POST' }),
   },
 
   playbook: {
@@ -713,6 +744,22 @@ export interface BillingStatus {
   plans: BillingPlan[];
 }
 
+export interface ContextSource {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  connectorId: string | null;
+  mcpToolName: string | null;
+  mcpToolArgs: Record<string, unknown>;
+  restUrl: string | null;
+  restMethod: string;
+  contextKey: string;
+  allowedFields: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface McpConnector {
   id: string;
   name: string;
@@ -725,6 +772,17 @@ export interface McpConnector {
   readOnly: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface McpCallLog {
+  id:            string;
+  connectorName: string;
+  toolName:      string;
+  callType:      'mcp' | 'rest';
+  isError:       boolean;
+  latencyMs:     number | null;
+  createdAt:     string;
+  sessionId:     string | null;
 }
 
 export interface RestApiEndpoint {
@@ -765,6 +823,9 @@ export interface OnboardingFlow {
   triggerDelayMs: number;
   urlPattern: string;
   maxTriggersPerUser: number;
+  targetRoles: string[];
+  targetSegments: string[];
+  targetPlans: string[];
   createdAt: string;
   updatedAt: string;
   steps: OnboardingStep[];
@@ -1205,6 +1266,7 @@ export interface SessionDetail {
   lastActiveAt: string;
   firstValueAt: string | null;
   collectedData: Record<string, unknown>;
+  liveContextSnapshot: string | null;
   escalationTicketId: string | null;
   flow: { id: string; name: string };
   endUser: {
