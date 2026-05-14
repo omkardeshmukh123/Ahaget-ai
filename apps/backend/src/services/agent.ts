@@ -401,7 +401,7 @@ RESPONSE TURN: The user has replied or taken an action.
 
   // Token budget guard — cap combined variable sections to ~40k chars (~10k tokens)
   const TOKEN_BUDGET_CHARS = 40_000;
-  const variableSize = domSummary.length + kbSection.length + mcpSection.length + historySection.length + (liveContext?.length ?? 0);
+  const variableSize = domSummary.length + kbSection.length + mcpSection.length + historySection.length;
   let trimmedKbSection = kbSection;
   let trimmedDomSummary = domSummary;
   if (variableSize > TOKEN_BUDGET_CHARS) {
