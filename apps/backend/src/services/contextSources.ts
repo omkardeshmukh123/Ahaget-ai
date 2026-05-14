@@ -2,8 +2,15 @@
 // Fetches all enabled ContextSource rows for an org at session start and returns
 // a formatted LIVE CONTEXT block for injection into the agent system prompt.
 //
+// Caching behaviour:
+//   • Source list (ContextSource rows) is cached per-org for 60 s (TTL-based).
+//     Call invalidateContextSourceCache(orgId) after any ContextSource write to
+//     force a fresh DB read on the next request.
+//   • The fetched context data (results from each source) is NOT cached here —
+//     callers are responsible for caching per session.
+//
 // Each source is fetched in parallel with a 2 s hard timeout — failures are
-// silently skipped. Results are NOT cached here; callers should cache per session.
+// silently skipped. The function never throws; it returns '' on any fatal error.
 
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
@@ -92,13 +99,21 @@ async function fetchMcpSource(
 
   const interpolatedArgs = interpolate(source.mcpToolArgs, userVars) as Record<string, unknown>;
 
-  const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('MCP call timed out')), 2000)
-  );
+  let timerId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timerId = setTimeout(() => reject(new Error('MCP call timed out')), 2000);
+  });
 
-  const callPromise = callMcpTool(connector as ConnectorRow, source.mcpToolName!, interpolatedArgs);
+  const callMcpToolPromise = callMcpTool(connector as ConnectorRow, source.mcpToolName!, interpolatedArgs);
 
-  const result = await Promise.race([callPromise, timeoutPromise]);
+  let result: Awaited<ReturnType<typeof callMcpTool>>;
+  try {
+    result = await Promise.race([callMcpToolPromise, timeoutPromise]);
+    clearTimeout(timerId);
+  } catch (err) {
+    clearTimeout(timerId);
+    throw err; // re-throw so outer catch handles it
+  }
 
   if (result.isError) {
     logger.warn('[contextSources] MCP tool returned error', { sourceId: source.id, toolName: source.mcpToolName });
@@ -182,10 +197,15 @@ export async function fetchSessionContext(
   if (cached && Date.now() - cached.fetchedAt < SOURCE_CACHE_TTL_MS) {
     sources = cached.sources;
   } else {
-    sources = await prisma.contextSource.findMany({
-      where: { organizationId: orgId, enabled: true },
-    }) as ContextSourceRow[];
-    sourceCache.set(orgId, { sources, fetchedAt: Date.now() });
+    try {
+      sources = await prisma.contextSource.findMany({
+        where: { organizationId: orgId, enabled: true },
+      }) as ContextSourceRow[];
+      sourceCache.set(orgId, { sources, fetchedAt: Date.now() });
+    } catch (err) {
+      logger.warn('[contextSources] failed to load source list', { orgId, err: (err as Error).message });
+      return '';
+    }
   }
 
   if (sources.length === 0) return '';

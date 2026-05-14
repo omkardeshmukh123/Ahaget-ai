@@ -364,7 +364,69 @@ describe('fetchSessionContext()', () => {
     });
   });
 
-  // ── 9. Multi-source aggregation ───────────────────────────────────────────────
+  // ── 9. DB load failure → returns '' without throwing ──────────────────────────
+  describe('DB load failure', () => {
+    it('returns empty string when prisma.contextSource.findMany throws', async () => {
+      mockFindMany.mockRejectedValue(new Error('Connection refused'));
+
+      const result = await fetchSessionContext(ORG_ID, USER_VARS);
+
+      expect(result).toBe('');
+      // fetch should never have been called
+      expect(globalFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── 10. MCP timeout → source skipped, others still returned ──────────────────
+  describe('MCP source timeout', () => {
+    it('skips MCP source that exceeds 2s timeout but returns other sources', async () => {
+      jest.useFakeTimers();
+
+      mockFindMany.mockResolvedValue([
+        makeSource({
+          id: 'src-mcp-slow',
+          contextKey: 'SlowMcp',
+          connectorId: 'conn-1',
+          mcpToolName: 'slow_tool',
+          mcpToolArgs: {},
+        }),
+        makeSource({
+          id: 'src-rest-fast',
+          contextKey: 'FastRest',
+          restUrl: 'https://api.example.com/fast',
+        }),
+      ] as never);
+
+      mockFindUnique.mockResolvedValue({
+        id: 'conn-1',
+        name: 'Slow MCP',
+        serverUrl: 'https://mcp.example.com',
+        authType: 'none',
+        authValue: null,
+        allowedTools: [],
+        readOnly: false,
+      } as never);
+
+      // callMcpTool never resolves (hangs forever — simulates a slow MCP server)
+      mockCallMcp.mockReturnValue(new Promise(() => {}));
+
+      globalFetch.mockReturnValue(makeJsonResponse({ status: 'ok' }));
+
+      // Start the call, then advance time past the 2s MCP timeout and flush microtasks
+      const promise = fetchSessionContext(ORG_ID, USER_VARS);
+      await jest.runAllTimersAsync();
+
+      const result = await promise;
+
+      expect(result).not.toContain('SlowMcp');
+      expect(result).toContain('FastRest');
+      expect(result).toContain('LIVE CONTEXT');
+
+      jest.useRealTimers();
+    });
+  });
+
+  // ── 11. Multi-source aggregation ──────────────────────────────────────────────
   describe('multiple sources', () => {
     it('aggregates all successful sources into one LIVE CONTEXT block', async () => {
       mockFindMany.mockResolvedValue([
