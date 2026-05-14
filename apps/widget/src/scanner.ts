@@ -21,16 +21,28 @@ export interface ScannedElement {
   role?: string;          // aria role or implicit role
   classes: string[];      // CSS classes (filtered, for fuzzy matching)
   rect: { x: number; y: number; w: number; h: number }; // viewport position
+  disabled?: boolean;     // element is disabled
 }
 
 // PageElement includes value so the agent can verify fills
-export type PageElement = Pick<ScannedElement, 'tag' | 'selector' | 'text' | 'type'> & { value?: string };
+export type PageElement = Pick<ScannedElement, 'tag' | 'selector' | 'text' | 'type'> & {
+  value?: string;
+  checked?: boolean;       // checkbox/radio checked state
+  disabled?: boolean;      // element is disabled/non-interactive
+  selectedText?: string;   // <select> human-readable selected option label
+};
 
 export interface PageContext {
   url: string;
   title: string;
   headings: string[];
-  elements: PageElement[]; // kept lean for the AI prompt — full data in elementIndex
+  elements: PageElement[];
+  semanticSummary?: string;
+  modalContext?: {
+    title: string;
+    elements: PageElement[];
+  } | null;
+  recentDomEvents?: string[];
 }
 
 // ─── Module-level element index ───────────────────────────────────────────────
