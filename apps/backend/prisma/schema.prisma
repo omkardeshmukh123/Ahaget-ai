@@ -563,6 +563,7 @@ model ContextSource {
   connector      McpConnector? @relation(fields: [connectorId], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
+  @@unique([organizationId, contextKey])
   @@map("context_sources")
 }
 

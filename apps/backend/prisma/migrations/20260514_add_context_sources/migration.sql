@@ -16,7 +16,7 @@ CREATE TABLE "context_sources" (
     "context_key" TEXT NOT NULL,
     "allowed_fields" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "context_sources_pkey" PRIMARY KEY ("id")
 );
@@ -31,3 +31,7 @@ ALTER TABLE "context_sources" ADD CONSTRAINT "context_sources_organization_id_fk
 -- AddForeignKey
 ALTER TABLE "context_sources" ADD CONSTRAINT "context_sources_connector_id_fkey"
     FOREIGN KEY ("connector_id") REFERENCES "mcp_connectors"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- UniqueConstraint: contextKey per org
+ALTER TABLE "context_sources" ADD CONSTRAINT "context_sources_org_context_key_key"
+    UNIQUE ("organization_id", "context_key");
