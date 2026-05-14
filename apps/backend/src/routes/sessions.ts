@@ -227,6 +227,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
       firstValueAt: session.firstValueAt,
       escalationTicketId: escalationTicket?.id ?? null,
       collectedData: session.collectedData,
+      liveContextSnapshot: session.liveContextSnapshot ?? null,
       flow: {
         id: session.flow.id,
         name: session.flow.name,

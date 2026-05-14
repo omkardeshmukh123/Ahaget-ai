@@ -121,6 +121,8 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
     urlPattern,
     maxTriggersPerUser,
     targetRoles,
+    targetSegments,
+    targetPlans,
     flowType,
     triggerCondition,
   } = req.body as {
@@ -131,6 +133,8 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
     urlPattern?: string;
     maxTriggersPerUser?: number;
     targetRoles?: string[];
+    targetSegments?: string[];
+    targetPlans?: string[];
     flowType?: string;
     triggerCondition?: Record<string, unknown>;
   };
@@ -144,6 +148,8 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
       ...(urlPattern !== undefined && { urlPattern }),
       ...(maxTriggersPerUser !== undefined && { maxTriggersPerUser }),
       ...(targetRoles !== undefined && { targetRoles }),
+      ...(targetSegments !== undefined && { targetSegments }),
+      ...(targetPlans !== undefined && { targetPlans }),
       ...(flowType !== undefined && { flowType }),
       ...(triggerCondition !== undefined && { triggerCondition: triggerCondition as Prisma.InputJsonValue }),
     },

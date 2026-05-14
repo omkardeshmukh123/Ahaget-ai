@@ -505,6 +505,7 @@ model McpConnector {
   // Scoped permissions
   allowedTools   String[] @default([]) @map("allowed_tools") // empty = all tools allowed
   readOnly       Boolean  @default(false) @map("read_only")  // block write-verb tool calls
+  allowInGoalMode Boolean @default(false) @map("allow_in_goal_mode")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 

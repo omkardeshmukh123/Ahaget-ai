@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api, SessionListItem } from '@/lib/api';
 
@@ -28,13 +28,33 @@ function fmtDate(iso: string) {
   });
 }
 
+const DATE_INPUT_STYLE: React.CSSProperties = {
+  padding: '4px 8px', background: 'var(--surface-low)',
+  border: '1px solid rgba(70,69,84,0.2)', borderRadius: 6,
+  color: 'var(--on-surface)', fontSize: 12, cursor: 'pointer',
+};
+
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [total, setTotal]       = useState(0);
   const [offset, setOffset]     = useState(0);
   const [loading, setLoading]   = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'abandoned'>('all');
-  const [search, setSearch]     = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [q, setQ]               = useState('');
+  const [from, setFrom]         = useState('');
+  const [to, setTo]             = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce search input → server-side q param
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setQ(searchInput);
+      setOffset(0);
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchInput]);
 
   useEffect(() => {
     setLoading(true);
@@ -42,18 +62,14 @@ export default function SessionsPage() {
       limit: PAGE_SIZE,
       offset,
       status: statusFilter === 'all' ? undefined : statusFilter,
+      q: q || undefined,
+      from: from || undefined,
+      to: to || undefined,
     }).then((d) => {
       setSessions(d.sessions);
       setTotal(d.total);
     }).finally(() => setLoading(false));
-  }, [offset, statusFilter]);
-
-  const filtered = search
-    ? sessions.filter((s) =>
-        (s.endUser.externalId ?? '').toLowerCase().includes(search.toLowerCase()) ||
-        s.flow.name.toLowerCase().includes(search.toLowerCase())
-      )
-    : sessions;
+  }, [offset, statusFilter, q, from, to]);
 
   return (
     <div style={{ padding: '28px 32px', maxWidth: 1100 }}>
@@ -66,8 +82,8 @@ export default function SessionsPage() {
           </p>
         </div>
         <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Search user or flow…"
           style={{
             padding: '8px 12px', background: 'var(--surface-low)',
@@ -77,8 +93,8 @@ export default function SessionsPage() {
         />
       </div>
 
-      {/* Status filter */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+      {/* Status filter + date range */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         {(['all', 'active', 'completed', 'abandoned'] as const).map((s) => (
           <button
             key={s}
@@ -100,6 +116,32 @@ export default function SessionsPage() {
             {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
         ))}
+
+        {/* Date range */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 8 }}>
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => { setFrom(e.target.value); setOffset(0); }}
+            style={DATE_INPUT_STYLE}
+          />
+          <span style={{ fontSize: 11, color: 'var(--muted)' }}>to</span>
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => { setTo(e.target.value); setOffset(0); }}
+            style={DATE_INPUT_STYLE}
+          />
+          {(from || to) && (
+            <button
+              onClick={() => { setFrom(''); setTo(''); setOffset(0); }}
+              style={{ fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--muted)', alignSelf: 'center' }}>
           {total} total
         </span>
@@ -109,12 +151,12 @@ export default function SessionsPage() {
       <div style={{ background: 'var(--surface)', border: '1px solid rgba(70,69,84,0.12)', borderRadius: 12, overflow: 'hidden' }}>
         {loading ? (
           <div style={{ padding: '48px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Loading…</div>
-        ) : filtered.length === 0 ? (
+        ) : sessions.length === 0 ? (
           <div style={{ padding: '64px', textAlign: 'center' }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>◎</div>
-            <p style={{ fontWeight: 600, color: 'var(--on-surface)', margin: 0 }}>No sessions yet</p>
+            <p style={{ fontWeight: 600, color: 'var(--on-surface)', margin: 0 }}>No sessions found</p>
             <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6 }}>
-              Sessions appear once users start interacting with your agent flows.
+              {q || from || to ? 'Try adjusting your filters.' : 'Sessions appear once users start interacting with your agent flows.'}
             </p>
           </div>
         ) : (
@@ -134,7 +176,7 @@ export default function SessionsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((s) => {
+              {sessions.map((s) => {
                 const sc = STATUS_COLORS[s.status] ?? STATUS_COLORS.abandoned;
                 const fc = FLOW_TYPE_COLORS[s.flow.flowType] ?? '#6366f1';
                 return (
@@ -144,6 +186,25 @@ export default function SessionsPage() {
                       {s.endUser.externalId
                         ? <code style={{ fontSize: 12, background: 'var(--surface-low)', padding: '2px 6px', borderRadius: 4 }}>{s.endUser.externalId}</code>
                         : <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>anonymous</span>}
+                      {(() => {
+                        const m = s.endUser.metadata as Record<string, unknown>;
+                        const tags = [
+                          m?.plan    && { label: String(m.plan),    color: '#6366f1' },
+                          m?.role    && { label: String(m.role),    color: '#0ea5e9' },
+                          m?.segment && { label: String(m.segment), color: '#10b981' },
+                        ].filter(Boolean) as { label: string; color: string }[];
+                        if (tags.length === 0) return null;
+                        return (
+                          <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+                            {tags.map((t) => (
+                              <span key={t.label} style={{
+                                fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 3,
+                                background: `${t.color}18`, color: t.color, border: `1px solid ${t.color}30`,
+                              }}>{t.label}</span>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </td>
                     {/* Flow */}
                     <td style={{ padding: '12px 16px' }}>

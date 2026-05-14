@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { api, OnboardingFlow, FlowTemplateMeta } from '@/lib/api';
+import { api, OnboardingFlow, FlowTemplateMeta, FlowActivationStat } from '@/lib/api';
 
 const FLOW_TYPES = [
   { value: 'onboarding', label: 'Onboarding', color: 'bg-indigo-50 text-indigo-700', desc: 'Get new users to their first value moment' },
@@ -30,10 +30,12 @@ export default function FlowsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [templates, setTemplates] = useState<FlowTemplateMeta[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [flowStats, setFlowStats] = useState<FlowActivationStat[]>([]);
 
   useEffect(() => {
-    api.flow.list().then((d) => {
-      setFlows(d.flows);
+    Promise.all([api.flow.list(), api.activation.flows()]).then(([flowsData, statsData]) => {
+      setFlows(flowsData.flows);
+      setFlowStats(statsData.flows);
       setLoading(false);
     });
   }, []);
@@ -66,6 +68,10 @@ export default function FlowsPage() {
     if (!confirm('Delete this flow?')) return;
     await api.flow.delete(id);
     setFlows((prev) => prev.filter((f) => f.id !== id));
+  }
+
+  function statFor(flowId: string): FlowActivationStat | undefined {
+    return flowStats.find((s) => s.flowId === flowId);
   }
 
   const filtered = flows
@@ -207,6 +213,8 @@ export default function FlowsPage() {
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Name</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Type</th>
                 <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Steps</th>
+                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Sessions</th>
+                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Completion</th>
                 <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Status</th>
                 <th className="px-6 py-3" />
               </tr>
@@ -229,6 +237,22 @@ export default function FlowsPage() {
                     </td>
                     <td className="px-4 py-4 text-right text-slate-500">
                       {flow.steps?.length ?? 0}
+                    </td>
+                    <td className="px-4 py-4 text-right text-slate-500">
+                      {statFor(flow.id)?.totalSessions ?? '—'}
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      {(() => {
+                        const stat = statFor(flow.id);
+                        if (!stat || stat.totalSessions === 0) return <span className="text-slate-300 text-xs">—</span>;
+                        const rate = stat.completionRate;
+                        const color = rate >= 70 ? 'bg-emerald-50 text-emerald-700' : rate >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600';
+                        return (
+                          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>
+                            {rate}%
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">

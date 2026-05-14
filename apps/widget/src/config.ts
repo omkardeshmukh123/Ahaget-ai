@@ -46,9 +46,10 @@ export function readScriptTagConfig(): Partial<WidgetConfig> {
 
   // Build metadata from individual attrs AND/OR a JSON blob
   const meta: Record<string, unknown> = {};
-  if (d.ahagetPlan)    meta.plan    = d.ahagetPlan;
-  if (d.ahagetRole)    meta.role    = d.ahagetRole;
-  if (d.ahagetSegment) meta.segment = d.ahagetSegment;
+  if (d.ahagetPlan)       meta.plan       = d.ahagetPlan;
+  if (d.ahagetRole)       meta.role       = d.ahagetRole;
+  if (d.ahagetSegment)    meta.segment    = d.ahagetSegment;
+  if (d.ahagetAccountAge) meta.accountAge = d.ahagetAccountAge;
 
   try {
     if (d.ahagetMetadata) {

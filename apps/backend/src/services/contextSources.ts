@@ -104,7 +104,7 @@ async function fetchMcpSource(
     timerId = setTimeout(() => reject(new Error('MCP call timed out')), 2000);
   });
 
-  const callMcpToolPromise = callMcpTool(connector as ConnectorRow, source.mcpToolName!, interpolatedArgs);
+  const callMcpToolPromise = callMcpTool(connector as ConnectorRow, source.mcpToolName!, interpolatedArgs, { orgId: source.organizationId });
 
   let result: Awaited<ReturnType<typeof callMcpTool>>;
   try {

@@ -24,7 +24,7 @@ Go to **Flows → New flow** and pick a template for your SaaS vertical (Analyti
 <script src="https://cdn.ahaget.ai/widget.js"></script>
 \`\`\`
 
-**3. Initialize with your API key**
+**3. Initialize with your API key and user data**
 
 \`\`\`html
 <script>
@@ -32,12 +32,16 @@ Go to **Flows → New flow** and pick a template for your SaaS vertical (Analyti
     apiKey: 'org_YOUR_KEY',     // Settings → Widget in the dashboard
     userId: currentUser.id,     // your own user ID — must be a string
     metadata: {
-      plan: 'trial',
-      role: 'admin',
+      plan: currentUser.plan,           // 'free' | 'pro' | 'enterprise'
+      role: currentUser.role,           // 'admin' | 'member' | 'viewer'
+      segment: currentUser.segment,     // optional — your internal segment
+      accountAge: currentUser.daysSinceSignup,  // optional — days since signup
     },
   });
 </script>
 \`\`\`
+
+User attributes power two things: **flow targeting** (free vs pro users follow different sequences) and **AI personalization** (the agent adapts tone and depth automatically). See **User data & personalization** below for the full reference.
 
 **4. Fire completion events when users take action**
 
@@ -69,7 +73,7 @@ Initializes the widget. Call once per page load after the script tag loads.
 |--------|------|---------|-------------|
 | \`apiKey\` | \`string\` | required | Your org API key from **Settings → Widget** |
 | \`userId\` | \`string\` | auto-generated | Your user's internal ID — use a consistent identifier |
-| \`metadata\` | \`object\` | \`{}\` | Arbitrary JSON passed to the AI as context (plan, role, page, etc.) |
+| \`metadata\` | \`object\` | \`{}\` | User attributes passed to the AI and used for flow targeting. First-class keys: \`plan\`, \`role\`, \`segment\`, \`accountAge\`. Any other key is passed through verbatim. See **User data & personalization**. |
 | \`idleThreshold\` | \`number\` | \`30000\` | Ms of inactivity before the copilot opens automatically |
 | \`primaryColor\` | \`string\` | \`'#6366f1'\` | Hex accent color for the widget |
 | \`position\` | \`string\` | \`'bottom-right'\` | Bubble position: \`'bottom-right'\` or \`'bottom-left'\` |
@@ -92,6 +96,60 @@ The copilot opens automatically in two cases:
 ### Bundle size
 
 The widget is a self-contained IIFE bundle. Zero external dependencies. ~15KB gzipped.
+    `,
+  },
+  {
+    id: 'user-data',
+    title: 'User data & personalization',
+    content: `
+Pass user attributes at init to enable personalized AI responses and flow targeting.
+
+### Method 1 — script tag shorthand
+
+Works without JS — useful for server-rendered pages where you can write attributes directly:
+
+\`\`\`html
+<script src="https://cdn.ahaget.ai/widget.js"
+  data-ahaget-key="org_YOUR_KEY"
+  data-ahaget-user-id="{{ current_user.id }}"
+  data-ahaget-plan="{{ current_user.plan }}"
+  data-ahaget-role="{{ current_user.role }}"
+  data-ahaget-segment="{{ current_user.segment }}"
+  data-ahaget-account-age="{{ current_user.days_since_signup }}"
+></script>
+\`\`\`
+
+### Method 2 — JS init metadata
+
+More flexible — supports any custom key and works with async user loading:
+
+\`\`\`js
+Ahaget('init', {
+  apiKey: 'org_YOUR_KEY',
+  userId: currentUser.id,
+  metadata: {
+    plan: currentUser.plan,                    // 'free' | 'pro' | 'enterprise'
+    role: currentUser.role,                    // 'admin' | 'member' | 'viewer'
+    segment: currentUser.segment,              // e.g. 'startup', 'smb', 'enterprise'
+    accountAge: currentUser.daysSinceSignup,   // number — days since signup
+    company: currentUser.company,              // any custom key works
+  },
+});
+\`\`\`
+
+### What user data enables
+
+| Attribute | Script tag | metadata key | Powers |
+|-----------|------------|--------------|--------|
+| Plan | \`data-ahaget-plan\` | \`plan\` | Flow targeting + AI tone hints |
+| Role | \`data-ahaget-role\` | \`role\` | Flow targeting + AI tone hints |
+| Segment | \`data-ahaget-segment\` | \`segment\` | Flow targeting |
+| Account age | \`data-ahaget-account-age\` | \`accountAge\` | AI tone hints |
+| Any other | — | any key | Passed to AI as context |
+
+**Flow targeting** — in the flow editor, set Target Audience rules (plan, role, segment) to show different flows to different users. A free-plan user and a pro-plan user follow different onboarding sequences automatically.
+
+**AI personalization** — the AI sees a USER PROFILE block with your user's plan, role, segment, and account age, and adapts its guidance automatically. A brand-new user gets more hand-holding; an enterprise admin gets technical depth.
     `,
   },
   {

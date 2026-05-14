@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api, SessionDetail, SessionMessage } from '@/lib/api';
 
@@ -15,6 +16,29 @@ function fmtDate(iso: string | null) {
   return new Date(iso).toLocaleString('en-US', {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
+}
+
+function exportTranscript(session: SessionDetail) {
+  const lines = [
+    `Session: ${session.id}`,
+    `Flow: ${session.flow.name}`,
+    `User: ${session.endUser.externalId ?? 'anonymous'}`,
+    `Status: ${session.status}`,
+    `Started: ${session.startedAt}`,
+    '',
+    '--- Steps ---',
+    ...session.steps.map((s) => `${s.order + 1}. ${s.title} — ${s.status}`),
+    '',
+    '--- Chat Transcript ---',
+    ...session.messages.map((m) => `[${m.role.toUpperCase()}] ${m.content}`),
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `session-${session.id.slice(0, 8)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 const ACTION_BADGE: Record<string, { label: string; color: string }> = {
@@ -109,11 +133,21 @@ export default function SessionReplayPage() {
   const [error,   setError]   = useState('');
   const [activeStep, setActiveStep] = useState<string | null>(null);
 
+  // Hand-off modal state
+  const [showHandoff,     setShowHandoff]     = useState(false);
+  const [handoffNotes,    setHandoffNotes]    = useState('');
+  const [handoffLoading,  setHandoffLoading]  = useState(false);
+  const [handoffError,    setHandoffError]    = useState('');
+  const [handoffResult,   setHandoffResult]   = useState<{ id: string; status: string } | null>(null);
+
+  // Copy-link state
+  const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     api.sessions.get(id)
       .then((d) => {
         setSession(d.session);
-        // Auto-select first non-completed or dropped step for focus
         const focus = d.session.steps.find((s) =>
           s.outcome === 'dropped' || s.status === 'in_progress'
         ) ?? d.session.steps[0];
@@ -122,6 +156,42 @@ export default function SessionReplayPage() {
       .catch(() => setError('Session not found'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Poll every 10s while session is active
+  useEffect(() => {
+    if (!session || session.status !== 'active') return;
+    const interval = setInterval(async () => {
+      try {
+        const d = await api.sessions.get(id);
+        setSession(d.session);
+      } catch { /* silent — keep polling */ }
+    }, 10_000);
+    return () => clearInterval(interval);
+  }, [id, session?.status]);
+
+  async function handleHandoff() {
+    if (!session) return;
+    setHandoffLoading(true);
+    setHandoffError('');
+    try {
+      const { ticket } = await api.escalations.createManual(session.id, handoffNotes || undefined);
+      setHandoffResult(ticket);
+      setSession((s) => s ? { ...s, escalationTicketId: ticket.id } : s);
+      setShowHandoff(false);
+    } catch (e: unknown) {
+      setHandoffError(e instanceof Error ? e.message : 'Failed to create ticket');
+    } finally {
+      setHandoffLoading(false);
+    }
+  }
+
+  function handleCopyLink() {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   if (loading) return (
     <div style={{ padding: 48, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
@@ -143,10 +213,13 @@ export default function SessionReplayPage() {
     (session.collectedData ?? {}) as Record<string, unknown>
   );
   const selectedStep = session.steps.find((s) => s.stepId === activeStep);
+  const isHandedOff  = !!(session.escalationTicketId || handoffResult);
 
   return (
     <div style={{ padding: '24px 32px', maxWidth: 1080 }}>
-      {/* Back + header */}
+      <style>{`@keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
+
+      {/* Back */}
       <button
         onClick={() => router.push('/sessions')}
         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 13, marginBottom: 16, padding: 0 }}
@@ -154,7 +227,8 @@ export default function SessionReplayPage() {
         ← Back to sessions
       </button>
 
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--on-surface)', margin: 0 }}>
             Session Replay
@@ -163,22 +237,87 @@ export default function SessionReplayPage() {
             {session.id}
           </p>
         </div>
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: sc.bg, color: sc.text,
-          border: `1px solid ${sc.dot}40`, borderRadius: 20,
-          padding: '4px 12px', fontSize: 12, fontWeight: 600,
-        }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: sc.dot, display: 'inline-block' }} />
-          {session.status}
-        </span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {/* Status badge — pulsing dot for live */}
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: sc.bg, color: sc.text,
+            border: `1px solid ${sc.dot}40`, borderRadius: 20,
+            padding: '4px 12px', fontSize: 12, fontWeight: 600,
+          }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: '50%', background: sc.dot, display: 'inline-block',
+              ...(session.status === 'active' ? { animation: 'livePulse 1.5s ease-in-out infinite' } : {}),
+            }} />
+            {session.status === 'active' ? 'Live' : session.status}
+          </span>
+
+          {/* Copy link */}
+          <button
+            onClick={handleCopyLink}
+            style={{
+              padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+              background: 'var(--surface-low)', border: '1px solid rgba(70,69,84,0.2)',
+              color: copied ? '#10b981' : 'var(--muted)', cursor: 'pointer',
+            }}
+          >
+            {copied ? '✓ Copied' : 'Copy link'}
+          </button>
+
+          {/* Export transcript */}
+          <button
+            onClick={() => exportTranscript(session)}
+            style={{
+              padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+              background: 'var(--surface-low)', border: '1px solid rgba(70,69,84,0.2)',
+              color: 'var(--muted)', cursor: 'pointer',
+            }}
+          >
+            Export
+          </button>
+
+          {/* Hand off / handed-off state */}
+          {!isHandedOff ? (
+            <button
+              onClick={() => setShowHandoff(true)}
+              style={{
+                padding: '5px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                background: 'linear-gradient(135deg, #FF857A, #EBAEE6)',
+                color: '#3d1008', border: 'none', cursor: 'pointer',
+                boxShadow: '0 0 12px rgba(255,133,122,0.22)',
+              }}
+            >
+              ↗ Hand Off to Team
+            </button>
+          ) : (
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#10b981' }}>
+              ✓ Handed off
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Summary KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 28 }}>
+        {/* User — links to users page */}
+        <Link href="/users" style={{ textDecoration: 'none' }}>
+          <div style={{
+            background: 'var(--surface)', border: '1px solid rgba(70,69,84,0.12)',
+            borderRadius: 10, padding: '14px 16px', cursor: 'pointer',
+          }}>
+            <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              User
+            </p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#FF857A', margin: '4px 0 0', wordBreak: 'break-all' }}>
+              {session.endUser.externalId ?? 'anonymous'}
+            </p>
+          </div>
+        </Link>
+
+        {/* Remaining KPIs */}
         {[
           { label: 'Flow',          value: session.flow.name },
-          { label: 'User',          value: session.endUser.externalId ?? 'anonymous' },
           { label: 'Steps',         value: `${doneSteps} / ${totalSteps}` },
           { label: 'Time spent',    value: fmt(totalMs) },
           { label: 'Started',       value: fmtDate(session.startedAt) },
@@ -225,6 +364,23 @@ export default function SessionReplayPage() {
           <span style={{ fontSize: 18 }}>⭐</span>
           <span style={{ color: '#92400e' }}>
             <strong>First value reached</strong> at {fmtDate(session.firstValueAt)}
+          </span>
+        </div>
+      )}
+
+      {/* Escalation banner */}
+      {session.escalationTicketId && (
+        <div style={{
+          background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10,
+          padding: '12px 16px', marginBottom: 20,
+          display: 'flex', alignItems: 'center', gap: 10, fontSize: 13,
+        }}>
+          <span style={{ fontSize: 18 }}>🔔</span>
+          <span style={{ color: '#1e40af', display: 'flex', alignItems: 'center', gap: 10, flex: 1, justifyContent: 'space-between' }}>
+            <strong>This session was escalated</strong>
+            <Link href={`/escalations/${session.escalationTicketId}`} style={{ fontSize: 12, fontWeight: 700, color: '#2563eb', textDecoration: 'none' }}>
+              View ticket →
+            </Link>
           </span>
         </div>
       )}
@@ -328,6 +484,39 @@ export default function SessionReplayPage() {
             </div>
           ) : null}
 
+          {/* User Profile */}
+          {Object.keys(session.endUser.metadata ?? {}).length > 0 && (
+            <div style={{ background: 'var(--surface)', border: '1px solid rgba(70,69,84,0.12)', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(70,69,84,0.1)' }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'var(--on-surface)' }}>User Profile</p>
+                <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--muted)' }}>Attributes passed via script tag or Ahaget(&apos;init&apos;, ...)</p>
+              </div>
+              <div style={{ padding: '14px 20px', display: 'grid', gap: 8 }}>
+                {Object.entries(session.endUser.metadata as Record<string, unknown>).map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600, flexShrink: 0 }}>{k}</span>
+                    <span style={{ fontSize: 12, color: 'var(--on-surface)', fontWeight: 500, background: 'var(--surface-low)', padding: '2px 8px', borderRadius: 4 }}>{String(v)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Live Context */}
+          {session.liveContextSnapshot && (
+            <div style={{ background: 'var(--surface)', border: '1px solid rgba(70,69,84,0.12)', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(70,69,84,0.1)' }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'var(--on-surface)' }}>Live Context</p>
+                <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--muted)' }}>Data fetched from context sources at session start</p>
+              </div>
+              <div style={{ padding: '14px 20px' }}>
+                <pre style={{ margin: 0, fontSize: 11, color: 'var(--muted)', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all', lineHeight: 1.6, background: 'var(--surface-low)', padding: '10px 12px', borderRadius: 8 }}>
+                  {session.liveContextSnapshot}
+                </pre>
+              </div>
+            </div>
+          )}
+
           {/* Chat transcript */}
           {session.messages && session.messages.length > 0 && (
             <ChatTranscript
@@ -386,6 +575,94 @@ export default function SessionReplayPage() {
           )}
         </div>
       </div>
+
+      {/* ── Hand-off modal ─────────────────────────────────────────────── */}
+      {showHandoff && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+            zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowHandoff(false); }}
+        >
+          <div style={{
+            background: 'var(--surface)', borderRadius: 16, padding: 28,
+            width: 440, maxWidth: '90vw',
+            boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
+          }}>
+            <h2 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700, color: 'var(--on-surface)' }}>
+              Hand Off to Team
+            </h2>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--muted)' }}>
+              An escalation ticket will be created with session context pre-loaded.
+            </p>
+
+            {/* Context summary */}
+            <div style={{
+              background: 'var(--surface-low)', borderRadius: 8, padding: '10px 14px',
+              marginBottom: 16, fontSize: 12, display: 'grid', gap: 4,
+            }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span style={{ color: 'var(--muted)', fontWeight: 600, width: 48, flexShrink: 0 }}>User</span>
+                <span style={{ color: 'var(--on-surface)', fontFamily: 'monospace' }}>
+                  {session.endUser.externalId ?? 'anonymous'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span style={{ color: 'var(--muted)', fontWeight: 600, width: 48, flexShrink: 0 }}>Flow</span>
+                <span style={{ color: 'var(--on-surface)' }}>{session.flow.name}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span style={{ color: 'var(--muted)', fontWeight: 600, width: 48, flexShrink: 0 }}>Step</span>
+                <span style={{ color: 'var(--on-surface)' }}>{selectedStep?.title ?? '—'}</span>
+              </div>
+            </div>
+
+            <textarea
+              value={handoffNotes}
+              onChange={(e) => setHandoffNotes(e.target.value)}
+              placeholder="Notes (optional) — describe why you're handing off"
+              rows={3}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '10px 12px', borderRadius: 8, fontSize: 13,
+                background: 'var(--surface-low)', border: '1px solid rgba(70,69,84,0.2)',
+                color: 'var(--on-surface)', resize: 'vertical', outline: 'none',
+              }}
+            />
+
+            {handoffError && (
+              <p style={{ margin: '8px 0 0', fontSize: 12, color: '#ef4444' }}>{handoffError}</p>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+              <button
+                onClick={() => { setShowHandoff(false); setHandoffError(''); }}
+                style={{
+                  padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  background: 'var(--surface-low)', border: '1px solid rgba(70,69,84,0.2)',
+                  color: 'var(--muted)', cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleHandoff}
+                disabled={handoffLoading}
+                style={{
+                  padding: '7px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  background: handoffLoading ? 'rgba(255,133,122,0.5)' : 'linear-gradient(135deg, #FF857A, #EBAEE6)',
+                  color: '#3d1008', border: 'none',
+                  cursor: handoffLoading ? 'not-allowed' : 'pointer',
+                  boxShadow: handoffLoading ? 'none' : '0 0 12px rgba(255,133,122,0.22)',
+                }}
+              >
+                {handoffLoading ? 'Creating ticket…' : 'Hand Off'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
