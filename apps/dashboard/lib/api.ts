@@ -383,6 +383,7 @@ export const api = {
       name: string; description: string; connectorType: 'mcp' | 'rest';
       serverUrl: string; authType: string; authValue: string;
       enabled: boolean; allowedTools: string[]; readOnly: boolean;
+      allowInGoalMode: boolean;
     }>) =>
       apiFetch<{ connector: McpConnector }>(`/api/v1/mcp/${id}`, {
         method: 'PUT', body: JSON.stringify(data),
@@ -770,6 +771,7 @@ export interface McpConnector {
   enabled: boolean;
   allowedTools: string[];
   readOnly: boolean;
+  allowInGoalMode: boolean;
   createdAt: string;
   updatedAt: string;
 }
