@@ -29,6 +29,7 @@ import triggersRoutes from './routes/triggers';
 import proactiveRoutes from './routes/proactive';
 import expansionRoutes from './routes/expansion';
 import interfaceMapRoutes from './routes/interfaceMap';
+import messagesRoutes from './routes/messages';
 import { prisma } from './lib/prisma';
 import { errorHandler } from './middleware/errorHandler';
 import { attachWebSocketServer } from './lib/websocket';
@@ -111,6 +112,7 @@ app.use('/api/v1/triggers', triggersRoutes);
 app.use('/api/v1/proactive', proactiveRoutes);
 app.use('/api/v1/expansion', expansionRoutes);
 app.use('/api/v1/interface-map', interfaceMapRoutes);
+app.use('/api/v1/messages', messagesRoutes);
 
 app.get('/health', async (_req, res) => {
   try {

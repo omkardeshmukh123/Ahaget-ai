@@ -86,7 +86,13 @@ router.post('/register', async (req: Request, res: Response) => {
 
 // ─── POST /api/v1/auth/login ─────────────────────────────────────────────────
 router.post('/login', async (req: Request, res: Response) => {
-  const body = LoginSchema.parse(req.body);
+  let body: { email: string; password: string };
+  try {
+    body = LoginSchema.parse(req.body);
+  } catch {
+    res.status(401).json({ error: 'Invalid email or password' });
+    return;
+  }
 
   const user = await prisma.user.findUnique({
     where: { email: body.email },

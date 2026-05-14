@@ -23,10 +23,11 @@ export async function enforceMessageLimit(
   const org = req.organization;
   if (!org) { next(); return; }
 
-  // Always read from DB — in-memory counter resets on every deploy and is
-  // meaningless on multi-instance deployments. One extra DB read per message
-  // is acceptable given the AI call that follows costs orders of magnitude more.
-  const used = await getMonthlyUsage(org.id);
+  const key = monthKey(org.id);
+  // Use in-memory count (tracks requests in this process) as floor, DB as truth across restarts.
+  const memCount = counts.get(key) ?? 0;
+  const dbUsed = await getMonthlyUsage(org.id);
+  const used = Math.max(memCount, dbUsed);
 
   if (used >= org.monthlyMessageLimit) {
     res.status(429).json({
@@ -38,6 +39,7 @@ export async function enforceMessageLimit(
     return;
   }
 
+  counts.set(key, used + 1);
   next();
 }
 

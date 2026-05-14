@@ -11,6 +11,7 @@ import configRoutes from '../routes/config';
 import billingRoutes, { stripeWebhookHandler } from '../routes/billing';
 import sessionsRoutes from '../routes/sessions';
 import escalationsRoutes from '../routes/escalations';
+import messagesRoutes from '../routes/messages';
 import { errorHandler } from '../middleware/errorHandler';
 
 export function createApp() {
@@ -29,6 +30,7 @@ export function createApp() {
   app.use('/api/v1/billing', billingRoutes);
   app.use('/api/v1/sessions', sessionsRoutes);
   app.use('/api/v1/escalations', escalationsRoutes);
+  app.use('/api/v1/messages', messagesRoutes);
 
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
   app.use(errorHandler);
