@@ -46,6 +46,7 @@ function ToolPreview({ connectorId, allowedTools, onToggle }: { connectorId: str
     setTestArgs('{}');
     setTestResult(null);
     setTestError('');
+    setTestLoading(false);
   };
 
   const closeTestForm = () => {

@@ -246,11 +246,14 @@ router.post('/:id/call', async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  const t0 = Date.now();
-  const result = await callMcpTool(connector, toolName, args ?? {}, { orgId });
-  const latencyMs = Date.now() - t0;
-
-  res.json({ result: result.content, isError: result.isError ?? false, latencyMs });
+  try {
+    const t0 = Date.now();
+    const result = await callMcpTool(connector, toolName, args ?? {}, { orgId });
+    const latencyMs = Date.now() - t0;
+    res.json({ result: result.content, isError: result.isError ?? false, latencyMs });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message ?? 'Tool call failed', isError: true, latencyMs: 0 });
+  }
 });
 
 // ─── GET /api/v1/mcp/:id/endpoints ───────────────────────────────────────────
