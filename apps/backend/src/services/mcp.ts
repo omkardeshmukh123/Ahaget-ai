@@ -8,6 +8,7 @@
 //   tools/call  → executes a tool and returns content[]
 
 import OpenAI from 'openai';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { assertPublicUrl } from '../lib/ipGuard';
@@ -52,6 +53,23 @@ const CONNECTOR_CACHE_TTL_MS = 60_000;
 
 // REST endpoint + auth cache (60s TTL)
 const restContextCache = new Map<string, { ctx: RestConnectorContext; fetchedAt: number }>();
+
+// Cache for goal-mode opt-in check (60s TTL, same as connector list)
+const goalModeCache = new Map<string, { allowed: boolean; fetchedAt: number }>();
+
+export async function isCallApiAllowedInGoalMode(orgId: string): Promise<boolean> {
+  const cached = goalModeCache.get(orgId);
+  if (cached && Date.now() - cached.fetchedAt < CONNECTOR_CACHE_TTL_MS) return cached.allowed;
+
+  const connector = await prisma.mcpConnector.findFirst({
+    where: { organizationId: orgId, connectorType: 'rest', enabled: true, allowInGoalMode: true },
+    select: { id: true },
+  }).catch(() => null);
+
+  const allowed = connector !== null;
+  goalModeCache.set(orgId, { allowed, fetchedAt: Date.now() });
+  return allowed;
+}
 
 // ─── REST connector types ─────────────────────────────────────────────────────
 
@@ -278,16 +296,34 @@ export async function callMcpTool(
   connector: ConnectorRow,
   toolName: string,
   args: Record<string, unknown>,
+  meta: { orgId: string; sessionId?: string },
 ): Promise<McpToolResult> {
   // ── readOnly enforcement at call-time (second line of defence) ────────────
   if (connector.readOnly && WRITE_VERB_RE.test(toolName)) {
     logger.warn('[mcp] blocked write-verb tool call on readOnly connector', { connectorId: connector.id, toolName });
-    return {
+    const blockedResult: McpToolResult = {
       content: [{ type: 'text', text: `Permission denied: connector is read-only. Tool "${toolName}" requires write access.` }],
       isError: true,
     };
+    // Log the blocked attempt — useful for operators auditing readOnly violations
+    prisma.mcpCallLog.create({
+      data: {
+        organizationId: meta.orgId,
+        sessionId:      meta.sessionId ?? null,
+        connectorId:    connector.id,
+        connectorName:  connector.name,
+        toolName,
+        callType:       'mcp',
+        args:           args as Prisma.InputJsonValue,
+        result:         blockedResult as unknown as Prisma.InputJsonValue,
+        isError:        true,
+        latencyMs:      0,
+      },
+    }).catch(() => {});
+    return blockedResult;
   }
 
+  const t0 = Date.now();
   const result = await rpc<McpToolResult>(
     connector.serverUrl,
     { type: connector.authType, value: connector.authValue },
@@ -295,11 +331,29 @@ export async function callMcpTool(
     { name: toolName, arguments: args },
     10_000, // 10 s for tool execution
   );
+  const latencyMs = Date.now() - t0;
 
-  return result ?? {
+  const finalResult = result ?? {
     content: [{ type: 'text', text: 'MCP tool call failed or timed out.' }],
     isError: true,
   };
+
+  prisma.mcpCallLog.create({
+    data: {
+      organizationId: meta.orgId,
+      sessionId:      meta.sessionId ?? null,
+      connectorId:    connector.id,
+      connectorName:  connector.name,
+      toolName,
+      callType:       'mcp',
+      args:           args as Prisma.InputJsonValue,
+      result:         finalResult as unknown as Prisma.InputJsonValue,
+      isError:        !result || !!(finalResult as McpToolResult).isError,
+      latencyMs,
+    },
+  }).catch(() => {});
+
+  return finalResult;
 }
 
 // ─── Lookup: given an OpenAI function name, find the connector + tool ─────────

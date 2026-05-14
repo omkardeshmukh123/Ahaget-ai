@@ -5,6 +5,7 @@ import { authenticateApiKey } from '../middleware/auth';
 import { getMtuUsage } from '../middleware/rateLimit';
 import { PLANS } from '../lib/plans';
 import { runAgentSafe, runAgentStream, runAgentGoal, runAgentPlan, GoalTurn } from '../services/agent';
+import { loadRestContext, matchesRestEndpoint } from '../services/mcp';
 import { detectIntent } from '../services/intent';
 import { detectLanguage, translateText, transcribeAudio, synthesizeSpeech, isSarvamEnabled } from '../services/sarvam';
 
@@ -1148,7 +1149,7 @@ router.post('/act/goal', async (req: AuthenticatedRequest, res: Response) => {
     ? await translateText(goal, 'en', goalDetectedLang)
     : goal;
 
-  const action = await runAgentGoal({
+  let action = await runAgentGoal({
     org: req.organization!,
     goal: goalForAgent,
     pageContext,
@@ -1159,6 +1160,24 @@ router.post('/act/goal', async (req: AuthenticatedRequest, res: Response) => {
     detectedLang: goalDetectedLang,
     liveContext: goalLiveContext,
   });
+
+  // If goal mode returned a call_api action, validate the URL against the REST allowlist
+  // before sending to the widget (endpoint allowlist must be enforced server-side)
+  if (action.type === 'call_api') {
+    const restCtx = await loadRestContext(req.organization!.id).catch(() => null);
+    if (restCtx) {
+      const { allowed, reason } = matchesRestEndpoint(
+        (action as { url: string }).url,
+        (action as { method: string }).method ?? 'GET',
+        restCtx,
+      );
+      if (!allowed) {
+        // Replace with a chat action explaining the restriction
+        (action as Record<string, unknown>).type = 'chat';
+        (action as Record<string, unknown>).content = `I can't make that API call: ${reason ?? 'endpoint not in allowlist'}. Please contact your administrator to approve this endpoint.`;
+      }
+    }
+  }
 
   const localizedGoalAction = await localizeAction(action, goalDetectedLang);
   const done = localizedGoalAction.type === 'goal_complete' || localizedGoalAction.type === 'escalate_to_human';

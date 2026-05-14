@@ -4,7 +4,7 @@ import { OnboardingStep, Organization, Prisma } from '@prisma/client';
 import { executeApiCall, interpolate } from './apicall';
 import { assertPublicUrl } from '../lib/ipGuard';
 import { searchKnowledgeBase } from './knowledge';
-import { loadMcpTools, toOpenAITools, callMcpTool, resolveMcpCall, ConnectorToolBundle, loadRestContext, matchesRestEndpoint } from './mcp';
+import { loadMcpTools, toOpenAITools, callMcpTool, resolveMcpCall, ConnectorToolBundle, loadRestContext, matchesRestEndpoint, isCallApiAllowedInGoalMode } from './mcp';
 import { logger, withRetry, timer } from '../lib/logger';
 import { extractJsonField } from '../lib/streaming';
 import { prisma } from '../lib/prisma';
@@ -133,8 +133,6 @@ const AGENT_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     },
   },
 ];
-
-const AGENT_TOOLS_NO_API = AGENT_TOOLS.filter((t) => t.function.name !== 'call_api');
 
 export type AgentAction =
   | { type: 'ask_clarification'; question: string; options?: string[] }
@@ -1547,8 +1545,14 @@ ${org.customInstructions ?? ''}${failureContextBlock}${goalLangInstruction}`.tri
     },
   };
 
-  // Filter out call_api (too risky in autonomous mode); append MCP tools
-  const tools = [...AGENT_TOOLS, goalCompleteTool, degradeToManualTool, ...mcpOAITools].filter((t) => t.function.name !== 'call_api');
+  // Allow call_api in goal mode only if the org has at least one REST connector with allow_in_goal_mode=true.
+  // Uses a separate cached lookup (60s TTL) to avoid a DB hit on every goal turn.
+  const restAllowedInGoalMode = await isCallApiAllowedInGoalMode(org.id);
+
+  const tools = [...AGENT_TOOLS, goalCompleteTool, degradeToManualTool, ...mcpOAITools].filter((t) => {
+    if (t.function.name !== 'call_api') return true;
+    return restAllowedInGoalMode;
+  });
 
   const GOAL_TURN_TIMEOUT_MS = 8_000;
 
