@@ -49,8 +49,19 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 router.get('/calls', async (req: AuthenticatedRequest, res: Response) => {
   const orgId      = req.user!.organizationId;
   const limit      = Math.min(Number(req.query.limit)  || 50, 200);
-  const offset     = Number(req.query.offset) || 0;
+  const offset     = Math.max(0, Number(req.query.offset) || 0);
   const connectorId = req.query.connectorId as string | undefined;
+
+  if (connectorId) {
+    const owned = await prisma.mcpConnector.findFirst({
+      where: { id: connectorId, organizationId: orgId },
+      select: { id: true },
+    });
+    if (!owned) {
+      res.status(404).json({ error: 'Connector not found' });
+      return;
+    }
+  }
 
   const calls = await prisma.mcpCallLog.findMany({
     where: {
