@@ -55,6 +55,7 @@ model Organization {
   upsellAttributions    UpsellAttribution[]
   interfaceSnapshots    InterfacePageSnapshot[]
   playbookConfig        PlaybookConfig?
+  contextSources        ContextSource[]
 
   @@map("organizations")
 }
@@ -194,6 +195,8 @@ model OnboardingFlow {
   urlPattern          String @default("") @map("url_pattern")             // comma-separated patterns, empty = all pages
   maxTriggersPerUser  Int    @default(0)   @map("max_triggers_per_user")  // 0 = unlimited
   targetRoles         String[] @default([]) @map("target_roles")             // empty = all roles
+  targetSegments      String[] @default([]) @map("target_segments")          // empty = all segments
+  targetPlans         String[] @default([]) @map("target_plans")             // empty = all plans
   // Upsell flow fields (flowType = 'upsell')
   targetPlan          String?  @map("target_plan")    // e.g. 'growth', 'pro', 'enterprise'
   upgradeUrl          String?  @map("upgrade_url")    // deep link to checkout / billing page
@@ -269,6 +272,7 @@ model UserOnboardingSession {
   endUserId      String    @map("end_user_id")
   organizationId String    @map("organization_id")
   flowId         String    @map("flow_id")
+  pageUrl        String?   @map("page_url")
   currentStepId  String?   @map("current_step_id")
   status         String    @default("active") // active | completed | abandoned
   firstValueAt   DateTime? @map("first_value_at") // when aha moment was reached
@@ -276,6 +280,7 @@ model UserOnboardingSession {
   completedAt    DateTime? @map("completed_at")
   lastActiveAt   DateTime  @default(now()) @map("last_active_at")
   collectedData  Json      @default("{}") @map("collected_data") // answers to smart questions
+  liveContextSnapshot Json? @map("live_context_snapshot")
 
   // A/B experiment tracking — null for sessions not part of an experiment
   experimentId      String? @map("experiment_id")
@@ -291,6 +296,7 @@ model UserOnboardingSession {
   @@index([organizationId])
   @@index([flowId])
   @@index([experimentId])
+  @@index([organizationId, pageUrl])
   @@map("user_onboarding_sessions")
 }
 
@@ -503,6 +509,7 @@ model McpConnector {
 
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   restEndpoints  RestApiEndpoint[]
+  contextSources  ContextSource[]
 
   @@index([organizationId])
   @@map("mcp_connectors")
@@ -524,6 +531,39 @@ model RestApiEndpoint {
 
   @@index([connectorId])
   @@map("rest_api_endpoints")
+}
+
+// ─── ContextSource (pre-session data fetched from MCP/REST and injected into agent context) ─
+// Each source is executed at session start. Results are injected into the agent system prompt
+// under a LIVE CONTEXT block so the agent knows account status, feature flags, usage metrics etc.
+model ContextSource {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String                           // e.g. "Account Status"
+  description    String   @default("")
+  enabled        Boolean  @default(true)
+
+  // MCP source: call a specific tool on a connector
+  connectorId    String?  @map("connector_id")
+  mcpToolName    String?  @map("mcp_tool_name")
+  mcpToolArgs    Json     @default("{}") @map("mcp_tool_args")
+
+  // REST source: GET a URL and inject the response
+  restUrl        String?  @map("rest_url")
+  restMethod     String   @default("GET") @map("rest_method")
+
+  // What the agent sees
+  contextKey     String   @map("context_key")
+  allowedFields  String[] @default([]) @map("allowed_fields")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connector      McpConnector? @relation(fields: [connectorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@map("context_sources")
 }
 
 // ─── AuditLog (every action the AI took, per org — for compliance + debugging) ─
