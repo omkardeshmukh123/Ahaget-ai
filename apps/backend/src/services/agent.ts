@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { OnboardingStep, Organization } from '@prisma/client';
+import { OnboardingStep, Organization, Prisma } from '@prisma/client';
 
 import { executeApiCall, interpolate } from './apicall';
 import { assertPublicUrl } from '../lib/ipGuard';
@@ -788,6 +788,7 @@ async function handleMcpCall(
   messages: Array<{ role: 'user' | 'assistant'; content: string }>,
   toolsForStep: OpenAI.Chat.ChatCompletionTool[],
   model: string, // Fix #2: use caller's model, not hardcoded gpt-4o
+  meta: { orgId: string; sessionId?: string },
 ): Promise<AgentAction> {
   const resolved = resolveMcpCall(call.function.name, mcpBundles);
   if (!resolved) {
@@ -795,7 +796,7 @@ async function handleMcpCall(
   }
 
   const args = JSON.parse(call.function.arguments) as Record<string, unknown>;
-  const result = await callMcpTool(resolved.connector, resolved.mcpToolName, args);
+  const result = await callMcpTool(resolved.connector, resolved.mcpToolName, args, meta);
 
   const resultText = result.content.map((c) => c.text).join('\n');
 
@@ -842,6 +843,7 @@ export async function runAgent(opts: {
   detectedLang?: string;
   flowGoal?: string;
   liveContext?: string;
+  sessionId?: string;
 }): Promise<AgentAction> {
   const { model, systemPrompt, messages, toolsForStep, mcpBundles, collectedData } = await prepareAgentCall(opts);
 
@@ -876,7 +878,7 @@ export async function runAgent(opts: {
 
     // ── MCP tool call ──────────────────────────────────────────────────────────
     if (name.startsWith('mcp__')) {
-      return handleMcpCall(call, mcpBundles, systemPrompt, messages, toolsForStep, model);
+      return handleMcpCall(call, mcpBundles, systemPrompt, messages, toolsForStep, model, { orgId: opts.org.id });
     }
 
     // ── call_api tool call ─────────────────────────────────────────────────────
@@ -903,6 +905,7 @@ export async function runAgent(opts: {
       const resolvedBody = rawBody ? interpolate(rawBody, sanitizedData) as Record<string, unknown> : undefined;
 
       const CALL_API_TIMEOUT_MS = 10_000;
+      const t0 = Date.now();
       const apiResult = await Promise.race([
         executeApiCall({
           url:     input.url as string,
@@ -912,6 +915,21 @@ export async function runAgent(opts: {
         }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out after 10s')), CALL_API_TIMEOUT_MS)),
       ]).catch((err: unknown) => ({ ok: false, status: 0, data: null, error: err instanceof Error ? err.message : 'Request timed out' }));
+
+      prisma.mcpCallLog.create({
+        data: {
+          organizationId: opts.org.id,
+          sessionId:      opts.sessionId ?? null,
+          connectorId:    null,
+          connectorName:  'REST (call_api)',
+          toolName:       `${input.method as string} ${input.url as string}`,
+          callType:       'rest',
+          args:           { url: input.url, method: input.method, body: resolvedBody ?? input.body } as Prisma.InputJsonValue,
+          result:         apiResult ? (apiResult as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+          isError:        !apiResult || !apiResult.ok,
+          latencyMs:      Date.now() - t0,
+        },
+      }).catch(() => {});
 
       const followUpMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
         ...messages,
@@ -1071,6 +1089,7 @@ export async function* runAgentStream(
     const action = await handleMcpCall(
       call as OpenAI.Chat.ChatCompletionMessageToolCall,
       mcpBundles, systemPrompt, messages, toolsForStep, model,
+      { orgId: opts.org.id },
     );
     yield { type: 'action', action };
     return;
@@ -1099,6 +1118,7 @@ export async function* runAgentStream(
     const resolvedBody = rawBody ? interpolate(rawBody, sanitizedData) as Record<string, unknown> : undefined;
 
     const CALL_API_TIMEOUT_MS = 10_000;
+    const t0 = Date.now();
     const apiResult = await Promise.race([
       executeApiCall({
         url:     input.url as string,
@@ -1108,6 +1128,21 @@ export async function* runAgentStream(
       }),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out after 10s')), CALL_API_TIMEOUT_MS)),
     ]).catch((err: unknown) => ({ ok: false, status: 0, data: null, error: err instanceof Error ? err.message : 'Request timed out' }));
+
+    prisma.mcpCallLog.create({
+      data: {
+        organizationId: opts.org.id,
+        sessionId:      opts.sessionId ?? null,
+        connectorId:    null,
+        connectorName:  'REST (call_api)',
+        toolName:       `${input.method as string} ${input.url as string}`,
+        callType:       'rest',
+        args:           { url: input.url, method: input.method, body: resolvedBody ?? input.body } as Prisma.InputJsonValue,
+        result:         apiResult ? (apiResult as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+        isError:        !apiResult || !apiResult.ok,
+        latencyMs:      Date.now() - t0,
+      },
+    }).catch(() => {});
 
     const oaiCall = call as OpenAI.Chat.ChatCompletionMessageToolCall;
     const followUpMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -1590,6 +1625,7 @@ ${org.customInstructions ?? ''}${failureContextBlock}${goalLangInstruction}`.tri
         [],
         tools,
         goalModel,
+        { orgId: org.id, sessionId: opts.sessionId },
       );
     }
 
