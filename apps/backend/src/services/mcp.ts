@@ -356,6 +356,122 @@ export async function callMcpTool(
   return finalResult;
 }
 
+/**
+ * Like callMcpTool but supports long-running operations via polling.
+ * If the tool returns { status: "pending", jobId: "..." }, polls
+ * check_job_status every 3 s up to 10 times (30 s total).
+ * Timeout extended to 30 s on initial call.
+ */
+export async function callMcpToolWithPoll(
+  connector: ConnectorRow,
+  toolName: string,
+  args: Record<string, unknown>,
+  meta: { orgId: string; sessionId?: string },
+): Promise<McpToolResult> {
+  // readOnly guard (mirrors callMcpTool)
+  if (connector.readOnly && WRITE_VERB_RE.test(toolName)) {
+    logger.warn('[mcp] blocked write-verb tool call on readOnly connector', { connectorId: connector.id, toolName });
+    return {
+      content: [{ type: 'text', text: `Permission denied: connector is read-only. Tool "${toolName}" requires write access.` }],
+      isError: true,
+    };
+  }
+
+  // Initial call with extended timeout (30 s)
+  const t0 = Date.now();
+  const result = await rpc<McpToolResult>(
+    connector.serverUrl,
+    { type: connector.authType, value: connector.authValue },
+    'tools/call',
+    { name: toolName, arguments: args },
+    30_000,
+  );
+
+  if (!result) {
+    prisma.mcpCallLog.create({
+      data: {
+        organizationId: meta.orgId, sessionId: meta.sessionId ?? null,
+        connectorId: connector.id, connectorName: connector.name,
+        toolName, callType: 'mcp', args: args as Prisma.InputJsonValue,
+        result: Prisma.JsonNull, isError: true, latencyMs: Date.now() - t0,
+      },
+    }).catch(() => {});
+    return { content: [{ type: 'text', text: 'MCP tool call failed or timed out.' }], isError: true };
+  }
+
+  // Check for pending async job
+  const firstContent = result.content?.[0];
+  let pendingResult: { status?: string; jobId?: string } | null = null;
+  try {
+    if (firstContent?.type === 'text') {
+      const parsed = JSON.parse(firstContent.text) as { status?: string; jobId?: string };
+      if (parsed.status === 'pending' && parsed.jobId) pendingResult = parsed;
+    }
+  } catch { /* not JSON, not a pending response */ }
+
+  if (!pendingResult) {
+    // Synchronous completion — log and return
+    prisma.mcpCallLog.create({
+      data: {
+        organizationId: meta.orgId, sessionId: meta.sessionId ?? null,
+        connectorId: connector.id, connectorName: connector.name,
+        toolName, callType: 'mcp', args: args as Prisma.InputJsonValue,
+        result: result as unknown as Prisma.InputJsonValue,
+        isError: !!result.isError, latencyMs: Date.now() - t0,
+      },
+    }).catch(() => {});
+    return result;
+  }
+
+  // Poll for completion
+  const { jobId } = pendingResult;
+  logger.info('[mcp] polling for async job', { connectorId: connector.id, toolName, jobId });
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await new Promise((r) => setTimeout(r, 3_000));
+
+    const pollResult = await rpc<McpToolResult>(
+      connector.serverUrl,
+      { type: connector.authType, value: connector.authValue },
+      'tools/call',
+      { name: 'check_job_status', arguments: { jobId } },
+      5_000,
+    );
+
+    if (!pollResult) continue;
+
+    let stillPending = false;
+    try {
+      const parsed = JSON.parse(pollResult.content?.[0]?.text ?? '') as { status?: string };
+      if (parsed.status === 'pending') stillPending = true;
+    } catch { /* completed */ }
+
+    if (!stillPending) {
+      prisma.mcpCallLog.create({
+        data: {
+          organizationId: meta.orgId, sessionId: meta.sessionId ?? null,
+          connectorId: connector.id, connectorName: connector.name,
+          toolName, callType: 'mcp', args: args as Prisma.InputJsonValue,
+          result: pollResult as unknown as Prisma.InputJsonValue,
+          isError: !!pollResult.isError, latencyMs: Date.now() - t0,
+        },
+      }).catch(() => {});
+      return pollResult;
+    }
+  }
+
+  // Exhausted polls
+  prisma.mcpCallLog.create({
+    data: {
+      organizationId: meta.orgId, sessionId: meta.sessionId ?? null,
+      connectorId: connector.id, connectorName: connector.name,
+      toolName, callType: 'mcp', args: args as Prisma.InputJsonValue,
+      result: Prisma.JsonNull, isError: true, latencyMs: Date.now() - t0,
+    },
+  }).catch(() => {});
+  return { content: [{ type: 'text', text: `Async job "${jobId}" did not complete within 30 seconds.` }], isError: true };
+}
+
 // ─── Lookup: given an OpenAI function name, find the connector + tool ─────────
 export function resolveMcpCall(
   openAIName: string,

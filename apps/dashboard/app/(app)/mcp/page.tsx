@@ -778,6 +778,7 @@ export default function McpPage() {
           { icon:'🌐', title:'REST APIs',   desc:'Pre-approve HTTP endpoints for call_api to reach' },
           { icon:'🔒', title:'Permissions', desc:'Whitelist tools and set read-only mode per connector' },
           { icon:'👤', title:'User Context',desc:'Pass plan/role/segment via script tag — agent personalizes responses' },
+          { icon:'⚡', title:'Long-running tools', desc:'Return { "status": "pending", "jobId": "..." } and Ahaget polls until done (up to 30 s). No changes needed.' },
         ].map(({icon,title,desc}) => (
           <div key={title}>
             <p style={{ fontSize:13, fontWeight:700, color:'var(--on-surface)', marginBottom:2 }}>{icon} {title}</p>

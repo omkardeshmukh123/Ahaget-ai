@@ -4,7 +4,7 @@ import { OnboardingStep, Organization, Prisma } from '@prisma/client';
 import { executeApiCall, interpolate } from './apicall';
 import { assertPublicUrl } from '../lib/ipGuard';
 import { searchKnowledgeBase } from './knowledge';
-import { loadMcpTools, toOpenAITools, callMcpTool, resolveMcpCall, ConnectorToolBundle, loadRestContext, matchesRestEndpoint, isCallApiAllowedInGoalMode } from './mcp';
+import { loadMcpTools, toOpenAITools, callMcpTool, callMcpToolWithPoll, resolveMcpCall, ConnectorToolBundle, loadRestContext, matchesRestEndpoint, isCallApiAllowedInGoalMode } from './mcp';
 import { logger, withRetry, timer } from '../lib/logger';
 import { extractJsonField } from '../lib/streaming';
 import { prisma } from '../lib/prisma';
@@ -794,7 +794,7 @@ async function handleMcpCall(
   }
 
   const args = JSON.parse(call.function.arguments) as Record<string, unknown>;
-  const result = await callMcpTool(resolved.connector, resolved.mcpToolName, args, meta);
+  const result = await callMcpToolWithPoll(resolved.connector, resolved.mcpToolName, args, meta);
 
   const resultText = result.content.map((c) => c.text).join('\n');
 
