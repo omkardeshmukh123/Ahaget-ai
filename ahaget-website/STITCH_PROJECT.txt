@@ -1,7 +1,0 @@
-All 3 pages generated and designed in Stitch. View the live project at:
-https://stitch.withgoogle.com/projects/12342939595855272672
-
-Screen IDs:
-- Homepage: 2feda7404a86445599dfe1233f92f87d
-- Pricing: e42006fa064e4716b76e4e811bd900ec
-- Contact: 1b5f16623b0d4896831e5d4ae970f379
