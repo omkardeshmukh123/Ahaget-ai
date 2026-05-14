@@ -22,6 +22,8 @@ export interface ScannedElement {
   classes: string[];      // CSS classes (filtered, for fuzzy matching)
   rect: { x: number; y: number; w: number; h: number }; // viewport position
   disabled?: boolean;     // element is disabled
+  checked?: boolean;      // checkbox/radio checked state (mirrors PageElement)
+  selectedText?: string;  // <select> human-readable selected option (mirrors PageElement)
 }
 
 // PageElement includes value so the agent can verify fills
@@ -52,6 +54,50 @@ let _elementIndex: Map<string, ScannedElement> = new Map();
 
 export function getElementIndex(): ReadonlyMap<string, ScannedElement> {
   return _elementIndex;
+}
+
+// ─── DOM mutation delta buffer ─────────────────────────────────────────────────
+// High-signal DOM changes (alerts, dialogs, error toasts) are captured here
+// between user messages. scanPage() drains the buffer into recentDomEvents[].
+// startDomObserver() (added in Task 7) populates this buffer via MutationObserver.
+let _domDeltas: string[] = [];
+const DOM_DELTA_CAP = 10;
+
+export function flushDomDeltas(): string[] {
+  const deltas = [..._domDeltas];
+  _domDeltas = [];
+  return deltas;
+}
+
+// Used by startDomObserver() to push high-signal events
+export function pushDomDelta(sig: string): void {
+  if (_domDeltas.length < DOM_DELTA_CAP) _domDeltas.push(sig);
+}
+
+function getNodeSignal(el: HTMLElement): string | null {
+  if (el.closest && el.closest('#oai-root')) return null;
+  const role = el.getAttribute('role');
+  const text = el.innerText?.trim().slice(0, 80) ?? '';
+  if (!text) return null;
+  if (role === 'alert')  return `[ALERT] ${text}`;
+  if (role === 'dialog') return `[DIALOG OPENED] ${text.slice(0, 40)}`;
+  if (role === 'status') return `[STATUS] ${text}`;
+  if (/\b(error|toast|notification|snackbar|alert)/i.test(el.className)) return `[DYNAMIC] ${text}`;
+  return null;
+}
+
+export function startDomObserver(): void {
+  if (typeof MutationObserver === 'undefined') return;
+  const observer = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      for (const node of Array.from(m.addedNodes)) {
+        if (!(node instanceof HTMLElement)) continue;
+        const sig = getNodeSignal(node);
+        if (sig) pushDomDelta(sig);
+      }
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -117,6 +163,26 @@ function fingerprint(el: Element, tag: string, text: string, type?: string): Sca
   };
 }
 
+// ─── Modal/dialog detection ───────────────────────────────────────────────────
+// Returns the first open modal/dialog element, or null if none is found.
+function detectModal(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    '[role="dialog"]:not([hidden]), [aria-modal="true"]:not([hidden]), ' +
+    '.modal:not([hidden]):not(.oai-modal)'
+  );
+}
+
+function modalTitle(el: HTMLElement): string {
+  const labelledBy = el.getAttribute('aria-labelledby');
+  if (labelledBy) {
+    const labeller = document.getElementById(labelledBy);
+    if (labeller) return labeller.innerText?.trim().slice(0, 60) ?? '';
+  }
+  const heading = el.querySelector('h1, h2, h3, h4, [class*="modal-title"], [class*="dialog-title"]');
+  if (heading) return (heading as HTMLElement).innerText?.trim().slice(0, 60) ?? '';
+  return el.getAttribute('aria-label') ?? '';
+}
+
 // ─── Main scan ────────────────────────────────────────────────────────────────
 
 export function scanPage(): PageContext {
@@ -168,7 +234,21 @@ export function scanPage(): PageContext {
       el.getAttribute('aria-label') ||
       el.getAttribute('name') ||
       '';
-    push(fingerprint(el, el.tagName.toLowerCase(), text, (el as HTMLInputElement).type || undefined));
+    const fp = fingerprint(el, el.tagName.toLowerCase(), text, (el as HTMLInputElement).type || undefined);
+
+    const inputType = (el as HTMLInputElement).type;
+    const checked = (inputType === 'checkbox' || inputType === 'radio')
+      ? (el as HTMLInputElement).checked
+      : undefined;
+
+    const selectedText = el.tagName.toLowerCase() === 'select'
+      ? (() => {
+          const sel = el as HTMLSelectElement;
+          return sel.options[sel.selectedIndex]?.text?.trim() || undefined;
+        })()
+      : undefined;
+
+    push({ ...fp, checked, selectedText } as ScannedElement);
   });
 
   // Links
@@ -179,7 +259,73 @@ export function scanPage(): PageContext {
     push(fingerprint(el, 'a', text));
   });
 
-  // Update module-level index for the resolver
+  // Disabled interactive elements — invisible to the agent without this scan
+  document.querySelectorAll<HTMLElement>(
+    'button[disabled]:not([type="hidden"]), input[disabled]:not([type="hidden"]):not([type="password"]), ' +
+    'select[disabled], textarea[disabled], [role="button"][aria-disabled="true"]'
+  ).forEach((el) => {
+    if (el.closest('#oai-root')) return;
+    const text =
+      (el as HTMLButtonElement).innerText?.trim() ||
+      el.getAttribute('aria-label') ||
+      (el as HTMLInputElement).value ||
+      el.getAttribute('placeholder') ||
+      '';
+    if (!text) return;
+    const fp = fingerprint(el, el.tagName.toLowerCase(), text, (el as HTMLInputElement).type || undefined);
+    push({ ...fp, disabled: true } as ScannedElement);
+  });
+
+  // Custom interactive elements: ARIA roles and contenteditable
+  document.querySelectorAll<HTMLElement>(
+    '[role="switch"], [role="combobox"]:not(select), [role="listbox"], [contenteditable="true"]'
+  ).forEach((el) => {
+    if (el.closest('#oai-root')) return;
+    const text = el.getAttribute('aria-label') || el.innerText?.trim().slice(0, 60) || '';
+    if (!text) return;
+    const role = el.getAttribute('role') ?? 'contenteditable';
+    push(fingerprint(el, role, text));
+  });
+
+  // ── Modal scan ────────────────────────────────────────────────────────────────
+  const modalEl = detectModal();
+  let modalContext: PageContext['modalContext'] = null;
+  const modalSelectors = new Set<string>();
+
+  if (modalEl) {
+    const modalEls: PageElement[] = [];
+    modalEl.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [role="button"], input:not([type="hidden"]):not([type="password"]):not([disabled]), ' +
+      'select:not([disabled]), textarea:not([disabled]), a[href]'
+    ).forEach((child) => {
+      const childText =
+        (child as HTMLButtonElement).innerText?.trim() ||
+        child.getAttribute('aria-label') ||
+        (child as HTMLInputElement).value ||
+        child.getAttribute('placeholder') ||
+        '';
+      if (!childText) return;
+      const childFp = fingerprint(child, child.tagName.toLowerCase(), childText, (child as HTMLInputElement).type || undefined);
+      modalSelectors.add(childFp.selector);
+      const childInputType = (child as HTMLInputElement).type;
+      modalEls.push({
+        tag: childFp.tag,
+        selector: childFp.selector,
+        text: childFp.text,
+        type: childFp.type,
+        checked: (childInputType === 'checkbox' || childInputType === 'radio')
+          ? (child as HTMLInputElement).checked
+          : undefined,
+        disabled: (child as HTMLButtonElement).disabled || undefined,
+      });
+    });
+    modalContext = { title: modalTitle(modalEl), elements: modalEls.slice(0, 15) };
+  }
+
+  // ── DOM event deltas from observer ───────────────────────────────────────────
+  const recentDomEvents = flushDomDeltas();
+
+  // ── Update module-level index for the resolver ───────────────────────────────
   _elementIndex = new Map(elements.map((e) => [e.selector, e]));
 
   const headings = Array.from(document.querySelectorAll('h1, h2, h3'))
@@ -187,16 +333,32 @@ export function scanPage(): PageContext {
     .filter(Boolean)
     .slice(0, 6) as string[];
 
+  // ── Build lean PageElement list for agent — exclude elements in the modal ────
+  const pageElements: PageElement[] = elements.slice(0, 50)
+    .filter((e) => !modalSelectors.has(e.selector))
+    .slice(0, 40)
+    .map((e) => {
+      const domEl = document.querySelector(e.selector) as HTMLInputElement | null;
+      const value = (domEl && domEl.value) ? domEl.value : undefined;
+      return {
+        tag: e.tag,
+        selector: e.selector,
+        text: e.text,
+        type: e.type,
+        ...(value                          ? { value }                              : {}),
+        ...(e.checked !== undefined        ? { checked: e.checked }                 : {}),
+        ...((e as PageElement).disabled    ? { disabled: true }                     : {}),
+        ...((e as PageElement).selectedText ? { selectedText: (e as PageElement).selectedText } : {}),
+      };
+    });
+
   return {
     url: window.location.pathname,
     title: document.title,
     headings,
-    // Include current field value so the agent can verify fills during __verify__ turns
-    elements: elements.slice(0, 50).map(({ tag, selector, text, type }) => {
-      const el = document.querySelector(selector) as HTMLInputElement | null;
-      const value = (el && (el as HTMLInputElement).value) ? (el as HTMLInputElement).value : undefined;
-      return { tag, selector, text, type, ...(value ? { value } : {}) };
-    }),
+    elements: pageElements,
+    ...(modalContext           ? { modalContext }     : {}),
+    ...(recentDomEvents.length ? { recentDomEvents }  : {}),
   };
 }
 
@@ -323,6 +485,31 @@ export function buildSemanticSummary(): string {
   // ── Page type detection ──────────────────────────────────────────────────────
   const pageType = detectPageType();
   lines.push(`PAGE TYPE: ${pageType}`);
+
+  // ── Modal awareness ──────────────────────────────────────────────────────────
+  const openModal = detectModal();
+  if (openModal) {
+    const title = modalTitle(openModal);
+    lines.push(`MODAL OPEN${title ? `: "${title}"` : ''}`);
+  }
+
+  // ── Loading state ─────────────────────────────────────────────────────────────
+  const isLoading = !!(
+    document.querySelector('[aria-busy="true"]') ||
+    document.querySelector('[class*="skeleton"], [class*="loading"], [class*="spinner"]')
+  );
+  if (isLoading) lines.push('LOADING: true — page may still be rendering, avoid interactions');
+
+  // ── ARIA live regions (dynamic server feedback) ───────────────────────────────
+  const liveTexts: string[] = [];
+  document.querySelectorAll<HTMLElement>(
+    '[aria-live]:not([aria-live="off"]), [role="status"], [role="log"]'
+  ).forEach((el) => {
+    if (el.closest('#oai-root')) return;
+    const t = el.innerText?.trim();
+    if (t && t.length < 100) liveTexts.push(t);
+  });
+  if (liveTexts.length > 0) lines.push(`LIVE REGION: "${liveTexts[0]}"`);
 
   // ── Wizard / stepper detection ───────────────────────────────────────────────
   const wizard = detectWizard();
