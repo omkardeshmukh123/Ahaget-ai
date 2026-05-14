@@ -150,8 +150,22 @@ export interface PageContext {
   url: string;
   title: string;
   headings: string[];
-  elements: Array<{ tag: string; selector: string; text: string; type?: string; value?: string }>;
+  elements: Array<{
+    tag: string; selector: string; text: string; type?: string;
+    value?: string;
+    checked?: boolean;
+    disabled?: boolean;
+    selectedText?: string;
+  }>;
   semanticSummary?: string;
+  modalContext?: {
+    title: string;
+    elements: Array<{
+      tag: string; selector: string; text: string; type?: string;
+      value?: string; checked?: boolean; disabled?: boolean; selectedText?: string;
+    }>;
+  } | null;
+  recentDomEvents?: string[];
 }
 
 // ─── DOM text sanitizer — strips control chars and common injection phrases ────
