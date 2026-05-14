@@ -110,10 +110,10 @@ export default function DashboardPage() {
       {/* Metric cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
         {[
-          { label: 'Total Users',    value: users?.total ?? overview?.activeUsers ?? 0,    icon: <UsersIcon />,   delta: '+16%' },
-          { label: 'Conversations',  value: overview?.totalConversations ?? 0,              icon: <ChatIcon />,    delta: '+9%'  },
-          { label: 'Messages',       value: totalMessages,                                   icon: <MsgIcon />,     delta: '+3%'  },
-        ].map(({ label, value, icon, delta }) => (
+          { label: 'Total Users',    value: users?.total ?? overview?.activeUsers ?? 0,    icon: <UsersIcon /> },
+          { label: 'Conversations',  value: overview?.totalConversations ?? 0,              icon: <ChatIcon />   },
+          { label: 'Messages',       value: totalMessages,                                   icon: <MsgIcon />    },
+        ].map(({ label, value, icon }) => (
           <div key={label} className="card" style={{ padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
             {/* Ambient glow spot */}
             <div style={{
@@ -130,9 +130,6 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <span style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--on-surface)' }}>
                 {value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toLocaleString()}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--success)', background: 'rgba(173,235,179,0.14)', padding: '1px 6px', borderRadius: 999 }}>
-                {delta}
               </span>
             </div>
           </div>
