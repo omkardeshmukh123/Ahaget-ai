@@ -45,6 +45,59 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   res.json({ connectors });
 });
 
+// ─── GET /api/v1/mcp/calls — list MCP call logs for org ──────────────────────
+router.get('/calls', async (req: AuthenticatedRequest, res: Response) => {
+  const orgId      = req.user!.organizationId;
+  const limit      = Math.min(Number(req.query.limit)  || 50, 200);
+  const offset     = Number(req.query.offset) || 0;
+  const connectorId = req.query.connectorId as string | undefined;
+
+  const calls = await prisma.mcpCallLog.findMany({
+    where: {
+      organizationId: orgId,
+      ...(connectorId ? { connectorId } : {}),
+    },
+    orderBy: { createdAt: 'desc' },
+    take:    limit,
+    skip:    offset,
+    select: {
+      id:            true,
+      connectorName: true,
+      toolName:      true,
+      callType:      true,
+      isError:       true,
+      latencyMs:     true,
+      createdAt:     true,
+      sessionId:     true,
+      // do NOT include args/result in list — can be large
+    },
+  });
+  res.json({ calls });
+});
+
+// ─── GET /api/v1/mcp/calls/session/:sessionId — call logs for a session ──────
+router.get('/calls/session/:sessionId', async (req: AuthenticatedRequest, res: Response) => {
+  const calls = await prisma.mcpCallLog.findMany({
+    where: {
+      organizationId: req.user!.organizationId,
+      sessionId:      req.params.sessionId,
+    },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id:            true,
+      connectorName: true,
+      toolName:      true,
+      callType:      true,
+      isError:       true,
+      latencyMs:     true,
+      createdAt:     true,
+      args:          true,
+      result:        true,
+    },
+  });
+  res.json({ calls });
+});
+
 // ─── POST /api/v1/mcp — create connector ─────────────────────────────────────
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   const data = ConnectorSchema.parse(req.body);
