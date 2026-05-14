@@ -25,6 +25,13 @@ function ToolPreview({ connectorId, allowedTools, onToggle }: { connectorId: str
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
+  // Test-call state
+  const [testingTool, setTestingTool] = useState<string | null>(null);
+  const [testArgs, setTestArgs] = useState('{}');
+  const [testResult, setTestResult] = useState<{ result: unknown; isError: boolean; latencyMs: number } | null>(null);
+  const [testError, setTestError] = useState('');
+  const [testLoading, setTestLoading] = useState(false);
+
   const test = useCallback(async () => {
     setLoading(true); setErr('');
     try {
@@ -33,6 +40,35 @@ function ToolPreview({ connectorId, allowedTools, onToggle }: { connectorId: str
     } catch(e) { setErr((e as Error).message); }
     finally { setLoading(false); }
   }, [connectorId]);
+
+  const openTestForm = (toolName: string) => {
+    setTestingTool(toolName);
+    setTestArgs('{}');
+    setTestResult(null);
+    setTestError('');
+  };
+
+  const closeTestForm = () => {
+    setTestingTool(null);
+    setTestResult(null);
+    setTestError('');
+  };
+
+  const runTestCall = async (toolName: string) => {
+    let parsedArgs: Record<string, unknown>;
+    try {
+      parsedArgs = JSON.parse(testArgs);
+    } catch {
+      setTestError('Args must be valid JSON');
+      return;
+    }
+    setTestLoading(true); setTestError(''); setTestResult(null);
+    try {
+      const r = await api.mcp.callTool(connectorId, toolName, parsedArgs);
+      setTestResult(r);
+    } catch(e) { setTestError((e as Error).message); }
+    finally { setTestLoading(false); }
+  };
 
   return (
     <div>
@@ -48,15 +84,62 @@ function ToolPreview({ connectorId, allowedTools, onToggle }: { connectorId: str
           {tools.map(t => {
             const allowed = allowedTools.length===0 || allowedTools.includes(t.name);
             return (
-              <div key={t.name} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', background:'var(--surface)', borderRadius:8, border:'1px solid rgba(99,102,241,0.1)' }}>
-                <span style={{ width:8, height:8, borderRadius:'50%', background:allowed?'#10b981':'rgba(107,114,128,0.3)', flexShrink:0 }} />
-                <div style={{ flex:1, minWidth:0 }}>
-                  <p style={{ fontSize:12, fontWeight:600, color:'var(--on-surface)' }}>{t.name}</p>
-                  {t.description && <p style={{ fontSize:11, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.description}</p>}
+              <div key={t.name}>
+                <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', background:'var(--surface)', borderRadius:8, border:'1px solid rgba(99,102,241,0.1)' }}>
+                  <span style={{ width:8, height:8, borderRadius:'50%', background:allowed?'#10b981':'rgba(107,114,128,0.3)', flexShrink:0 }} />
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p style={{ fontSize:12, fontWeight:600, color:'var(--on-surface)' }}>{t.name}</p>
+                    {t.description && <p style={{ fontSize:11, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.description}</p>}
+                  </div>
+                  <button
+                    onClick={() => testingTool === t.name ? closeTestForm() : openTestForm(t.name)}
+                    style={{ fontSize:11, color:'#6366f1', cursor:'pointer', background:'rgba(99,102,241,0.08)', border:'1px solid rgba(99,102,241,0.18)', borderRadius:6, padding:'3px 9px', fontWeight:600 }}
+                  >
+                    {testingTool === t.name ? 'Close' : 'Test'}
+                  </button>
+                  <button onClick={() => onToggle(t.name, !allowed)} style={{ fontSize:11, color: allowed?'#6366f1':'var(--muted)', cursor:'pointer', background:'none', border:'none' }}>
+                    {allowed ? 'Block' : 'Allow'}
+                  </button>
                 </div>
-                <button onClick={() => onToggle(t.name, !allowed)} style={{ fontSize:11, color: allowed?'#6366f1':'var(--muted)', cursor:'pointer', background:'none', border:'none' }}>
-                  {allowed ? 'Block' : 'Allow'}
-                </button>
+
+                {/* Inline test-call form */}
+                {testingTool === t.name && (
+                  <div style={{ margin:'4px 0 2px 18px', padding:'12px 14px', background:'var(--surface)', border:'1px solid rgba(99,102,241,0.18)', borderRadius:8 }}>
+                    <p style={{ fontSize:11, fontWeight:700, color:'var(--muted)', marginBottom:6 }}>
+                      Tool: <span style={{ fontFamily:'monospace', color:'var(--on-surface)' }}>{t.name}</span>
+                    </p>
+                    <p style={{ fontSize:10, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:4 }}>Args (JSON):</p>
+                    <textarea
+                      value={testArgs}
+                      onChange={e => { setTestArgs(e.target.value); setTestError(''); }}
+                      rows={3}
+                      style={{ width:'100%', padding:'8px 10px', background:'rgba(0,0,0,0.2)', border:'1px solid rgba(99,102,241,0.2)', borderRadius:6, color:'var(--on-surface)', fontSize:12, fontFamily:'monospace', outline:'none', resize:'vertical', boxSizing:'border-box' }}
+                    />
+                    {testError && <p style={{ fontSize:11, color:'#ef4444', margin:'4px 0 0' }}>{testError}</p>}
+                    <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                      <button
+                        onClick={() => runTestCall(t.name)}
+                        disabled={testLoading}
+                        style={{ ...btn('primary'), padding:'6px 14px', fontSize:12, opacity:testLoading?0.6:1 }}
+                      >
+                        {testLoading ? 'Running…' : 'Run Test Call'}
+                      </button>
+                      <button onClick={closeTestForm} style={{ ...btn('ghost'), padding:'6px 12px', fontSize:12 }}>Close</button>
+                    </div>
+
+                    {testResult && (
+                      <div style={{ marginTop:10 }}>
+                        <p style={{ fontSize:10, fontWeight:700, color: testResult.isError ? '#ef4444' : '#10b981', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:4 }}>
+                          {testResult.isError ? 'Error' : 'Result'}{' '}
+                          <span style={{ color:'var(--muted)', fontWeight:400, textTransform:'none', letterSpacing:'normal' }}>({testResult.latencyMs} ms)</span>
+                        </p>
+                        <pre style={{ margin:0, padding:'8px 10px', background:'rgba(0,0,0,0.25)', borderRadius:6, fontSize:11, color: testResult.isError ? '#fca5a5' : '#6ee7b7', whiteSpace:'pre-wrap', wordBreak:'break-all', maxHeight:200, overflowY:'auto' }}>
+                          {JSON.stringify(testResult.result, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -116,7 +199,7 @@ function EndpointManager({ connectorId }: { connectorId: string }) {
 
 // ─── Detail Panel ─────────────────────────────────────────────────────────────
 function DetailPanel({ connector, onClose, onSave }: { connector: McpConnector; onClose:()=>void; onSave:(c:McpConnector)=>void }) {
-  const [form, setForm] = useState({ name:connector.name, description:connector.description, serverUrl:connector.serverUrl, authType:connector.authType as 'none'|'bearer'|'api_key', authValue:'', readOnly:connector.readOnly, connectorType:connector.connectorType });
+  const [form, setForm] = useState({ name:connector.name, description:connector.description, serverUrl:connector.serverUrl, authType:connector.authType as 'none'|'bearer'|'api_key', authValue:'', readOnly:connector.readOnly, allowInGoalMode:connector.allowInGoalMode, connectorType:connector.connectorType });
   const [allowedTools, setAllowedTools] = useState<string[]>(connector.allowedTools);
   const [saving, setSaving] = useState(false);
 
@@ -168,6 +251,14 @@ function DetailPanel({ connector, onClose, onSave }: { connector: McpConnector; 
             <input type="checkbox" checked={form.readOnly} onChange={e=>setForm({...form,readOnly:e.target.checked})} />
             Read-only — block any write-verb tool calls (create, update, delete…)
           </label>
+
+          {form.connectorType === 'rest' && (
+            <label style={{ display:'flex', alignItems:'center', gap:10, fontSize:13, color:'var(--muted)', cursor:'pointer' }}>
+              <input type="checkbox" checked={form.allowInGoalMode} onChange={e=>setForm({...form,allowInGoalMode:e.target.checked})} />
+              Allow in autonomous mode — permit call_api calls during goal-directed sessions
+              <span style={{ fontSize:11, color:'#f59e0b' }}>Only enable if your endpoint allowlist is locked down.</span>
+            </label>
+          )}
 
           <div style={{ borderTop:'1px solid rgba(99,102,241,0.1)', paddingTop:16 }}>
             {form.connectorType==='mcp'

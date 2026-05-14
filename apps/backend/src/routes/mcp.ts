@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { authenticateJWT } from '../middleware/auth';
 import { checkMcpConnectorLimit } from '../middleware/rateLimit';
 import { AuthenticatedRequest } from '../types';
+import { callMcpTool } from '../services/mcp';
 
 const router = Router();
 router.use(authenticateJWT);
@@ -11,7 +12,7 @@ router.use(authenticateJWT);
 const SAFE_SELECT = {
   id: true, name: true, description: true, connectorType: true,
   serverUrl: true, authType: true, enabled: true,
-  allowedTools: true, readOnly: true,
+  allowedTools: true, readOnly: true, allowInGoalMode: true,
   createdAt: true, updatedAt: true,
   // never return authValue in list responses
 } as const;
@@ -26,6 +27,7 @@ const ConnectorSchema = z.object({
   enabled:       z.boolean().default(true),
   allowedTools:  z.array(z.string()).optional().default([]),
   readOnly:      z.boolean().optional().default(false),
+  allowInGoalMode: z.boolean().optional().default(false),
 });
 
 const EndpointSchema = z.object({
@@ -217,6 +219,38 @@ router.post('/:id/test', async (req: AuthenticatedRequest, res: Response) => {
   } catch (err) {
     res.json({ ok: false, error: (err as Error).message, tools: [] });
   }
+});
+
+// ─── POST /api/v1/mcp/:id/call — invoke a specific tool with custom args ─────
+router.post('/:id/call', async (req: AuthenticatedRequest, res: Response) => {
+  const orgId = req.user!.organizationId;
+  const { toolName, args } = req.body as { toolName?: string; args?: Record<string, unknown> };
+
+  if (!toolName) {
+    res.status(400).json({ error: 'toolName is required' });
+    return;
+  }
+
+  const connector = await prisma.mcpConnector.findFirst({
+    where: { id: req.params.id, organizationId: orgId },
+    select: { id: true, name: true, serverUrl: true, authType: true, authValue: true, allowedTools: true, readOnly: true },
+  });
+  if (!connector) {
+    res.status(404).json({ error: 'Connector not found' });
+    return;
+  }
+
+  // Enforce allowedTools whitelist
+  if (connector.allowedTools.length > 0 && !connector.allowedTools.includes(toolName)) {
+    res.status(403).json({ error: `Tool "${toolName}" is not in the allowed tools list` });
+    return;
+  }
+
+  const t0 = Date.now();
+  const result = await callMcpTool(connector, toolName, args ?? {}, { orgId });
+  const latencyMs = Date.now() - t0;
+
+  res.json({ result: result.content, isError: result.isError ?? false, latencyMs });
 });
 
 // ─── GET /api/v1/mcp/:id/endpoints ───────────────────────────────────────────

@@ -402,6 +402,11 @@ export const api = {
       const query = qs.toString() ? `?${qs.toString()}` : '';
       return apiFetch<{ calls: McpCallLog[] }>(`/api/v1/mcp/calls${query}`);
     },
+    callTool: (connectorId: string, toolName: string, args: Record<string, unknown>) =>
+      apiFetch<{ result: Array<{ type: string; text: string }>; isError: boolean; latencyMs: number }>(
+        `/api/v1/mcp/${connectorId}/call`,
+        { method: 'POST', body: JSON.stringify({ toolName, args }) }
+      ),
   },
 
   audit: {
