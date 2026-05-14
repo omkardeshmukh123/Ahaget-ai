@@ -326,6 +326,7 @@ function buildSystemPrompt(opts: {
   actionHint: string;
   detectedLang?: string;
   flowGoal?: string;
+  liveContext?: string;
   playbook?: {
     agentName: string;
     tone: string;
@@ -338,15 +339,33 @@ function buildSystemPrompt(opts: {
     userMetadata, userHistoryFormatted, domSummary, kbSection, mcpSection,
     interfaceMapSection,
     isInit, isVerify, unansweredQuestions, actionHint, detectedLang, flowGoal,
+    liveContext,
     playbook,
   } = opts;
 
-  const metaKeys = userMetadata ? Object.keys(userMetadata) : [];
-  const userProfile = metaKeys.length > 0
-    ? `USER PROFILE: ${JSON.stringify(userMetadata)} — match your language and depth to this user's context.`
-    : '';
+  const userProfile = (() => {
+    if (!userMetadata || Object.keys(userMetadata).length === 0) return '';
+    const PLAN_HINTS: Record<string, string> = {
+      free:       'budget-conscious, likely hitting limits',
+      starter:    'early adopter, exploring value',
+      growth:     'scaling, ROI-focused',
+      pro:        'power user, wants depth',
+      enterprise: 'compliance and reliability matter most',
+    };
+    const lines: string[] = [];
+    if (userMetadata.plan)       lines.push(`- Plan: ${userMetadata.plan}${PLAN_HINTS[String(userMetadata.plan)] ? `  →  ${PLAN_HINTS[String(userMetadata.plan)]}` : ''}`);
+    if (userMetadata.role)       lines.push(`- Role: ${userMetadata.role}`);
+    if (userMetadata.segment)    lines.push(`- Segment: ${userMetadata.segment}`);
+    if (userMetadata.accountAge) lines.push(`- Account age: ${userMetadata.accountAge} days`);
+    const known = new Set(['plan', 'role', 'segment', 'accountAge']);
+    for (const [k, v] of Object.entries(userMetadata)) {
+      if (!known.has(k)) lines.push(`- ${k}: ${v}`);
+    }
+    return `USER PROFILE:\n${lines.join('\n')}\nAdapt guidance tone, depth, and upgrade mentions to this profile.`;
+  })();
 
   const historySection = userHistoryFormatted ? `\n${userHistoryFormatted}\n` : '';
+  const liveContextSection = liveContext ? `\n${liveContext}\n` : '';
 
   const verifyInstructions = isVerify
     ? `
@@ -382,7 +401,7 @@ RESPONSE TURN: The user has replied or taken an action.
 
   // Token budget guard — cap combined variable sections to ~40k chars (~10k tokens)
   const TOKEN_BUDGET_CHARS = 40_000;
-  const variableSize = domSummary.length + kbSection.length + mcpSection.length + historySection.length;
+  const variableSize = domSummary.length + kbSection.length + mcpSection.length + historySection.length + (liveContext?.length ?? 0);
   let trimmedKbSection = kbSection;
   let trimmedDomSummary = domSummary;
   if (variableSize > TOKEN_BUDGET_CHARS) {
@@ -418,7 +437,7 @@ RESPONSE TURN: The user has replied or taken an action.
     : '';
 
   return `You are ${agentName}, an AI onboarding guide inside "${orgName}". You ALWAYS call exactly one tool — never respond with plain text.
-${userProfile}${historySection}
+${userProfile}${liveContextSection}${historySection}
 ${flowGoal ? `FLOW GOAL: ${flowGoal}\n` : ''}STEP: "${step.title}"
 Goal: ${step.description || step.title}
 ${step.aiPrompt ? `Instructions: ${step.aiPrompt}` : ''}
@@ -432,6 +451,7 @@ ABSOLUTE RULES:
 - Never confirm, summarise, or ask "are you ready?".
 - Never call complete_step speculatively — only when the user has provably finished.
 - Keep all user-facing text under 25 words.
+- If the user asks a factual question and the KNOWLEDGE BASE section above is empty or contains no relevant answer, respond via ask_clarification with exactly: "I don't have that in my knowledge base. Please reach out to support."
 ${customInstructions ?? ''}${toneInstruction}${mustAlwaysSection}${mustNeverSection}${langInstruction}`.trim();
 }
 
@@ -573,10 +593,12 @@ async function prepareAgentCall(opts: {
   userMetadata?: Record<string, unknown>;
   detectedLang?: string;
   flowGoal?: string;
+  liveContext?: string;
 }) {
   const {
     org, step, userMessage, collectedData, conversationHistory,
     isLastStep, pageContext, userHistoryFormatted, userMetadata, detectedLang, flowGoal,
+    liveContext,
   } = opts;
 
   const isInit   = userMessage === '__init__';
@@ -681,6 +703,7 @@ ${actionConfig!.fields   ? `- fields: ${JSON.stringify(actionConfig!.fields)} (r
     actionHint,
     detectedLang,
     flowGoal,
+    liveContext,
     playbook: playbookConfig,
   });
 
@@ -798,6 +821,7 @@ export async function runAgent(opts: {
   userMetadata?: Record<string, unknown>;
   detectedLang?: string;
   flowGoal?: string;
+  liveContext?: string;
 }): Promise<AgentAction> {
   const { model, systemPrompt, messages, toolsForStep, mcpBundles, collectedData } = await prepareAgentCall(opts);
 
@@ -1296,6 +1320,7 @@ export async function runAgentGoal(opts: {
   userMetadata?: Record<string, unknown>;
   userHistoryFormatted?: string;
   detectedLang?: string; // Fix #9
+  liveContext?: string;
 }): Promise<AgentAction> {
   const { org, goal, pageContext, turnHistory, userMetadata, userHistoryFormatted, detectedLang } = opts;
 
@@ -1409,6 +1434,7 @@ ${observeCount >= 3 ? '\nYou have reached 3 failures. You MUST call degrade_to_m
     ? `USER PROFILE: ${JSON.stringify(userMetadata)} — match your language and depth to this user's context.\n`
     : '';
   const priorHistorySection = userHistoryFormatted ? `\n${userHistoryFormatted}\n` : '';
+  const liveContextSection = opts.liveContext ? `\n${opts.liveContext}\n` : '';
 
   // Fix #9: inject language instruction into goal mode system prompt
   const goalLangInstruction = detectedLang === 'hi'
@@ -1418,7 +1444,7 @@ ${observeCount >= 3 ? '\nYou have reached 3 failures. You MUST call degrade_to_m
     : '';
 
   const systemPrompt = `You are Ahaget, an AI agent inside "${org.name}".
-${userProfile}${priorHistorySection}
+${userProfile}${liveContextSection}${priorHistorySection}
 GOAL: ${goal}
 
 TURN HISTORY (what you have done so far):
@@ -1437,6 +1463,7 @@ RULES:
 - Keep all user-facing text under 25 words
 - Never repeat an action that already failed \u2014 try a different approach
 - Do not call complete_step or celebrate_milestone in goal mode \u2014 use goal_complete instead
+- If the user asks a factual question and the KNOWLEDGE BASE section above is empty or contains no relevant answer, respond via ask_clarification with exactly: "I don't have that in my knowledge base. Please reach out to support."
 - NEVER fill or read fields of type password, or whose name/label contains: password, ssn, social security, credit card, card number, cvv, cvc, or pin \u2014 skip them entirely
 - If stuck after 2+ attempts, call degrade_to_manual BEFORE escalate_to_human
 
