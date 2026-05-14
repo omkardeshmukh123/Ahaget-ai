@@ -8,6 +8,7 @@ import { WidgetConfig, DEFAULT_CONFIG } from './config';
 import { DropOffDetector } from './detector';
 import { trackEvent, evaluateTriggers, fetchPendingProactiveMessage, markProactiveMessage, beaconAbandon } from './api';
 import { injectStyles } from './styles';
+import { startDomObserver } from './scanner';
 import { CopilotManager, AgentAction, CopilotSession } from './copilot';
 import {
   createRoot, createSidePanel,
@@ -68,6 +69,7 @@ export class AhagetWidget {
 
   private async mount() {
     injectStyles(this.config.primaryColor);
+    startDomObserver();
 
     const root = createRoot();
     this.panelEl = createSidePanel(root);
