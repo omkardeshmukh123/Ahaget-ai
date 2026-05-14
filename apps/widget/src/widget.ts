@@ -345,13 +345,23 @@ export class AhagetWidget {
       return;
     }
 
-    // Auto-trigger agent
+    // Auto-trigger agent — send __navigated__ if we just arrived via a navigate action
+    const navResumeRaw = localStorage.getItem('_oai_nav_resume');
+    localStorage.removeItem('_oai_nav_resume');
+    let initMessage = '__init__';
+    if (navResumeRaw) {
+      try {
+        const nav = JSON.parse(navResumeRaw) as { from?: string; to?: string; stepTitle?: string };
+        initMessage = `__navigated__:${JSON.stringify({ from: nav.from, to: nav.to ?? window.location.pathname, stepTitle: nav.stepTitle ?? step.title })}`;
+      } catch { /* malformed — fall back to __init__ */ }
+    }
+
     this.enableInput();
     this.isSending = true;
     this.sendBtn.disabled = true;
     const streamDiv = createStreamingBubble(this.messagesEl);
     try {
-      const result = await this.copilot.sendMessage('__init__');
+      const result = await this.copilot.sendMessage(initMessage);
       if (result) {
         this.handleAgentAction(result.action, streamDiv, result.messageId);
       } else {

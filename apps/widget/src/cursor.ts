@@ -69,12 +69,42 @@ function pulseField(el: HTMLElement): void {
   }, 700);
 }
 
+// ─── Virtual select detection (Radix UI, MUI, Headless UI, Shadcn) ────────────
+function isVirtualSelect(el: HTMLElement): boolean {
+  return (
+    el.getAttribute('role') === 'combobox' ||
+    el.getAttribute('data-radix-select-trigger') !== null ||
+    el.closest('[data-radix-select-root]') !== null ||
+    el.getAttribute('aria-haspopup') === 'listbox'
+  );
+}
+
+async function fillVirtualSelect(el: HTMLElement, value: string): Promise<boolean> {
+  el.click();
+  el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 150));
+  const options = document.querySelectorAll('[role="option"]');
+  for (const opt of Array.from(options)) {
+    if (opt.textContent?.trim().toLowerCase().includes(value.toLowerCase())) {
+      (opt as HTMLElement).click();
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Fill a single field with a typewriter-style character-by-character effect */
 function typeIntoField(
-  el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
+  el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLElement,
   value: string,
 ): Promise<void> {
   return new Promise((resolve) => {
+    // Virtual component selects (Radix, MUI, Headless UI) — handled async
+    if (isVirtualSelect(el as HTMLElement)) {
+      fillVirtualSelect(el as HTMLElement, value).then(() => setTimeout(resolve, 150));
+      return;
+    }
+
     if (el.tagName === 'SELECT') {
       // Selects can't be typed — just set directly
       (el as HTMLSelectElement).value = value;
@@ -84,8 +114,9 @@ function typeIntoField(
       return;
     }
 
-    el.focus();
-    el.value = '';
+    const inputEl = el as HTMLInputElement | HTMLTextAreaElement;
+    inputEl.focus();
+    inputEl.value = '';
 
     const chars = value.split('');
     let i = 0;
@@ -94,14 +125,14 @@ function typeIntoField(
 
     function typeNext() {
       if (i >= chars.length) {
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
+        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        inputEl.dispatchEvent(new Event('change', { bubbles: true }));
         setTimeout(resolve, 120);
         return;
       }
-      el.value += chars[i++];
+      inputEl.value += chars[i++];
       // Fire input event on every keypress so frameworks stay in sync
-      el.dispatchEvent(new Event('input', { bubbles: true }));
+      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
       const jitter = Math.random() * 30 - 15;
       setTimeout(typeNext, BASE_DELAY + jitter);
     }
@@ -119,7 +150,7 @@ function typeIntoField(
  */
 export async function animatedFillFields(
   fields: Record<string, string>,
-  getEl: (selector: string) => HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null,
+  getEl: (selector: string) => HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLElement | null,
 ): Promise<void> {
   // Spawn cursor at center of viewport
   let cursor = getCursor();

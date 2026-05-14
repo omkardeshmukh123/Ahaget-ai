@@ -45,6 +45,7 @@ export interface PageContext {
     elements: PageElement[];
   } | null;
   recentDomEvents?: string[];
+  validationErrors?: string[];
 }
 
 // ─── Module-level element index ───────────────────────────────────────────────
@@ -352,14 +353,41 @@ export function scanPage(): PageContext {
       };
     });
 
+  const validationErrors = scanValidationErrors();
+
   return {
     url: window.location.pathname,
     title: document.title,
     headings,
     elements: pageElements,
-    ...(modalContext           ? { modalContext }     : {}),
-    ...(recentDomEvents.length ? { recentDomEvents }  : {}),
+    ...(modalContext             ? { modalContext }              : {}),
+    ...(recentDomEvents.length   ? { recentDomEvents }           : {}),
+    ...(validationErrors.length  ? { validationErrors }          : {}),
   };
+}
+
+// ─── Validation error scanner ────────────────────────────────────────────────
+// Detects visible validation error messages near form fields and in ARIA live
+// regions. Deduplicated and capped to avoid overwhelming the agent.
+function scanValidationErrors(): string[] {
+  const ERROR_SELECTORS = [
+    '[role="alert"]',
+    '[aria-live="polite"]',
+    '[aria-live="assertive"]',
+    '.error', '.error-message', '[data-error]',
+    'input:invalid + *', 'input[aria-invalid="true"] + *',
+  ];
+  const errors: string[] = [];
+  for (const sel of ERROR_SELECTORS) {
+    try {
+      document.querySelectorAll(sel).forEach((el) => {
+        if (el.closest('#oai-root')) return;
+        const text = (el as HTMLElement).innerText?.trim();
+        if (text && text.length > 0 && text.length < 200) errors.push(text);
+      });
+    } catch { /* invalid selector in some browsers — skip */ }
+  }
+  return [...new Set(errors)].slice(0, 5);
 }
 
 // ─── Semantic DOM layer ───────────────────────────────────────────────────────

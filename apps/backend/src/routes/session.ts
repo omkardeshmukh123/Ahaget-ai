@@ -469,7 +469,7 @@ async function applyActionSideEffects(opts: {
 }): Promise<string | null> {
   const { action, session, currentStep, userMessage, orgId } = opts;
 
-  const isInternalMessage = userMessage === '__init__' || userMessage === '__verify__';
+  const isInternalMessage = userMessage === '__init__' || userMessage === '__verify__' || userMessage.startsWith('__navigated__:');
 
   // ── Store messages (skip internal triggers) — return assistant message id ─
   let assistantMessageId: string | null = null;
@@ -848,10 +848,21 @@ router.post('/act', async (req: AuthenticatedRequest, res: Response) => {
   // Fetch user history (non-blocking)
   const userHistory = await getUserHistory(session.endUserId, session.id).catch(() => null);
 
-  const detectedLang = await detectLanguage(userMessage);
-  const agentMessage = detectedLang !== 'en'
-    ? await translateText(userMessage, 'en', detectedLang)
-    : userMessage;
+  // Decode __navigated__ into a structured agent message
+  let effectiveMessage = userMessage;
+  if (userMessage.startsWith('__navigated__:')) {
+    try {
+      const nav = JSON.parse(userMessage.slice('__navigated__:'.length)) as { from?: string; to?: string; stepTitle?: string };
+      effectiveMessage = `NAVIGATION COMPLETE: You navigated from ${nav.from ?? 'previous page'} to ${nav.to ?? 'current page'}. Current page is now loaded. Resume step "${nav.stepTitle ?? currentStep.title}" — re-scan LIVE PAGE ELEMENTS and continue.`;
+    } catch {
+      effectiveMessage = '__init__';
+    }
+  }
+
+  const detectedLang = await detectLanguage(effectiveMessage === '__init__' ? '' : effectiveMessage);
+  const agentMessage = detectedLang !== 'en' && effectiveMessage !== '__init__'
+    ? await translateText(effectiveMessage, 'en', detectedLang)
+    : effectiveMessage;
 
   const liveContext = typeof session.liveContextSnapshot === 'string'
     ? session.liveContextSnapshot
@@ -989,10 +1000,20 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
     const isLastStep  = currentStep.order === Math.max(...session.flow.steps.map((s) => s.order));
     const userHistory = await getUserHistory(session.endUserId, session.id).catch(() => null);
 
-    const streamDetectedLang = await detectLanguage(userMessage);
-    const streamAgentMessage = streamDetectedLang !== 'en'
-      ? await translateText(userMessage, 'en', streamDetectedLang)
-      : userMessage;
+    let streamEffectiveMessage = userMessage;
+    if (userMessage.startsWith('__navigated__:')) {
+      try {
+        const nav = JSON.parse(userMessage.slice('__navigated__:'.length)) as { from?: string; to?: string; stepTitle?: string };
+        streamEffectiveMessage = `NAVIGATION COMPLETE: You navigated from ${nav.from ?? 'previous page'} to ${nav.to ?? 'current page'}. Current page is now loaded. Resume step "${nav.stepTitle ?? currentStep.title}" — re-scan LIVE PAGE ELEMENTS and continue.`;
+      } catch {
+        streamEffectiveMessage = '__init__';
+      }
+    }
+
+    const streamDetectedLang = await detectLanguage(streamEffectiveMessage === '__init__' ? '' : streamEffectiveMessage);
+    const streamAgentMessage = streamDetectedLang !== 'en' && streamEffectiveMessage !== '__init__'
+      ? await translateText(streamEffectiveMessage, 'en', streamDetectedLang)
+      : streamEffectiveMessage;
 
     const streamLiveContext = typeof session.liveContextSnapshot === 'string'
       ? session.liveContextSnapshot

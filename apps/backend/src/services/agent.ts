@@ -42,10 +42,11 @@ const AGENT_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
         properties: {
           type: {
             type: 'string',
-            enum: ['fill_form', 'click', 'navigate', 'highlight', 'hover_tip'],
+            enum: ['fill_form', 'click', 'navigate', 'highlight', 'hover_tip', 'expand_panel'],
           },
-          selector: { type: 'string', description: 'CSS selector for click or highlight (must be from live page elements)' },
-          url:      { type: 'string', description: 'URL for navigate action' },
+          selector: { type: 'string', description: 'CSS selector for click, highlight, or expand_panel trigger (must be from live page elements)' },
+          waitForSelector: { type: 'string', description: 'expand_panel: CSS selector to wait for after clicking the trigger (e.g. the panel contents)' },
+          url:      { type: 'string', description: 'URL for navigate action. After calling navigate, STOP — you will be re-invoked on the new page with NAVIGATION COMPLETE.' },
           fields: {
             type: 'object',
             description: 'fill_form: { "CSS selector": "value" } — substitute user-provided values from collectedData',
@@ -144,7 +145,8 @@ export type AgentAction =
   | { type: 'escalate_to_human'; reason: string; trigger: string; message: string }
   | { type: 'chat'; content: string }
   | { type: 'goal_complete'; summary: string }
-  | { type: 'degrade_to_manual'; instruction: string; reason: string };
+  | { type: 'degrade_to_manual'; instruction: string; reason: string }
+  | { type: 'suggest_upgrade'; plan: string; headline: string; pitch: string; upgradeUrl: string; flowId: string };
 
 export interface PageContext {
   url: string;
@@ -166,6 +168,7 @@ export interface PageContext {
     }>;
   } | null;
   recentDomEvents?: string[];
+  validationErrors?: string[];
 }
 
 // ─── DOM text sanitizer — strips control chars and common injection phrases ────
@@ -237,6 +240,11 @@ export function buildDomSummary(pageContext: PageContext): string {
   // Recent DOM events section
   if (pageContext.recentDomEvents && pageContext.recentDomEvents.length > 0) {
     parts.push(`RECENT DOM EVENTS:\n${pageContext.recentDomEvents.join('\n')}`);
+  }
+
+  // Validation errors — injected as a distinct block so the agent can act on them
+  if (pageContext.validationErrors && pageContext.validationErrors.length > 0) {
+    parts.push(`VALIDATION ERRORS ON PAGE:\n${pageContext.validationErrors.map((e) => `- ${sanitizeDomText(e)}`).join('\n')}\nIf validation errors are present after a fill/click, address them directly before retrying.`);
   }
 
   return parts.join('\n\n');
@@ -436,9 +444,16 @@ RESPONSE TURN: The user has replied or taken an action.
     ? `\nMUST NEVER:\n${playbook.mustNeverDo.map((r) => `- ${r}`).join('\n')}`
     : '';
 
+  const multiPageInstructions = step.targetUrl
+    ? `\nMULTI-PAGE STEP: This step requires navigating to a specific page.
+1. If current URL does not match "${step.targetUrl}" → call execute_page_action with type "navigate" and url "${step.targetUrl}" immediately. Do not ask the user first.
+2. After navigation you will receive a NAVIGATION COMPLETE signal — then resume this step.
+3. Only execute fill/click actions after confirming you are on the correct page.\n`
+    : '';
+
   return `You are ${agentName}, an AI onboarding guide inside "${orgName}". You ALWAYS call exactly one tool — never respond with plain text.
 ${userProfile}${liveContextSection}${historySection}
-${flowGoal ? `FLOW GOAL: ${flowGoal}\n` : ''}STEP: "${step.title}"
+${flowGoal ? `FLOW GOAL: ${flowGoal}\n` : ''}${multiPageInstructions}STEP: "${step.title}"
 Goal: ${step.description || step.title}
 ${step.aiPrompt ? `Instructions: ${step.aiPrompt}` : ''}
 ${actionHint}${trimmedDomSummary}${interfaceMapSection}${trimmedKbSection}${mcpSection}
@@ -480,6 +495,11 @@ function parseToolCall(name: string, input: Record<string, unknown>): AgentActio
         ...(input.highlightLabel    ? { label: input.highlightLabel } : {}),
         ...(input.highlightSelectors ? { selectors: input.highlightSelectors } : {}),
         ...(input.highlightLabels    ? { labels: input.highlightLabels } : {}),
+      };
+    } else if (actionType === 'expand_panel') {
+      payload = {
+        selector: input.selector ?? '',
+        ...(input.waitForSelector ? { waitForSelector: input.waitForSelector } : {}),
       };
     } else {
       payload = { selector: input.selector ?? '' };

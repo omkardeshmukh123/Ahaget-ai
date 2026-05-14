@@ -566,7 +566,7 @@ export class CopilotManager {
       animatedFillFields(resolvedFields, (sel) => {
         const el = document.querySelector(sel);
         if (!el) return null;
-        return el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+        return el as HTMLElement;
       }).catch(() => {
         // If animation fails for any reason, fall back to direct fill
         for (const [sel, value] of Object.entries(resolvedFields)) {
@@ -607,7 +607,37 @@ export class CopilotManager {
           flowId: this.session.flow.id,
           userId: this.userId,
         }));
+        // Store navigation context separately so widget.ts can send __navigated__
+        localStorage.setItem('_oai_nav_resume', JSON.stringify({
+          from: window.location.pathname,
+          to: url,
+          stepTitle: this.session.currentStep?.title ?? '',
+          sessionId: this.session.id,
+        }));
         window.location.href = url;
+      }
+    }
+
+    if (actionType === 'expand_panel') {
+      const selector = payload.selector as string;
+      const waitForSel = payload.waitForSelector as string | undefined;
+      if (selector) {
+        const result = resolveFromIndex(selector);
+        if (!result) {
+          this.reportHeal({ originalSelector: selector, strategy: 'failed', actionType });
+          return;
+        }
+        if (result.healed) this.reportHeal({ originalSelector: selector, usedSelector: result.usedSelector, strategy: result.strategy, actionType });
+        result.el.click();
+        if (waitForSel) {
+          // Poll for waitForSelector up to 1.5 s
+          const deadline = Date.now() + 1500;
+          const poll = () => {
+            if (document.querySelector(waitForSel)) return;
+            if (Date.now() < deadline) setTimeout(poll, 80);
+          };
+          setTimeout(poll, 80);
+        }
       }
     }
 

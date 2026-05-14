@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { api, OnboardingFlow, OnboardingStep } from '@/lib/api';
+import { api, OnboardingFlow, OnboardingStep, FunnelStep, FlowTimeline, AdoptionStats } from '@/lib/api';
 
 const ACTION_TYPES = ['none', 'fill_form', 'click', 'navigate', 'highlight'];
 
@@ -50,6 +50,21 @@ export default function FlowEditorPage() {
   const [savingMeta, setSavingMeta] = useState(false);
   const [metaSaved, setMetaSaved] = useState(false);
 
+  // Target audience state
+  const [targetRolesInput, setTargetRolesInput]       = useState('');
+  const [targetSegmentsInput, setTargetSegmentsInput] = useState('');
+  const [targetPlansInput, setTargetPlansInput]       = useState('');
+  const [savingAudience, setSavingAudience]           = useState(false);
+  const [audienceSaved, setAudienceSaved]             = useState(false);
+
+  // Analytics tab state
+  const [activeTab, setActiveTab] = useState<'steps' | 'analytics'>('steps');
+  const [funnel, setFunnel] = useState<{ flowName: string | null; totalSessions: number; funnel: FunnelStep[] } | null>(null);
+  const [timeline, setTimeline] = useState<FlowTimeline[]>([]);
+  const [timelineDays, setTimelineDays] = useState(30);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [adoptionStats, setAdoptionStats] = useState<AdoptionStats | null>(null);
+
   useEffect(() => {
     api.flow.get(id).then((d) => {
       setFlow(d.flow);
@@ -59,6 +74,9 @@ export default function FlowEditorPage() {
       setMaxTriggers(d.flow.maxTriggersPerUser ?? 0);
       setFlowGoal(d.flow.description ?? '');
       setFeatureSlug((d.flow.triggerCondition as Record<string, unknown>)?.featureSlug as string ?? '');
+      setTargetRolesInput((d.flow.targetRoles ?? []).join(', '));
+      setTargetSegmentsInput((d.flow.targetSegments ?? []).join(', '));
+      setTargetPlansInput((d.flow.targetPlans ?? []).join(', '));
       setLoading(false);
     });
   }, [id]);
@@ -88,6 +106,41 @@ export default function FlowEditorPage() {
     setSavingTrigger(false);
     setTriggerSaved(true);
     setTimeout(() => setTriggerSaved(false), 2000);
+  }
+
+  function splitTags(s: string): string[] {
+    return s.split(',').map((v) => v.trim()).filter(Boolean);
+  }
+
+  async function saveAudience() {
+    setSavingAudience(true);
+    await api.flow.update(id, {
+      targetRoles:    splitTags(targetRolesInput),
+      targetSegments: splitTags(targetSegmentsInput),
+      targetPlans:    splitTags(targetPlansInput),
+    });
+    setSavingAudience(false);
+    setAudienceSaved(true);
+    setTimeout(() => setAudienceSaved(false), 2000);
+  }
+
+  async function loadAnalytics(days: number) {
+    setAnalyticsLoading(true);
+    const isAdoption = flow?.flowType === 'adoption';
+    const [funnelData, timelineData, adoptionData] = await Promise.all([
+      api.activation.funnel(id),
+      api.activation.flowTimeline(id, days),
+      isAdoption ? api.activation.adoption(id) : Promise.resolve(null),
+    ]);
+    setFunnel(funnelData);
+    setTimeline(timelineData.timeline);
+    setAdoptionStats(adoptionData);
+    setAnalyticsLoading(false);
+  }
+
+  function switchTab(tab: 'steps' | 'analytics') {
+    setActiveTab(tab);
+    if (tab === 'analytics' && !funnel) loadAnalytics(timelineDays);
   }
 
   async function addStep() {
@@ -124,9 +177,28 @@ export default function FlowEditorPage() {
       </button>
 
       <h1 className="text-2xl font-bold text-slate-900 mb-1">{flow.name}</h1>
-      <p className="text-slate-500 text-sm mb-6">
+      <p className="text-slate-500 text-sm mb-4">
         Define each step of the journey. The AI copilot will guide users through these steps automatically.
       </p>
+
+      {/* Tab switcher */}
+      <div className="flex mb-8 border-b border-slate-200">
+        {(['steps', 'analytics'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => switchTab(tab)}
+            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === tab
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {tab === 'steps' ? 'Steps' : 'Analytics'}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'steps' && (<>
 
       {/* Flow goal + feature slug */}
       <div className="border border-slate-200 rounded-xl p-6 mb-6 bg-white">
@@ -220,6 +292,40 @@ export default function FlowEditorPage() {
         </div>
       </div>
 
+      {/* Target Audience */}
+      <div className="border border-slate-200 rounded-xl p-6 mb-8 bg-white">
+        <h2 className="font-semibold text-slate-800 mb-1">Target Audience</h2>
+        <p className="text-xs text-slate-400 mb-5">Restrict this flow to users with specific attributes. Leave blank to target all users. Use commas to separate multiple values.</p>
+        <div className="grid grid-cols-3 gap-5">
+          {([
+            { label: 'Roles',    value: targetRolesInput,    set: setTargetRolesInput,    placeholder: 'admin, member' },
+            { label: 'Segments', value: targetSegmentsInput, set: setTargetSegmentsInput, placeholder: 'enterprise, smb' },
+            { label: 'Plans',    value: targetPlansInput,    set: setTargetPlansInput,    placeholder: 'free, pro, growth' },
+          ] as const).map(({ label, value, set, placeholder }) => (
+            <div key={label}>
+              <label className="text-xs font-medium text-slate-500 block mb-1">{label}</label>
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => set(e.target.value)}
+                placeholder={placeholder}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            onClick={saveAudience}
+            disabled={savingAudience}
+            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
+          >
+            {savingAudience ? 'Saving…' : 'Save Audience'}
+          </button>
+          {audienceSaved && <span className="text-xs text-green-600 font-medium">Saved</span>}
+        </div>
+      </div>
+
       {/* Steps list */}
       <div className="space-y-4 mb-10">
         {steps.length === 0 && (
@@ -285,6 +391,20 @@ export default function FlowEditorPage() {
           isNew
         />
       </div>
+
+      </>)}
+
+      {activeTab === 'analytics' && (
+        <AnalyticsTab
+          funnel={funnel}
+          timeline={timeline}
+          timelineDays={timelineDays}
+          loading={analyticsLoading}
+          flowType={flow.flowType}
+          adoptionStats={adoptionStats}
+          onChangeDays={(days) => { setTimelineDays(days); loadAnalytics(days); }}
+        />
+      )}
     </div>
   );
 }
@@ -396,6 +516,82 @@ function StepForm({
         </div>
       </div>
 
+      {/* Action config — conditional fields per action type */}
+      {step.actionType === 'click' && (
+        <div className="border border-slate-100 rounded-lg p-4 bg-slate-50">
+          <label className="text-xs font-medium text-slate-500 block mb-1">Click — CSS selector</label>
+          <input
+            value={((step.actionConfig as Record<string, unknown>)?.selector as string) ?? ''}
+            onChange={(e) => set('actionConfig', { ...((step.actionConfig as Record<string, unknown>) ?? {}), selector: e.target.value })}
+            placeholder="#submit-button"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          <p className="text-xs text-slate-400 mt-1">Agent clicks this element at step start.</p>
+        </div>
+      )}
+
+      {step.actionType === 'highlight' && (
+        <div className="border border-slate-100 rounded-lg p-4 bg-slate-50">
+          <label className="text-xs font-medium text-slate-500 block mb-1">Highlight — CSS selector</label>
+          <input
+            value={((step.actionConfig as Record<string, unknown>)?.selector as string) ?? ''}
+            onChange={(e) => set('actionConfig', { ...((step.actionConfig as Record<string, unknown>) ?? {}), selector: e.target.value })}
+            placeholder=".pricing-table"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        </div>
+      )}
+
+      {step.actionType === 'fill_form' && (
+        <div className="border border-slate-100 rounded-lg p-4 bg-slate-50">
+          <label className="text-xs font-medium text-slate-500 block mb-2">Fill Form — Fields (selector → value)</label>
+          {Object.entries(((step.actionConfig as Record<string, unknown>)?.fields as Record<string, string>) ?? {}).map(([sel, val], i) => (
+            <div key={i} className="flex gap-2 mb-2">
+              <input
+                value={sel}
+                onChange={(e) => {
+                  const fields = { ...((((step.actionConfig as Record<string, unknown>)?.fields ?? {}) as Record<string, string>)) };
+                  delete fields[sel];
+                  fields[e.target.value] = val;
+                  set('actionConfig', { ...((step.actionConfig as Record<string, unknown>) ?? {}), fields });
+                }}
+                placeholder="#email-input"
+                className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+              <input
+                value={val}
+                onChange={(e) => {
+                  const fields = { ...((((step.actionConfig as Record<string, unknown>)?.fields ?? {}) as Record<string, string>)) };
+                  fields[sel] = e.target.value;
+                  set('actionConfig', { ...((step.actionConfig as Record<string, unknown>) ?? {}), fields });
+                }}
+                placeholder="{{collectedData.email}}"
+                className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const fields = { ...((((step.actionConfig as Record<string, unknown>)?.fields ?? {}) as Record<string, string>)) };
+                  delete fields[sel];
+                  set('actionConfig', { ...((step.actionConfig as Record<string, unknown>) ?? {}), fields });
+                }}
+                className="text-red-400 hover:text-red-600 px-2"
+              >×</button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              const fields = { ...((((step.actionConfig as Record<string, unknown>)?.fields ?? {}) as Record<string, string>)) };
+              fields[''] = '';
+              set('actionConfig', { ...((step.actionConfig as Record<string, unknown>) ?? {}), fields });
+            }}
+            className="text-xs text-brand-600 hover:text-brand-800 font-medium"
+          >+ Add field</button>
+          <p className="text-xs text-slate-400 mt-2">Use <code>{'{{collectedData.key}}'}</code> to substitute collected answers.</p>
+        </div>
+      )}
+
       <div>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -461,6 +657,166 @@ function StepForm({
         <button onClick={onCancel} className="text-sm text-slate-500 hover:text-slate-800 px-4 py-2">
           Cancel
         </button>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  label, value, sub, color = 'slate',
+}: {
+  label: string; value: string; sub?: string; color?: 'slate' | 'emerald' | 'amber' | 'red';
+}) {
+  const valueColor = { slate: 'text-slate-900', emerald: 'text-emerald-600', amber: 'text-amber-600', red: 'text-red-600' }[color];
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-4">
+      <p className="text-xs text-slate-500 mb-1">{label}</p>
+      <p className={`text-2xl font-bold ${valueColor}`}>{value}</p>
+      {sub && <p className="text-xs text-slate-400 mt-0.5 truncate">{sub}</p>}
+    </div>
+  );
+}
+
+function AnalyticsTab({
+  funnel, timeline, timelineDays, loading, flowType, adoptionStats, onChangeDays,
+}: {
+  funnel: { flowName: string | null; totalSessions: number; funnel: FunnelStep[] } | null;
+  timeline: FlowTimeline[];
+  timelineDays: number;
+  loading: boolean;
+  flowType: string;
+  adoptionStats: AdoptionStats | null;
+  onChangeDays: (days: number) => void;
+}) {
+  if (loading) return <div className="p-8 text-center text-slate-400 text-sm animate-pulse">Loading analytics…</div>;
+  if (!funnel) return <div className="p-8 text-center text-slate-400 text-sm">No analytics data yet.</div>;
+
+  const steps = funnel.funnel;
+  const total = funnel.totalSessions;
+  const lastStep = steps[steps.length - 1];
+  const completionRate = total > 0 && lastStep ? Math.round((lastStep.completed / total) * 100) : 0;
+  const avgTimeSecs = steps.reduce((s, st) => s + (st.avgTimeSecs ?? 0), 0);
+  const avgTimeMins = avgTimeSecs > 0 ? Math.round((avgTimeSecs / 60) * 10) / 10 : null;
+  const worstStep = steps.length > 0 ? steps.reduce((a, b) => (b.dropOffRate > a.dropOffRate ? b : a)) : null;
+  const maxBar = steps[0]?.started ?? 1;
+
+  // SVG chart constants
+  const W = 600; const H = 120; const pL = 28; const pR = 8; const pT = 8; const pB = 8;
+  const iW = W - pL - pR; const iH = H - pT - pB;
+  const cx = (i: number) => pL + (timeline.length > 1 ? (i / (timeline.length - 1)) * iW : iW / 2);
+  const cy = (rate: number) => pT + iH - (rate / 100) * iH;
+
+  return (
+    <div className="space-y-6">
+      {/* Stat cards */}
+      <div className={`grid gap-4 ${flowType === 'adoption' ? 'grid-cols-5' : 'grid-cols-4'}`}>
+        <StatCard label="Total sessions" value={total.toLocaleString()} />
+        <StatCard
+          label="Completion rate"
+          value={total > 0 ? `${completionRate}%` : '—'}
+          color={completionRate >= 70 ? 'emerald' : completionRate >= 40 ? 'amber' : total > 0 ? 'red' : 'slate'}
+        />
+        <StatCard label="Avg time to complete" value={avgTimeMins !== null ? `${avgTimeMins}m` : '—'} />
+        <StatCard
+          label="Worst drop-off"
+          value={worstStep && worstStep.dropOffRate > 0 ? `${worstStep.dropOffRate}%` : '—'}
+          sub={worstStep && worstStep.dropOffRate > 0 ? worstStep.stepTitle : undefined}
+          color={worstStep && worstStep.dropOffRate >= 50 ? 'red' : worstStep && worstStep.dropOffRate >= 25 ? 'amber' : 'slate'}
+        />
+        {flowType === 'adoption' && (
+          <StatCard
+            label={adoptionStats?.featureSlug ? `"${adoptionStats.featureSlug}" adoption` : 'Feature adoption'}
+            value={adoptionStats ? `${adoptionStats.adoptionRate}%` : '—'}
+            sub={adoptionStats ? `${adoptionStats.adoptedCount} of ${adoptionStats.totalSessions} users` : undefined}
+            color={adoptionStats && adoptionStats.adoptionRate >= 60 ? 'emerald' : adoptionStats && adoptionStats.adoptionRate >= 30 ? 'amber' : adoptionStats ? 'red' : 'slate'}
+          />
+        )}
+      </div>
+
+      {/* Step drop-off waterfall */}
+      <div className="bg-white border border-slate-200 rounded-xl p-6">
+        <h2 className="font-semibold text-slate-800 mb-5">Step drop-off</h2>
+        {steps.length === 0 ? (
+          <p className="text-sm text-slate-400">No step data yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {steps.map((step) => {
+              const isWorst = worstStep?.stepId === step.stepId && step.dropOffRate > 0;
+              const startedPct = (step.started / maxBar) * 100;
+              const completedPct = (step.completed / maxBar) * 100;
+              const dropColor = step.dropOffRate >= 50 ? 'text-red-600' : step.dropOffRate >= 25 ? 'text-amber-600' : 'text-slate-400';
+              return (
+                <div key={step.stepId} className={`rounded-lg p-3 ${isWorst ? 'bg-red-50 ring-1 ring-red-200' : 'bg-slate-50'}`}>
+                  <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-400">#{step.order + 1}</span>
+                      <span className="text-sm font-medium text-slate-800">{step.stepTitle}</span>
+                      {step.isMilestone && <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-medium">Milestone</span>}
+                      {isWorst && <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium">Worst drop-off ⚠</span>}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-slate-500">{step.started} started · {step.completed} completed</span>
+                      {step.avgTimeSecs !== null && (
+                        <span className="text-slate-400">{step.avgTimeSecs < 60 ? `${step.avgTimeSecs}s` : `${Math.round((step.avgTimeSecs / 60) * 10) / 10}m`} avg</span>
+                      )}
+                      <span className={`font-bold ${dropColor}`}>{step.dropOffRate > 0 ? `−${step.dropOffRate}%` : '✓ 0%'}</span>
+                    </div>
+                  </div>
+                  <div className="relative h-3.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="absolute left-0 top-0 h-full bg-slate-300 rounded-full" style={{ width: `${startedPct}%` }} />
+                    <div className={`absolute left-0 top-0 h-full rounded-full ${isWorst ? 'bg-red-400' : 'bg-indigo-500'}`} style={{ width: `${completedPct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Completion rate over time */}
+      <div className="bg-white border border-slate-200 rounded-xl p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-semibold text-slate-800">Completion rate over time</h2>
+          <div className="flex gap-1">
+            {([7, 30, 90] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => onChangeDays(d)}
+                className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${timelineDays === d ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
+        </div>
+        {timeline.length === 0 ? (
+          <p className="text-sm text-slate-400">No sessions in this period.</p>
+        ) : (
+          <>
+            <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 140 }}>
+              {[0, 25, 50, 75, 100].map((pct) => (
+                <g key={pct}>
+                  <line x1={pL} y1={cy(pct)} x2={pL + iW} y2={cy(pct)} stroke="#f1f5f9" strokeWidth={1} />
+                  <text x={pL - 4} y={cy(pct) + 4} textAnchor="end" fontSize={9} fill="#94a3b8">{pct}%</text>
+                </g>
+              ))}
+              <polygon
+                points={[`${cx(0)},${pT + iH}`, ...timeline.map((t, i) => `${cx(i)},${cy(t.completionRate)}`), `${cx(timeline.length - 1)},${pT + iH}`].join(' ')}
+                fill="#6366f1" fillOpacity={0.08}
+              />
+              <polyline
+                points={timeline.map((t, i) => `${cx(i)},${cy(t.completionRate)}`).join(' ')}
+                fill="none" stroke="#6366f1" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round"
+              />
+              {timeline.map((t, i) => <circle key={i} cx={cx(i)} cy={cy(t.completionRate)} r={3} fill="#6366f1" />)}
+            </svg>
+            <div className="flex justify-between text-xs text-slate-400 mt-1 px-1">
+              <span>{timeline[0]?.date}</span>
+              {timeline.length > 2 && <span>{timeline[Math.floor(timeline.length / 2)]?.date}</span>}
+              <span>{timeline[timeline.length - 1]?.date}</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
