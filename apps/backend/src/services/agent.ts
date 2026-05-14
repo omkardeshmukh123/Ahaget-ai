@@ -178,6 +178,70 @@ function sanitizeDomText(text: string): string {
     .slice(0, 120);
 }
 
+// ─── DOM summary builder (exported for testing) ────────────────────────────────
+// Converts a PageContext into a prompt-ready string block.
+// Returns '' when there is nothing meaningful to include (no elements and no
+// semanticSummary), to keep the system prompt lean.
+export function buildDomSummary(pageContext: PageContext): string {
+  if (!pageContext) return '';
+  if (pageContext.elements.length === 0 && !pageContext.semanticSummary && !pageContext.modalContext) return '';
+
+  const renderElement = (e: PageContext['elements'][number]): string => {
+    const tag = e.tag;
+    const typeAttr = e.type ? `[${e.type}]` : '';
+    const selectorPart = `selector="${sanitizeDomText(e.selector)}"`;
+    const labelPart = `label="${sanitizeDomText(e.text)}"`;
+    const valuePart = e.value ? ` value="${sanitizeDomText(e.value)}"` : '';
+    // selectedText for <select> elements
+    const selectedPart = e.selectedText ? ` selected="${sanitizeDomText(e.selectedText)}"` : '';
+    // checked only for checkbox/radio inputs
+    const checkedPart = (e.type === 'checkbox' || e.type === 'radio') && e.checked !== undefined
+      ? ` checked=${e.checked}`
+      : '';
+    const disabledPart = e.disabled ? ' DISABLED' : '';
+    // For disabled elements, wrap label text in quotes
+    const labelDisplay = e.disabled
+      ? `label="${sanitizeDomText(e.text)}"`
+      : labelPart;
+    return `  [${tag}${typeAttr}] ${selectorPart} ${labelDisplay}${valuePart}${selectedPart}${checkedPart}${disabledPart}`;
+  };
+
+  const parts: string[] = [];
+
+  // Modal section appears first (before main elements)
+  if (pageContext.modalContext) {
+    const modal = pageContext.modalContext;
+    parts.push(`MODAL OPEN: "${modal.title}"`);
+    const modalEls = modal.elements.slice(0, 15);
+    if (modalEls.length > 0) {
+      parts.push(...modalEls.map(renderElement));
+    }
+  }
+
+  // semanticSummary prefix
+  if (pageContext.semanticSummary) {
+    parts.push(`PAGE SEMANTIC SUMMARY:\n${pageContext.semanticSummary}`);
+  }
+
+  // Main elements section
+  if (pageContext.elements.length > 0) {
+    const els = pageContext.elements.slice(0, 30);
+    const header = `LIVE PAGE ELEMENTS (verified selectors — only use these):\nPage: ${sanitizeDomText(pageContext.title)} (${pageContext.url})`;
+    const headingsLine = pageContext.headings.length
+      ? `Headings: ${pageContext.headings.map(sanitizeDomText).join(' | ')}`
+      : '';
+    const elementLines = els.map(renderElement).join('\n');
+    parts.push([header, headingsLine, 'Interactive elements:', elementLines].filter(Boolean).join('\n'));
+  }
+
+  // Recent DOM events section
+  if (pageContext.recentDomEvents && pageContext.recentDomEvents.length > 0) {
+    parts.push(`RECENT DOM EVENTS:\n${pageContext.recentDomEvents.join('\n')}`);
+  }
+
+  return parts.join('\n\n');
+}
+
 // ─── Model routing ────────────────────────────────────────────────────────────
 function selectModel(opts: {
   isInit: boolean;
