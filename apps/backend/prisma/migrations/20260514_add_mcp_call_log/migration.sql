@@ -11,10 +11,14 @@ CREATE TABLE "mcp_call_logs" (
     "result"         JSONB,
     "is_error"       BOOLEAN NOT NULL DEFAULT false,
     "latency_ms"     INTEGER,
-    "created_at"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "created_at"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "mcp_call_logs_pkey" PRIMARY KEY ("id")
 );
+
+-- AddCheckConstraint
+ALTER TABLE "mcp_call_logs" ADD CONSTRAINT "mcp_call_logs_call_type_check"
+  CHECK ("call_type" IN ('mcp', 'rest'));
 
 -- AddForeignKey
 ALTER TABLE "mcp_call_logs" ADD CONSTRAINT "mcp_call_logs_organization_id_fkey"
