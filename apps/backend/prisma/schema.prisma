@@ -56,6 +56,7 @@ model Organization {
   interfaceSnapshots    InterfacePageSnapshot[]
   playbookConfig        PlaybookConfig?
   contextSources        ContextSource[]
+  mcpCallLogs           McpCallLog[]
 
   @@map("organizations")
 }
@@ -565,6 +566,28 @@ model ContextSource {
   @@index([organizationId])
   @@unique([organizationId, contextKey])
   @@map("context_sources")
+}
+
+// ─── McpCallLog (every MCP/REST tool call the agent made) ────────────────────
+model McpCallLog {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  sessionId      String?  @map("session_id")
+  connectorId    String?  @map("connector_id")
+  connectorName  String   @map("connector_name")
+  toolName       String   @map("tool_name")
+  callType       String   @map("call_type")          // "mcp" | "rest"
+  args           Json     @default("{}")
+  result         Json?
+  isError        Boolean  @default(false) @map("is_error")
+  latencyMs      Int?     @map("latency_ms")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([sessionId])
+  @@map("mcp_call_logs")
 }
 
 // ─── AuditLog (every action the AI took, per org — for compliance + debugging) ─

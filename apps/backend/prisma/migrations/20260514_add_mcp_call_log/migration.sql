@@ -1,0 +1,27 @@
+-- CreateTable
+CREATE TABLE "mcp_call_logs" (
+    "id"             TEXT NOT NULL,
+    "organization_id" TEXT NOT NULL,
+    "session_id"     TEXT,
+    "connector_id"   TEXT,
+    "connector_name" TEXT NOT NULL,
+    "tool_name"      TEXT NOT NULL,
+    "call_type"      TEXT NOT NULL,
+    "args"           JSONB NOT NULL DEFAULT '{}',
+    "result"         JSONB,
+    "is_error"       BOOLEAN NOT NULL DEFAULT false,
+    "latency_ms"     INTEGER,
+    "created_at"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT "mcp_call_logs_pkey" PRIMARY KEY ("id")
+);
+
+-- AddForeignKey
+ALTER TABLE "mcp_call_logs" ADD CONSTRAINT "mcp_call_logs_organization_id_fkey"
+    FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- CreateIndex
+CREATE INDEX "mcp_call_logs_organization_id_created_at_idx" ON "mcp_call_logs"("organization_id", "created_at" DESC);
+
+-- CreateIndex
+CREATE INDEX "mcp_call_logs_session_id_idx" ON "mcp_call_logs"("session_id");
