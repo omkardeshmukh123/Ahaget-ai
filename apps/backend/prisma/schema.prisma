@@ -55,6 +55,7 @@ model Organization {
   upsellAttributions    UpsellAttribution[]
   interfaceSnapshots    InterfacePageSnapshot[]
   playbookConfig        PlaybookConfig?
+  brandingConfig        BrandingConfig?
   contextSources        ContextSource[]
   mcpCallLogs           McpCallLog[]
 
@@ -786,3 +787,19 @@ model PlaybookConfig {
   @@map("playbook_configs")
 }
 
+// ─── BrandingConfig (per-org widget colours, position, idle threshold) ─────────
+model BrandingConfig {
+  id             String   @id @default(uuid())
+  organizationId String   @unique @map("organization_id")
+  primaryColor   String   @default("#6366f1") @map("primary_color")
+  gradFrom       String   @default("#6366f1") @map("grad_from")
+  gradTo         String   @default("#8b5cf6") @map("grad_to")
+  position       String   @default("bottom-right")       // bottom-right | bottom-left
+  idleThreshold  Int      @default(30000) @map("idle_threshold")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("branding_configs")
+}

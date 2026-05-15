@@ -594,6 +594,15 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
+
+  branding: {
+    get: () => apiFetch<BrandingConfig>('/api/v1/config/branding'),
+    update: (data: Partial<BrandingConfig>) =>
+      apiFetch<BrandingConfig>('/api/v1/config/branding', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+  },
 };
 
 
@@ -613,6 +622,14 @@ export interface PlaybookConfig {
   escalationWebhook: string | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface BrandingConfig {
+  primaryColor: string;
+  gradFrom: string;
+  gradTo: string;
+  position: 'bottom-right' | 'bottom-left';
+  idleThreshold: number;
 }
 
 export interface User {
