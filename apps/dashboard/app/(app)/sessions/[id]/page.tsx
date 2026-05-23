@@ -44,6 +44,12 @@ function exportTranscript(session: SessionDetail) {
 const ACTION_BADGE: Record<string, { label: string; color: string }> = {
   ask_clarification:   { label: 'question',   color: '#6366f1' },
   execute_page_action: { label: 'action',      color: '#0ea5e9' },
+  fill_form:           { label: 'fill form',   color: '#0ea5e9' },
+  click:               { label: 'click',       color: '#0ea5e9' },
+  navigate:            { label: 'navigate',    color: '#0ea5e9' },
+  highlight:           { label: 'highlight',   color: '#8b5cf6' },
+  hover_tip:           { label: 'hover tip',   color: '#6366f1' },
+  clear_highlight:     { label: 'cleared',     color: '#94a3b8' },
   complete_step:       { label: 'step done',   color: '#10b981' },
   celebrate_milestone: { label: 'milestone',   color: '#f59e0b' },
   escalate_to_human:   { label: 'escalated',   color: '#ef4444' },

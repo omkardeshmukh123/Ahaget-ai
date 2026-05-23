@@ -1,8 +1,8 @@
-﻿// Shared helpers: seed org+user, get token, clean up between tests
+// Shared helpers: seed org+user, get token, clean up between tests
 
-import { prisma } from '../lib/prisma';
-import { generateApiKey } from '../lib/apiKey';
-import { signToken } from '../lib/jwt';
+import { prisma } from '../utils/prisma';
+import { generateApiKey } from '../utils/apiKey';
+import { signToken } from '../utils/jwt';
 import bcrypt from 'bcryptjs';
 
 export interface TestOrg {
@@ -39,7 +39,7 @@ export async function createTestUser(orgId: string, role = 'owner'): Promise<Tes
 }
 
 export async function cleanupOrg(orgId: string) {
-  // Cascade deletes handle children — just delete the org
+  // Cascade deletes handle children � just delete the org
   await prisma.organization.deleteMany({ where: { id: orgId } });
 }
 

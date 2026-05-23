@@ -531,14 +531,30 @@ function StepForm({
       )}
 
       {step.actionType === 'highlight' && (
-        <div className="border border-slate-100 rounded-lg p-4 bg-slate-50">
-          <label className="text-xs font-medium text-slate-500 block mb-1">Highlight — CSS selector</label>
-          <input
-            value={((step.actionConfig as Record<string, unknown>)?.selector as string) ?? ''}
-            onChange={(e) => set('actionConfig', { ...((step.actionConfig as Record<string, unknown>) ?? {}), selector: e.target.value })}
-            placeholder=".pricing-table"
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-          />
+        <div className="border border-slate-100 rounded-lg p-4 bg-slate-50 space-y-3">
+          <div>
+            <label className="text-xs font-medium text-slate-500 block mb-1">Highlight — CSS selector</label>
+            <input
+              value={((step.actionConfig as Record<string, unknown>)?.selector as string) ?? ''}
+              onChange={(e) => set('actionConfig', { ...((step.actionConfig as Record<string, unknown>) ?? {}), selector: e.target.value })}
+              placeholder=".pricing-table"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-500 block mb-1">Highlight style</label>
+            <select
+              value={((step.actionConfig as Record<string, unknown>)?.mode as string) ?? 'spotlight'}
+              onChange={(e) => set('actionConfig', { ...((step.actionConfig as Record<string, unknown>) ?? {}), mode: e.target.value })}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+            >
+              <option value="spotlight">Spotlight — dark backdrop + ring (max attention)</option>
+              <option value="beacon">Beacon — pulsing dot badge (passive hint)</option>
+              <option value="arrow">Arrow — speech bubble pointing at element</option>
+              <option value="multi">Multi — numbered rings on several elements</option>
+              <option value="ring">Ring — thin pulsing ring only, no backdrop</option>
+            </select>
+          </div>
         </div>
       )}
 

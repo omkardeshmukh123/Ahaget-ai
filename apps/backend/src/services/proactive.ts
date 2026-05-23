@@ -12,8 +12,8 @@
  *   GET /api/v1/proactive/pending?userId=...&apiKey=...
  */
 
-import { prisma } from '../lib/prisma';
-import { sendProactiveEmail } from '../lib/email';
+import { prisma } from '../utils/prisma';
+import { sendProactiveEmail } from '../utils/email';
 
 const APP_URL = process.env.APP_URL ?? process.env.FRONTEND_URL ?? 'https://app.ahaget.ai';
 const DEDUP_HOURS = 48;

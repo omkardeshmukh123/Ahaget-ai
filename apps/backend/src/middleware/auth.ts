@@ -1,9 +1,9 @@
-ï»¿import { Response, NextFunction } from 'express';
-import { verifyToken } from '../lib/jwt';
-import { prisma } from '../lib/prisma';
+import { Response, NextFunction } from 'express';
+import { verifyToken } from '../utils/jwt';
+import { prisma } from '../utils/prisma';
 import { AuthenticatedRequest } from '../types';
 
-// Used by the JS widget â€” validates X-API-Key header
+// Used by the JS widget — validates X-API-Key header
 export async function authenticateApiKey(
   req: AuthenticatedRequest,
   res: Response,
@@ -27,7 +27,7 @@ export async function authenticateApiKey(
   next();
 }
 
-// Used by the admin dashboard â€” validates Authorization: Bearer <JWT>
+// Used by the admin dashboard — validates Authorization: Bearer <JWT>
 export function authenticateJWT(
   req: AuthenticatedRequest,
   res: Response,

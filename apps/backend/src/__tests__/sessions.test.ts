@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { createApp } from './testApp';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../utils/prisma';
 import { createTestOrg, createTestUser, cleanupOrg, setTestEnv } from './helpers';
 
 setTestEnv();

@@ -12,11 +12,11 @@
 // Each source is fetched in parallel with a 2 s hard timeout — failures are
 // silently skipped. The function never throws; it returns '' on any fatal error.
 
-import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
+import { prisma } from '../utils/prisma';
+import { logger } from '../utils/logger';
 import { callMcpTool } from './mcp';
 import { interpolate } from './apicall';
-import { assertPublicUrl } from '../lib/ipGuard';
+import { assertPublicUrl } from '../utils/ipGuard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

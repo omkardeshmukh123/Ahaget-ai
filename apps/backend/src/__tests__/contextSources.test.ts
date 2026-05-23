@@ -22,9 +22,9 @@ jest.mock('../lib/ipGuard', () => ({
 }));
 
 // ─── Imports after mocks ──────────────────────────────────────────────────────
-import { prisma } from '../lib/prisma';
+import { prisma } from '../utils/prisma';
 import { callMcpTool } from '../services/mcp';
-import { assertPublicUrl } from '../lib/ipGuard';
+import { assertPublicUrl } from '../utils/ipGuard';
 
 const mockFindMany   = prisma.contextSource.findMany as jest.MockedFunction<typeof prisma.contextSource.findMany>;
 const mockFindUnique = prisma.mcpConnector.findUnique as jest.MockedFunction<typeof prisma.mcpConnector.findUnique>;

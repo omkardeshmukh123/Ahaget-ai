@@ -1,6 +1,6 @@
-import { AhagetWidget } from './widget';
-import { WidgetConfig, DEFAULT_CONFIG, readScriptTagConfig } from './config';
-import { initInspector } from './inspector';
+import { AhagetWidget } from './controllers/widget';
+import { WidgetConfig, DEFAULT_CONFIG, readScriptTagConfig } from './models/config';
+import { initInspector } from './utils/inspector';
 
 // ─── Inspector mode boot ─────────────────────────────────────────────────────
 // Activated when ?ahaget_inspect=1 is in the URL.

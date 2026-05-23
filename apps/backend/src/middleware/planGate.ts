@@ -1,6 +1,6 @@
-﻿import { Response, NextFunction } from 'express';
-import { prisma } from '../lib/prisma';
-import { PLANS, PlanFeatures } from '../lib/plans';
+import { Response, NextFunction } from 'express';
+import { prisma } from '../utils/prisma';
+import { PLANS, PlanFeatures } from '../utils/plans';
 import { AuthenticatedRequest } from '../types';
 
 const UPGRADE_URL = process.env.FRONTEND_URL

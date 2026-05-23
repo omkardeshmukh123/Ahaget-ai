@@ -1,10 +1,10 @@
-﻿// Security-focused tests: input sanitisation, auth edge cases, header checks
+// Security-focused tests: input sanitisation, auth edge cases, header checks
 
 import request from 'supertest';
 import { createApp } from './testApp';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../utils/prisma';
 import { createTestOrg, createTestUser, cleanupOrg, setTestEnv } from './helpers';
-import { signToken } from '../lib/jwt';
+import { signToken } from '../utils/jwt';
 
 setTestEnv();
 
@@ -116,7 +116,7 @@ describe('Cross-org isolation', () => {
       .get(`/api/v1/conversations/${convRes.body.conversationId}`)
       .set('Authorization', `Bearer ${token}`);
 
-    expect(res.status).toBe(404); // not 200, not 403 — we don't reveal it exists
+    expect(res.status).toBe(404); // not 200, not 403 � we don't reveal it exists
 
     await cleanupOrg(org2.id);
   });

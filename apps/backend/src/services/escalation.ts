@@ -1,8 +1,8 @@
-﻿// ─── Escalation Service ───────────────────────────────────────────────────────
+// --- Escalation Service -------------------------------------------------------
 // Creates escalation tickets and notifies the support team via email + Slack.
 
 import { Resend } from 'resend';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../utils/prisma';
 
 const DASHBOARD_URL = process.env.FRONTEND_URL ?? 'https://app.ahaget.ai';
 
@@ -70,7 +70,7 @@ export async function notifyTeam(params: {
 
   const tasks: Promise<unknown>[] = [];
 
-  // ── Email to owner ────────────────────────────────────────────────────────
+  // -- Email to owner --------------------------------------------------------
   if (owner?.email && process.env.RESEND_API_KEY) {
     const resend = new Resend(process.env.RESEND_API_KEY);
     const recentConvo = context.recentMessages.slice(-4)
@@ -83,15 +83,15 @@ export async function notifyTeam(params: {
     tasks.push(resend.emails.send({
       from: `Ahaget <hello@ahaget.ai>`,
       to: owner.email,
-      subject: `[${orgName}] Human escalation — ${context.stepTitle}`,
+      subject: `[${orgName}] Human escalation � ${context.stepTitle}`,
       html: `
 <!DOCTYPE html><html><body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 20px;">
 <tr><td align="center">
 <table width="540" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
   <tr><td style="background:#ef4444;padding:20px 32px;">
-    <span style="color:#fff;font-size:16px;font-weight:700;">🚨 Human escalation requested</span>
-    <p style="color:#fecaca;margin:4px 0 0;font-size:13px;">${orgName} · ${context.flowName} → ${context.stepTitle}</p>
+    <span style="color:#fff;font-size:16px;font-weight:700;">?? Human escalation requested</span>
+    <p style="color:#fecaca;margin:4px 0 0;font-size:13px;">${orgName} � ${context.flowName} ? ${context.stepTitle}</p>
   </td></tr>
   <tr><td style="padding:28px 32px;">
     <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;">Why escalated</p>
@@ -111,11 +111,11 @@ export async function notifyTeam(params: {
     ` : ''}
 
     <a href="${ticketUrl}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;">
-      View ticket & resolve →
+      View ticket & resolve ?
     </a>
   </td></tr>
   <tr><td style="padding:16px 32px;border-top:1px solid #e2e8f0;">
-    <p style="margin:0;color:#94a3b8;font-size:11px;">Ticket #${ticketId.slice(0, 8)} · Powered by Ahaget</p>
+    <p style="margin:0;color:#94a3b8;font-size:11px;">Ticket #${ticketId.slice(0, 8)} � Powered by Ahaget</p>
   </td></tr>
 </table>
 </td></tr>
@@ -124,7 +124,7 @@ export async function notifyTeam(params: {
     }).catch((e) => console.error('[escalation] email failed:', e)));
   }
 
-  // ── Slack notification ────────────────────────────────────────────────────
+  // -- Slack notification ----------------------------------------------------
   if (followUpConfig?.slackWebhookUrl) {
     const dataStr = Object.entries(context.collectedData)
       .map(([k, v]) => `${k}: ${v}`)
@@ -134,12 +134,12 @@ export async function notifyTeam(params: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        text: `🚨 *Human escalation* — ${orgName}`,
+        text: `?? *Human escalation* � ${orgName}`,
         attachments: [{
           color: '#ef4444',
           fields: [
             { title: 'User', value: userLabel, short: true },
-            { title: 'Step', value: `${context.flowName} → ${context.stepTitle}`, short: true },
+            { title: 'Step', value: `${context.flowName} ? ${context.stepTitle}`, short: true },
             { title: 'Reason', value: reason, short: false },
             ...(dataStr ? [{ title: 'Collected data', value: dataStr, short: false }] : []),
           ],

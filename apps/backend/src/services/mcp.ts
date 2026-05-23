@@ -9,9 +9,9 @@
 
 import OpenAI from 'openai';
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
-import { assertPublicUrl } from '../lib/ipGuard';
+import { prisma } from '../utils/prisma';
+import { logger } from '../utils/logger';
+import { assertPublicUrl } from '../utils/ipGuard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

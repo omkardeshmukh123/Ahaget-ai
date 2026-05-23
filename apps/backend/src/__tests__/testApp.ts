@@ -3,15 +3,15 @@ import 'express-async-errors';
 import express from 'express';
 import cors from 'cors';
 
-import authRoutes from '../routes/auth';
-import conversationsRoutes from '../routes/conversations';
-import eventsRoutes from '../routes/events';
-import analyticsRoutes from '../routes/analytics';
-import configRoutes from '../routes/config';
-import billingRoutes, { stripeWebhookHandler } from '../routes/billing';
-import sessionsRoutes from '../routes/sessions';
-import escalationsRoutes from '../routes/escalations';
-import messagesRoutes from '../routes/messages';
+import authRoutes from '../controllers/auth';
+import conversationsRoutes from '../controllers/conversations';
+import eventsRoutes from '../controllers/events';
+import analyticsRoutes from '../controllers/analytics';
+import configRoutes from '../controllers/config';
+import billingRoutes, { stripeWebhookHandler } from '../controllers/billing';
+import sessionsRoutes from '../controllers/sessions';
+import escalationsRoutes from '../controllers/escalations';
+import messagesRoutes from '../controllers/messages';
 import { errorHandler } from '../middleware/errorHandler';
 
 export function createApp() {

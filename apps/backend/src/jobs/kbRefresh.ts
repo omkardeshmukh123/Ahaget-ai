@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma';
+import { prisma } from '../utils/prisma';
 import { crawlUrl } from '../services/crawl';
 import { embedText } from '../services/knowledge';
 

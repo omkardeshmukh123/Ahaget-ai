@@ -1,13 +1,13 @@
-﻿// ─── Flow alerting service ───────────────────────────────────────────────────
+// --- Flow alerting service ---------------------------------------------------
 // Checks all orgs for active flows with 0% completion rate in the last 24h.
-// Fires once per flow per 24h (deduped in-memory — acceptable for a single-
+// Fires once per flow per 24h (deduped in-memory � acceptable for a single-
 // instance Railway deploy; a DB flag would be needed for multi-instance).
 
-import { prisma } from '../lib/prisma';
-import { sendZeroCompletionAlert } from '../lib/email';
-import { logger } from '../lib/logger';
+import { prisma } from '../utils/prisma';
+import { sendZeroCompletionAlert } from '../utils/email';
+import { logger } from '../utils/logger';
 
-// flowId → timestamp of the last alert sent
+// flowId ? timestamp of the last alert sent
 const lastAlerted = new Map<string, number>();
 
 const ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 h

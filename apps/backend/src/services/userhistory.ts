@@ -1,8 +1,8 @@
-﻿// ─── User History Service ─────────────────────────────────────────────────────
+// --- User History Service -----------------------------------------------------
 // Builds a compact history summary for an end user across all their sessions.
 // Used to give the AI agent returning-user context without loading raw DB rows.
 
-import { prisma } from '../lib/prisma';
+import { prisma } from '../utils/prisma';
 
 export interface UserHistorySummary {
   isReturning: boolean;
@@ -78,7 +78,7 @@ export async function getUserHistory(
   // Build compact summary for the system prompt
   const dayWord = firstSeenDaysAgo === 1 ? 'day' : 'days';
   const lines: string[] = [
-    `RETURNING USER — first seen ${firstSeenDaysAgo} ${dayWord} ago, ${pastSessions.length} prior session(s), ${completedSessions} completed.`,
+    `RETURNING USER � first seen ${firstSeenDaysAgo} ${dayWord} ago, ${pastSessions.length} prior session(s), ${completedSessions} completed.`,
   ];
 
   if (Object.keys(mergedCollectedData).length > 0) {
@@ -90,7 +90,7 @@ export async function getUserHistory(
     const when = s.completedAt
       ? `completed ${daysAgo(s.completedAt)}`
       : `last active ${daysAgo(s.lastActiveAt)}`;
-    lines.push(`  • "${s.flowName}" — ${s.status} (${progress}, ${when})`);
+    lines.push(`  � "${s.flowName}" � ${s.status} (${progress}, ${when})`);
   }
 
   lines.push('Use previously provided data to avoid re-asking questions. Reference their history naturally.');

@@ -1,4 +1,4 @@
-ï»¿// Tests the enforceMessageLimit middleware in isolation â€”
+// Tests the enforceMessageLimit middleware in isolation —
 // no Claude API calls needed, we mock the AI service.
 
 import request from 'supertest';
@@ -7,12 +7,12 @@ import 'express-async-errors';
 import { authenticateApiKey } from '../middleware/auth';
 import { enforceMessageLimit } from '../middleware/rateLimit';
 import { createTestOrg, cleanupOrg, setTestEnv } from './helpers';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../utils/prisma';
 import { errorHandler } from '../middleware/errorHandler';
 
 setTestEnv();
 
-// Minimal test app â€” just auth + rate limit + a dummy handler
+// Minimal test app — just auth + rate limit + a dummy handler
 function makeApp(limitedHandler: express.RequestHandler) {
   const app = express();
   app.use(express.json());

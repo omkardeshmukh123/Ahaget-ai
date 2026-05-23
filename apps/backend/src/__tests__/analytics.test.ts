@@ -1,6 +1,6 @@
-﻿import request from 'supertest';
+import request from 'supertest';
 import { createApp } from './testApp';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../utils/prisma';
 import { createTestOrg, createTestUser, cleanupOrg, setTestEnv } from './helpers';
 
 setTestEnv();
@@ -97,7 +97,7 @@ describe('GET /api/v1/analytics/choke-points', () => {
     });
     cpStepId = step.id;
 
-    // Seed 4 sessions: 3 dropped, 1 completed — gives frequency=4, drop_rate=75
+    // Seed 4 sessions: 3 dropped, 1 completed � gives frequency=4, drop_rate=75
     // Each session needs its own EndUser (unique constraint: endUserId+flowId)
     for (let i = 0; i < 4; i++) {
       const isCompleted = i === 3;

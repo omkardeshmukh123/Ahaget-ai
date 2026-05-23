@@ -2,12 +2,12 @@ import OpenAI from 'openai';
 import { OnboardingStep, Organization, Prisma } from '@prisma/client';
 
 import { executeApiCall, interpolate } from './apicall';
-import { assertPublicUrl } from '../lib/ipGuard';
+import { assertPublicUrl } from '../utils/ipGuard';
 import { searchKnowledgeBase } from './knowledge';
 import { loadMcpTools, toOpenAITools, callMcpTool, callMcpToolWithPoll, resolveMcpCall, ConnectorToolBundle, loadRestContext, matchesRestEndpoint, isCallApiAllowedInGoalMode } from './mcp';
-import { logger, withRetry, timer } from '../lib/logger';
-import { extractJsonField } from '../lib/streaming';
-import { prisma } from '../lib/prisma';
+import { logger, withRetry, timer } from '../utils/logger';
+import { extractJsonField } from '../utils/streaming';
+import { prisma } from '../utils/prisma';
 
 let _openai: OpenAI | null = null;
 const openai = () => { if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); return _openai; };
@@ -42,9 +42,9 @@ const AGENT_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
         properties: {
           type: {
             type: 'string',
-            enum: ['fill_form', 'click', 'navigate', 'highlight', 'hover_tip', 'expand_panel'],
+            enum: ['fill_form', 'click', 'navigate', 'highlight', 'hover_tip', 'expand_panel', 'clear_highlight'],
           },
-          selector: { type: 'string', description: 'CSS selector for click, highlight, or expand_panel trigger (must be from live page elements)' },
+          selector: { type: 'string', description: 'CSS selector for click, highlight, hover_tip, or expand_panel trigger (must be from live page elements)' },
           waitForSelector: { type: 'string', description: 'expand_panel: CSS selector to wait for after clicking the trigger (e.g. the panel contents)' },
           url:      { type: 'string', description: 'URL for navigate action. After calling navigate, STOP — you will be re-invoked on the new page with NAVIGATION COMPLETE.' },
           fields: {
@@ -52,10 +52,30 @@ const AGENT_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
             description: 'fill_form: { "CSS selector": "value" } — substitute user-provided values from collectedData',
           },
           message: { type: 'string', description: 'Short confirmation shown to the user (≤12 words)' },
-          highlightMode: { type: 'string', enum: ['spotlight', 'beacon', 'arrow', 'multi'] },
+          highlightMode: {
+            type: 'string',
+            enum: ['spotlight', 'beacon', 'arrow', 'multi', 'ring'],
+            description: 'spotlight — dark backdrop + ring (max attention). beacon — pulsing dot badge (passive hint). arrow — speech bubble pointing at element. multi — numbered rings on several elements. ring — thin pulsing ring only, no backdrop. Use ring before fill_form when you want to indicate a field without blocking the UI.',
+          },
           highlightLabel: { type: 'string' },
           highlightSelectors: { type: 'array', items: { type: 'string' } },
           highlightLabels: { type: 'array', items: { type: 'string' } },
+          highlightDuration: {
+            type: 'number',
+            description: 'How long the highlight stays visible in milliseconds. Default 4000. Use shorter (1500) for quick attention, longer (8000) for complex instructions.',
+          },
+          highlightColor: {
+            type: 'string',
+            description: 'Hex color for the highlight ring and label. Defaults to indigo #6366f1.',
+          },
+          hoverTipText: {
+            type: 'string',
+            description: 'Text to show in the hover tooltip (required for hover_tip action).',
+          },
+          hoverTipColor: {
+            type: 'string',
+            description: 'Hex color for hover tooltip badge (optional, defaults to indigo).',
+          },
           shouldVerify: {
             type: 'boolean',
             description: 'Set true for fill_form/click so the widget sends a __verify__ follow-up after execution.',
@@ -488,12 +508,22 @@ function parseToolCall(name: string, input: Record<string, unknown>): AgentActio
       payload = { url: input.url ?? '' };
     } else if (actionType === 'highlight') {
       payload = {
-        selector: input.selector ?? '',
-        mode: input.highlightMode ?? 'spotlight',
-        ...(input.highlightLabel    ? { label: input.highlightLabel } : {}),
+        selector:  input.selector ?? '',
+        mode:      input.highlightMode ?? 'spotlight',
+        duration:  input.highlightDuration  ?? undefined,
+        color:     input.highlightColor     ?? undefined,
+        ...(input.highlightLabel     ? { label:     input.highlightLabel }     : {}),
         ...(input.highlightSelectors ? { selectors: input.highlightSelectors } : {}),
-        ...(input.highlightLabels    ? { labels: input.highlightLabels } : {}),
+        ...(input.highlightLabels    ? { labels:    input.highlightLabels }    : {}),
       };
+    } else if (actionType === 'hover_tip') {
+      payload = {
+        selector: input.selector ?? '',
+        text:     input.hoverTipText  ?? '',
+        color:    input.hoverTipColor ?? undefined,
+      };
+    } else if (actionType === 'clear_highlight') {
+      payload = {};
     } else if (actionType === 'expand_panel') {
       payload = {
         selector: input.selector ?? '',

@@ -1,7 +1,7 @@
 // ─── Knowledge Base Service — hybrid BM25 + vector search with RRF ───────────
 
 import OpenAI from 'openai';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../utils/prisma';
 
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI {
