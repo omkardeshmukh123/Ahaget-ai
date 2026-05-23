@@ -1,4 +1,4 @@
-﻿import { EvalResult } from './runner';
+import { EvalResult } from './runner';
 
 export function printReport(results: EvalResult[]): void {
   const total = results.length;

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useEffect, useState } from 'react';
 import { api, OrgConfig, AlertConfig, HealEntry } from '@/lib/api';
 

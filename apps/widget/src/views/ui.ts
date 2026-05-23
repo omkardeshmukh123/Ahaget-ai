@@ -1,4 +1,4 @@
-﻿// --- UI components for the Ahaget side-panel widget ---------------------------
+// --- UI components for the Ahaget side-panel widget ---------------------------
 
 export interface StepsResponse {
   type: 'steps';

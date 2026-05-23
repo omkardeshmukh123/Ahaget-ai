@@ -1,4 +1,4 @@
-﻿import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage } from 'http';
 import { Server } from 'http';
 import { prisma } from './prisma';

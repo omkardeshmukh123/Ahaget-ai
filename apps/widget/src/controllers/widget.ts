@@ -1,4 +1,4 @@
-﻿// ─── Ahaget Widget — side-panel orchestrator ───────────────────────────────────
+// ─── Ahaget Widget — side-panel orchestrator ───────────────────────────────────
 // Ahaget occupies the right 360px of the screen as a persistent sidebar.
 // The host page body shifts left automatically via the `.__ahaget-open` class.
 // There is no floating bubble — the panel slides in from the right when an

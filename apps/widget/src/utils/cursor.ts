@@ -1,4 +1,4 @@
-﻿// ─── Animated cursor — visually moves to elements before the AI fills them ────
+// ─── Animated cursor — visually moves to elements before the AI fills them ────
 // Creates a custom pointer SVG that glides across the screen to each target
 // element, pauses, then the fill happens. Mimics the Tandem-style "pointer
 // works in front of you" experience.

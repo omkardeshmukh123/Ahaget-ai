@@ -4,7 +4,9 @@ node_modules/
 .pnp.js
 
 # Build outputs
-dist/
+dist/*
+!dist/widget/
+apps/backend/dist/
 .next/
 out/
 build/
