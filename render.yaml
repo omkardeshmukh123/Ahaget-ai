@@ -3,7 +3,7 @@ services:
   - type: web
     name: ahaget-backend
     runtime: node
-    plan: free
+    plan: starter
     rootDir: apps/backend
     buildCommand: npm install --include=dev && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && node dist/index.js
@@ -23,6 +23,18 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         sync: false
+
+      # Email — Resend (https://resend.com)
+      - key: RESEND_API_KEY
+        sync: false
+
+      # Redis — Upstash (https://upstash.com) — for rate limiting & magic-link tokens
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+
+      # Stripe billing
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
@@ -33,6 +45,8 @@ services:
         sync: false
       - key: STRIPE_PRICE_SCALE
         sync: false
+
+      # Sarvam AI — Indian language support (https://www.sarvam.ai)
       - key: SARVAM_API_KEY
         sync: false
 
@@ -40,19 +54,23 @@ services:
   - type: web
     name: ahaget-landing
     runtime: static
-    rootDir: ahaget-website
-    buildCommand: npm install && npm run build
+    rootDir: apps/landing
+    buildCommand: npm install --legacy-peer-deps && npm run build
     staticPublishPath: out
     envVars:
-      - key: NEXT_PUBLIC_API_URL
+      - key: NEXT_PUBLIC_DASHBOARD_URL
         sync: false
 
   # ─── Dashboard ────────────────────────────────────────────────────────────────
   - type: web
     name: ahaget-dashboard
     runtime: node
-    plan: free
-    buildCommand: npm install --include=dev --legacy-peer-deps && npm run build --workspace=apps/dashboard && cp -r apps/dashboard/.next/static apps/dashboard/.next/standalone/.next/static && (cp -r apps/dashboard/public apps/dashboard/.next/standalone/public || true)
+    plan: starter
+    buildCommand: >-
+      npm install --include=dev --legacy-peer-deps &&
+      npm run build --workspace=apps/dashboard &&
+      cp -r apps/dashboard/.next/static apps/dashboard/.next/standalone/.next/static &&
+      (cp -r apps/dashboard/public apps/dashboard/.next/standalone/public || true)
     startCommand: node apps/dashboard/.next/standalone/server.js
     healthCheckPath: /
     envVars:
@@ -64,10 +82,16 @@ services:
         value: 0.0.0.0
       - key: NEXT_PUBLIC_API_URL
         sync: false
+      - key: NEXT_PUBLIC_STRIPE_PRICE_STARTER
+        sync: false
+      - key: NEXT_PUBLIC_STRIPE_PRICE_GROWTH
+        sync: false
+      - key: NEXT_PUBLIC_STRIPE_PRICE_SCALE
+        sync: false
 
 databases:
   # ─── PostgreSQL ───────────────────────────────────────────────────────────────
   - name: ahaget-db
-    plan: free
+    plan: starter
     databaseName: ahaget
     user: ahaget

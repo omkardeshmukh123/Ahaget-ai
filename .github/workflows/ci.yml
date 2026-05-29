@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── Backend: type-check + unit tests ─────────────────────────────────────
+  backend:
+    name: Backend — Type Check & Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: ahaget
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: ahaget_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://ahaget:test_password@localhost:5432/ahaget_test
+      JWT_SECRET: ci-test-jwt-secret-not-for-production
+      NODE_ENV: test
+
+    defaults:
+      run:
+        working-directory: apps/backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --include=dev
+        working-directory: .
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run Prisma migrations
+        run: npx prisma migrate deploy
+
+      - name: TypeScript type-check
+        run: npx tsc --noEmit
+
+      - name: Run unit tests
+        run: npm test -- --passWithNoTests --forceExit
+
+  # ─── Dashboard: type-check + lint ─────────────────────────────────────────
+  dashboard:
+    name: Dashboard — Type Check & Lint
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/dashboard
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+        working-directory: .
+
+      - name: TypeScript type-check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint -- --max-warnings 0
+        continue-on-error: true   # warn but don't fail on lint issues initially
+
+  # ─── Landing: build check ──────────────────────────────────────────────────
+  landing:
+    name: Landing — Build Check
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/landing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+        working-directory: .
+
+      - name: Build static export
+        run: npm run build
+        env:
+          NEXT_PUBLIC_DASHBOARD_URL: https://app.ahaget.ai

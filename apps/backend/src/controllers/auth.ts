@@ -6,23 +6,57 @@ import { prisma } from '../utils/prisma';
 import { signToken } from '../utils/jwt';
 import { generateApiKey } from '../utils/apiKey';
 import { sendWelcomeEmail, sendMagicLinkEmail } from '../utils/email';
+import { redisSet, redisGet, redisDel, redisIncr, isRedisConfigured } from '../utils/redis';
 
 const router = Router();
 
-// --- In-memory magic-link token store (TTL 15 minutes) ----------------------
-// In production swap for Redis. Acceptable for MVP.
-const magicTokenStore = new Map<string, { email: string; expiresAt: number }>();
+// --- Magic-link token store --------------------------------------------------
+// Backed by Upstash Redis when configured; falls back to in-memory Map for
+// local dev without Redis. Redis ensures tokens survive server restarts.
+const _magicTokenFallback = new Map<string, { email: string; expiresAt: number }>();
+const MAGIC_LINK_TTL_S = 15 * 60; // 15 minutes
 
-// --- Login brute-force guard (20 attempts / 15 min per IP) ------------------
-const loginAttempts = new Map<string, { count: number; resetAt: number }>();
-const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+async function storeMagicToken(token: string, email: string): Promise<void> {
+  if (isRedisConfigured()) {
+    await redisSet(`magic:${token}`, email, MAGIC_LINK_TTL_S);
+  } else {
+    // Redis not configured — use in-memory fallback
+    _magicTokenFallback.set(token, { email, expiresAt: Date.now() + MAGIC_LINK_TTL_S * 1000 });
+  }
+}
+
+async function consumeMagicToken(token: string): Promise<string | null> {
+  const redisEmail = await redisGet(`magic:${token}`);
+  if (redisEmail !== null) {
+    await redisDel(`magic:${token}`);
+    return redisEmail;
+  }
+  // Fallback to in-memory
+  const entry = _magicTokenFallback.get(token);
+  if (!entry) return null;
+  _magicTokenFallback.delete(token);
+  if (entry.expiresAt < Date.now()) return null;
+  return entry.email;
+}
+
+// --- Login brute-force guard -------------------------------------------------
+// 20 attempts per IP per 15-minute window.
+// Redis-backed when configured; falls back to per-process Map.
+const _loginFallback = new Map<string, { count: number; resetAt: number }>();
+const LOGIN_WINDOW_S = 15 * 60;
 const LOGIN_MAX_ATTEMPTS = 20;
 
-function checkLoginRateLimit(ip: string): boolean {
+async function checkLoginRateLimit(ip: string): Promise<boolean> {
+  const key = `login:rl:${ip}`;
+  const count = await redisIncr(key, LOGIN_WINDOW_S);
+  if (count !== null) {
+    return count <= LOGIN_MAX_ATTEMPTS;
+  }
+  // Fallback to in-memory
   const now = Date.now();
-  const entry = loginAttempts.get(ip);
+  const entry = _loginFallback.get(key);
   if (!entry || now >= entry.resetAt) {
-    loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+    _loginFallback.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_S * 1000 });
     return true;
   }
   if (entry.count >= LOGIN_MAX_ATTEMPTS) return false;
@@ -104,7 +138,7 @@ router.post('/register', async (req: Request, res: Response) => {
 // --- POST /api/v1/auth/login -------------------------------------------------
 router.post('/login', async (req: Request, res: Response) => {
   const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? req.socket.remoteAddress ?? 'unknown';
-  if (!checkLoginRateLimit(ip)) {
+  if (!(await checkLoginRateLimit(ip))) {
     res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
     return;
   }
@@ -162,7 +196,7 @@ router.post('/magic-link/send', async (req: Request, res: Response) => {
   const user = await prisma.user.findUnique({ where: { email } });
   if (user) {
     const tokenStr = crypto.randomBytes(32).toString('hex');
-    magicTokenStore.set(tokenStr, { email, expiresAt: Date.now() + 15 * 60 * 1000 });
+    await storeMagicToken(tokenStr, email);
 
     const DASHBOARD_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000';
     const magicUrl = `${DASHBOARD_URL}/auth/magic-link/verify?token=${tokenStr}`;
@@ -183,17 +217,14 @@ router.get('/magic-link/verify', async (req: Request, res: Response) => {
     return;
   }
 
-  const entry = magicTokenStore.get(tokenStr);
-  if (!entry || entry.expiresAt < Date.now()) {
-    magicTokenStore.delete(tokenStr);
+  const email = await consumeMagicToken(tokenStr);
+  if (!email) {
     res.status(401).json({ error: 'Invalid or expired magic link' });
     return;
   }
 
-  magicTokenStore.delete(tokenStr);
-
   const user = await prisma.user.findUnique({
-    where: { email: entry.email },
+    where: { email },
     include: { organization: true },
   });
 

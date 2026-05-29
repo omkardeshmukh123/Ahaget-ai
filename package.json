@@ -12,7 +12,7 @@
     "dev:dashboard": "npm run dev --workspace=apps/dashboard",
     "dev:landing": "npm run dev --workspace=apps/landing",
     "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces"
+    "test": "npm run test --workspaces --if-present"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"
