@@ -101,13 +101,19 @@ function SessionCard({ s }: { s: UserSessionHistory }) {
 function UserPanel({ userId, onClose }: { userId: string; onClose: () => void }) {
   const [detail, setDetail] = useState<UserHistoryDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.users.history(userId).then(setDetail).finally(() => setLoading(false));
+    api.users.history(userId).then(setDetail)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
   }, [userId]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-48 text-sm text-slate-400">Loading…</div>
+  );
+  if (error) return (
+    <div className="bg-white rounded-xl border border-slate-200 p-6 text-sm text-red-500">{error}</div>
   );
   if (!detail) return null;
 
@@ -180,13 +186,15 @@ export default function UsersPage() {
   const [users, setUsers] = useState<EndUserSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     api.users.list({ limit: 50 }).then(({ users, total }) => {
       setUsers(users);
       setTotal(total);
-    }).finally(() => setLoading(false));
+    }).catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -201,7 +209,12 @@ export default function UsersPage() {
       <div className={`grid gap-6 ${selectedId ? 'grid-cols-[1fr_420px]' : 'grid-cols-1'}`}>
         {/* User table */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          {loading ? (
+          {error ? (
+            <div className="py-10 text-center">
+              <p className="text-sm text-red-500 mb-3">{error}</p>
+              <button onClick={() => { setError(null); setLoading(true); }} className="text-xs px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50">Retry</button>
+            </div>
+          ) : loading ? (
             <div className="text-sm text-slate-400 py-10 text-center">Loading…</div>
           ) : users.length === 0 ? (
             <div className="text-sm text-slate-400 py-10 text-center">

@@ -28,11 +28,14 @@ export default function EscalationsPage() {
   const [counts, setCounts]     = useState({ open: 0, in_progress: 0, resolved: 0 });
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('open');
   const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     api.escalations.list(statusFilter)
       .then((d) => { setTickets(d.tickets); setCounts(d.counts); })
+      .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [statusFilter]);
 
@@ -74,7 +77,17 @@ export default function EscalationsPage() {
 
       {/* Table */}
       <div style={{ background: 'var(--surface)', border: '1px solid rgba(70,69,84,0.12)', borderRadius: 12, overflow: 'hidden' }}>
-        {loading ? (
+        {error ? (
+          <div style={{ padding: 48, textAlign: 'center' }}>
+            <p style={{ color: 'var(--error)', fontSize: 13, marginBottom: 12 }}>{error}</p>
+            <button
+              onClick={() => { setError(null); setLoading(true); }}
+              style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, background: 'var(--surface-low)', border: '1px solid rgba(70,69,84,0.2)', color: 'var(--muted)', cursor: 'pointer' }}
+            >
+              Retry
+            </button>
+          </div>
+        ) : loading ? (
           <div style={{ padding: 48, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Loading…</div>
         ) : tickets.length === 0 ? (
           <div style={{ padding: 64, textAlign: 'center' }}>

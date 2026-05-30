@@ -20,6 +20,7 @@ export default function InsightsPage() {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,7 +28,8 @@ export default function InsightsPage() {
       setInsights(res.insights);
       setGeneratedAt(res.generatedAt);
       if (res.insights.length > 0) setOpen(res.insights[0].id);
-    }).finally(() => setLoading(false));
+    }).catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
 
   const active = insights.find((i) => i.id === open) ?? null;
@@ -48,7 +50,12 @@ export default function InsightsPage() {
         )}
       </div>
 
-      {loading ? (
+      {error ? (
+        <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
+          <p className="text-sm text-red-500 mb-3">{error}</p>
+          <button onClick={() => { setError(null); setLoading(true); }} className="text-xs px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50">Retry</button>
+        </div>
+      ) : loading ? (
         <PageSkeleton />
       ) : insights.length === 0 ? (
         <EmptyState />
@@ -123,11 +130,11 @@ export default function InsightsPage() {
                 )}
 
                 {/* Suggested action */}
-                <div className="px-6 py-4 bg-indigo-50 border-t border-indigo-100 rounded-b-xl">
-                  <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-1">
+                <div className="px-6 py-4 bg-[#8A2BE2]/5 border-t border-[#8A2BE2]/10 rounded-b-xl">
+                  <p className="text-xs font-semibold text-[#8A2BE2] uppercase tracking-wide mb-1">
                     Suggested action
                   </p>
-                  <p className="text-sm text-indigo-800">{getSuggestedAction(active)}</p>
+                  <p className="text-sm text-[#7B22C9]">{getSuggestedAction(active)}</p>
                 </div>
               </div>
 

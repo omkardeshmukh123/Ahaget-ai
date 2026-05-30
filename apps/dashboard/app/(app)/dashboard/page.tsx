@@ -15,18 +15,18 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
+    Promise.allSettled([
       api.analytics.overview(),
       api.analytics.timeline(30),
       api.users.list({ limit: 10 }),
-      api.insights.list().catch(() => null),
-      api.onboarding.status().catch(() => null),
+      api.insights.list(),
+      api.onboarding.status(),
     ]).then(([o, t, u, ins, ob]) => {
-      setOverview(o);
-      setTimeline(t);
-      setUsers(u);
-      if (ins && ins.insights.length > 0) setTopInsight(ins.insights[0]);
-      if (ob) setOnboarding(ob);
+      if (o.status === 'fulfilled') setOverview(o.value);
+      if (t.status === 'fulfilled') setTimeline(t.value);
+      if (u.status === 'fulfilled') setUsers(u.value);
+      if (ins.status === 'fulfilled' && ins.value.insights.length > 0) setTopInsight(ins.value.insights[0]);
+      if (ob.status === 'fulfilled') setOnboarding(ob.value);
     }).finally(() => setLoading(false));
   }, []);
 

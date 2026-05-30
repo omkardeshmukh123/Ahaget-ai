@@ -32,7 +32,7 @@ interface TriggerRule {
 }
 
 const apiFetch = async <T,>(path: string, opts?: RequestInit): Promise<T> => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('_ahaget_token') : null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('oai_token') : null;
   const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
   const res = await fetch(`${baseUrl}${path}`, {
     ...opts,

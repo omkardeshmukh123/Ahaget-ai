@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { api, OnboardingFlow, FlowTemplateMeta, FlowActivationStat } from '@/lib/api';
 
 const FLOW_TYPES = [
-  { value: 'onboarding', label: 'Onboarding', color: 'bg-indigo-50 text-indigo-700', desc: 'Get new users to their first value moment' },
-  { value: 'adoption',   label: 'Adoption',   color: 'bg-sky-50 text-sky-700',    desc: 'Surface unused features to existing users' },
-  { value: 'upsell',     label: 'Upsell',     color: 'bg-amber-50 text-amber-700', desc: 'Contextual upgrade prompts at the right moment' },
-  { value: 'retention',  label: 'Retention',  color: 'bg-rose-50 text-rose-700',   desc: 'Re-engage inactive or at-risk users' },
-  { value: 'support',    label: 'Support',    color: 'bg-emerald-50 text-emerald-700', desc: 'Unblock confused users mid-task' },
+  { value: 'onboarding', label: 'Onboarding', color: '#6366f1', desc: 'Get new users to their first value moment' },
+  { value: 'adoption',   label: 'Adoption',   color: '#22D3EE', desc: 'Surface unused features to existing users' },
+  { value: 'upsell',     label: 'Upsell',     color: '#FBBF24', desc: 'Contextual upgrade prompts at the right moment' },
+  { value: 'retention',  label: 'Retention',  color: '#F87171', desc: 'Re-engage inactive or at-risk users' },
+  { value: 'support',    label: 'Support',    color: '#4ADE80', desc: 'Unblock confused users mid-task' },
 ] as const;
 
 type FlowTypeValue = typeof FLOW_TYPES[number]['value'];
@@ -22,6 +22,7 @@ export default function FlowsPage() {
   const router = useRouter();
   const [flows, setFlows] = useState<OnboardingFlow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState('');
@@ -33,11 +34,14 @@ export default function FlowsPage() {
   const [flowStats, setFlowStats] = useState<FlowActivationStat[]>([]);
 
   useEffect(() => {
-    Promise.all([api.flow.list(), api.activation.flows()]).then(([flowsData, statsData]) => {
+    Promise.all([
+      api.flow.list(),
+      api.activation.flows().catch(() => ({ flows: [] as FlowActivationStat[] })),
+    ]).then(([flowsData, statsData]) => {
       setFlows(flowsData.flows);
       setFlowStats(statsData.flows);
-      setLoading(false);
-    });
+    }).catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
 
   function openNewModal() {
@@ -50,24 +54,33 @@ export default function FlowsPage() {
   async function createFlow() {
     if (!newName.trim()) return;
     setCreating(true);
-    if (selectedTemplate) {
-      const d = await api.flow.createFromTemplate(selectedTemplate);
-      router.push(`/flows/${d.flow.id}`);
-    } else {
-      const d = await api.flow.create(newName.trim(), undefined, newType);
-      router.push(`/flows/${d.flow.id}`);
+    try {
+      if (selectedTemplate) {
+        const d = await api.flow.createFromTemplate(selectedTemplate);
+        router.push(`/flows/${d.flow.id}`);
+      } else {
+        const d = await api.flow.create(newName.trim(), undefined, newType);
+        router.push(`/flows/${d.flow.id}`);
+      }
+    } catch (e: unknown) {
+      alert((e as Error).message);
+      setCreating(false);
     }
   }
 
   async function toggleActive(flow: OnboardingFlow) {
-    await api.flow.update(flow.id, { isActive: !flow.isActive });
-    setFlows((prev) => prev.map((f) => f.id === flow.id ? { ...f, isActive: !f.isActive } : f));
+    try {
+      await api.flow.update(flow.id, { isActive: !flow.isActive });
+      setFlows((prev) => prev.map((f) => f.id === flow.id ? { ...f, isActive: !f.isActive } : f));
+    } catch { /* ignore */ }
   }
 
   async function deleteFlow(id: string) {
     if (!confirm('Delete this flow?')) return;
-    await api.flow.delete(id);
-    setFlows((prev) => prev.filter((f) => f.id !== id));
+    try {
+      await api.flow.delete(id);
+      setFlows((prev) => prev.filter((f) => f.id !== id));
+    } catch { /* ignore */ }
   }
 
   function statFor(flowId: string): FlowActivationStat | undefined {
@@ -78,122 +91,147 @@ export default function FlowsPage() {
     .filter((f) => typeFilter === 'all' || (f as OnboardingFlow & { flowType?: string }).flowType === typeFilter)
     .filter((f) => !search || f.name.toLowerCase().includes(search.toLowerCase()));
 
+  if (loading) return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      {[...Array(3)].map((_, i) => (
+        <div key={i} style={{ height: 60, borderRadius: 10, background: 'var(--surface-container)', animation: 'pulse 1.5s infinite' }} />
+      ))}
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ padding: '40px 0', textAlign: 'center' }}>
+      <p style={{ color: 'var(--error)', fontSize: 13 }}>Failed to load flows: {error}</p>
+      <button onClick={() => { setError(null); setLoading(true); }} style={{ marginTop: 12, fontSize: 12, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer' }}>Retry</button>
+    </div>
+  );
+
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Agent Flows</h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--on-surface)', letterSpacing: '-0.03em' }}>Agent Flows</h1>
+          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
             Manage your AI employee&apos;s lifecycle flows — onboarding, adoption, retention and more.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search flows…"
-            className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-52 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            style={{ width: 200, padding: '8px 12px', borderRadius: 8, fontSize: 13, background: 'var(--surface-container)', border: '1px solid rgba(139,92,246,0.15)', color: 'var(--on-surface)' }}
           />
           <button
             onClick={openNewModal}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            style={{ background: 'linear-gradient(135deg,#8B5CF6,#22D3EE)', color: '#fff', padding: '8px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, border: 'none', cursor: 'pointer', boxShadow: '0 0 20px rgba(139,92,246,0.3)' }}
           >
             + New flow
           </button>
         </div>
       </div>
 
-      {/* Type filter tabs */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        <button
-          onClick={() => setTypeFilter('all')}
-          className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${typeFilter === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-        >
-          All
-        </button>
-        {FLOW_TYPES.map((t) => (
-          <button
-            key={t.value}
-            onClick={() => setTypeFilter(t.value)}
-            className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${typeFilter === t.value ? 'bg-slate-800 text-white' : `${t.color} hover:opacity-80`}`}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* Type filter */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+        {['all', ...FLOW_TYPES.map(t => t.value)].map((val) => {
+          const meta = val === 'all' ? null : flowTypeMeta(val);
+          const active = typeFilter === val;
+          return (
+            <button
+              key={val}
+              onClick={() => setTypeFilter(val)}
+              style={{
+                padding: '5px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
+                background: active ? (meta ? `${meta.color}22` : 'rgba(139,92,246,0.15)') : 'var(--surface-container)',
+                color: active ? (meta ? meta.color : 'var(--primary-bright)') : 'var(--muted)',
+                border: active ? `1px solid ${meta ? meta.color + '40' : 'rgba(139,92,246,0.3)'}` : '1px solid transparent',
+                transition: 'all 0.15s',
+              }}
+            >
+              {val === 'all' ? 'All' : meta!.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* New flow form */}
+      {/* New flow panel */}
       {showNew && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-4 mb-6 space-y-3">
+        <div style={{ background: 'var(--surface-container)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>
           {templates.length > 0 && (
             <>
-              <p className="text-sm font-semibold text-slate-700">Start from a template</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--on-surface-variant)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Start from a template</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px,1fr))', gap: 8, marginBottom: 16 }}>
                 {templates.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => { setSelectedTemplate(t.id); setNewName(t.name); }}
-                    className={`text-left rounded-lg border-2 px-3 py-2 transition-colors ${
-                      selectedTemplate === t.id
-                        ? 'border-indigo-500 bg-white'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}
+                    style={{
+                      textAlign: 'left', borderRadius: 8, padding: '10px 12px',
+                      background: selectedTemplate === t.id ? 'rgba(139,92,246,0.12)' : 'var(--surface-low)',
+                      border: `1px solid ${selectedTemplate === t.id ? 'rgba(139,92,246,0.5)' : 'rgba(139,92,246,0.1)'}`,
+                      cursor: 'pointer', transition: 'all 0.15s',
+                    }}
                   >
-                    <span className="text-base mr-1">{t.icon}</span>
-                    <span className="text-xs font-semibold text-slate-700">{t.name}</span>
-                    <p className="text-xs text-slate-400 leading-tight mt-0.5">{t.stepCount} steps</p>
+                    <span style={{ fontSize: 16 }}>{t.icon}</span>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--on-surface)', marginTop: 4 }}>{t.name}</p>
+                    <p style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>{t.stepCount} steps</p>
                   </button>
                 ))}
                 <button
                   onClick={() => { setSelectedTemplate(null); setNewName(''); }}
-                  className={`text-left rounded-lg border-2 px-3 py-2 transition-colors ${
-                    selectedTemplate === null
-                      ? 'border-indigo-500 bg-white'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
+                  style={{
+                    textAlign: 'left', borderRadius: 8, padding: '10px 12px',
+                    background: selectedTemplate === null ? 'rgba(139,92,246,0.12)' : 'var(--surface-low)',
+                    border: `1px solid ${selectedTemplate === null ? 'rgba(139,92,246,0.5)' : 'rgba(139,92,246,0.1)'}`,
+                    cursor: 'pointer', transition: 'all 0.15s',
+                  }}
                 >
-                  <span className="text-base mr-1">+</span>
-                  <span className="text-xs font-semibold text-slate-700">Blank flow</span>
-                  <p className="text-xs text-slate-400 leading-tight mt-0.5">Start from scratch</p>
+                  <span style={{ fontSize: 16 }}>＋</span>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--on-surface)', marginTop: 4 }}>Blank flow</p>
+                  <p style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>Start from scratch</p>
                 </button>
               </div>
             </>
           )}
           {!selectedTemplate && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px,1fr))', gap: 8, marginBottom: 16 }}>
               {FLOW_TYPES.map((t) => (
                 <button
                   key={t.value}
                   onClick={() => setNewType(t.value)}
-                  className={`text-left rounded-lg border-2 px-3 py-2 transition-colors ${
-                    newType === t.value ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
+                  style={{
+                    textAlign: 'left', borderRadius: 8, padding: '10px 12px',
+                    background: newType === t.value ? `${t.color}18` : 'var(--surface-low)',
+                    border: `1px solid ${newType === t.value ? t.color + '50' : 'rgba(139,92,246,0.08)'}`,
+                    cursor: 'pointer', transition: 'all 0.15s',
+                  }}
                 >
-                  <span className={`inline-block text-xs font-bold px-1.5 py-0.5 rounded mb-1 ${t.color}`}>{t.label}</span>
-                  <p className="text-xs text-slate-500 leading-tight">{t.desc}</p>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: t.color, background: `${t.color}20`, padding: '2px 7px', borderRadius: 999 }}>{t.label}</span>
+                  <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.4 }}>{t.desc}</p>
                 </button>
               ))}
             </div>
           )}
-          <div className="flex items-center gap-3">
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <input
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && createFlow()}
               placeholder="Flow name…"
-              className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              style={{ flex: 1, background: 'var(--surface-low)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 8, padding: '9px 12px', fontSize: 13, color: 'var(--on-surface)' }}
             />
             <button
               onClick={createFlow}
               disabled={creating || !newName.trim()}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              style={{ background: 'linear-gradient(135deg,#8B5CF6,#22D3EE)', color: '#fff', padding: '9px 18px', borderRadius: 8, fontWeight: 600, fontSize: 13, border: 'none', cursor: creating ? 'not-allowed' : 'pointer', opacity: (creating || !newName.trim()) ? 0.5 : 1 }}
             >
               {creating ? 'Creating…' : 'Create'}
             </button>
             <button
               onClick={() => { setShowNew(false); setNewName(''); setNewType('onboarding'); setSelectedTemplate(null); }}
-              className="text-sm text-slate-500 hover:text-slate-700"
+              style={{ fontSize: 13, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer' }}
             >
               Cancel
             </button>
@@ -201,94 +239,74 @@ export default function FlowsPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-slate-400 text-sm animate-pulse">Loading…</div>
-        ) : filtered.length === 0 ? (
-          <EmptyState onNew={() => setShowNew(true)} hasSearch={!!search || typeFilter !== 'all'} />
+      {/* Table */}
+      <div style={{ background: 'var(--surface-container)', border: '1px solid rgba(139,92,246,0.1)', borderRadius: 12, overflow: 'hidden' }}>
+        {filtered.length === 0 ? (
+          <EmptyState onNew={openNewModal} hasSearch={!!search || typeFilter !== 'all'} />
         ) : (
-          <table className="w-full text-sm">
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr className="border-b border-slate-100">
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Name</th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Type</th>
-                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Steps</th>
-                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Sessions</th>
-                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Completion</th>
-                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Status</th>
-                <th className="px-6 py-3" />
+              <tr style={{ borderBottom: '1px solid rgba(139,92,246,0.1)' }}>
+                {['NAME', 'TYPE', 'STEPS', 'SESSIONS', 'COMPLETION', 'STATUS', ''].map((h, i) => (
+                  <th key={i} style={{ textAlign: i >= 2 && i <= 4 ? 'right' : i === 5 ? 'right' : 'left', fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em', padding: i === 0 || i === 6 ? '12px 20px' : '12px 14px' }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody>
               {filtered.map((flow) => {
                 const meta = flowTypeMeta((flow as OnboardingFlow & { flowType?: string }).flowType ?? 'onboarding');
+                const stat = statFor(flow.id);
                 return (
-                  <tr key={flow.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <span className="font-semibold text-slate-800">{flow.name}</span>
-                      {flow.description && (
-                        <p className="text-xs text-slate-400 mt-0.5 truncate max-w-xs">{flow.description}</p>
-                      )}
+                  <tr key={flow.id} style={{ borderBottom: '1px solid rgba(139,92,246,0.06)', transition: 'background 0.12s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-container-high)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <td style={{ padding: '14px 20px' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--on-surface)' }}>{flow.name}</span>
+                      {flow.description && <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 260 }}>{flow.description}</p>}
                     </td>
-                    <td className="px-4 py-4">
-                      <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${meta.color}`}>
-                        {meta.label}
-                      </span>
+                    <td style={{ padding: '14px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 999, background: `${meta.color}20`, color: meta.color }}>{meta.label}</span>
                     </td>
-                    <td className="px-4 py-4 text-right text-slate-500">
-                      {flow.steps?.length ?? 0}
-                    </td>
-                    <td className="px-4 py-4 text-right text-slate-500">
-                      {statFor(flow.id)?.totalSessions ?? '—'}
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      {(() => {
-                        const stat = statFor(flow.id);
-                        if (!stat || stat.totalSessions === 0) return <span className="text-slate-300 text-xs">—</span>;
+                    <td style={{ padding: '14px', textAlign: 'right', color: 'var(--on-surface-variant)' }}>{flow.steps?.length ?? 0}</td>
+                    <td style={{ padding: '14px', textAlign: 'right', color: 'var(--on-surface-variant)' }}>{stat?.totalSessions ?? '—'}</td>
+                    <td style={{ padding: '14px', textAlign: 'right' }}>
+                      {!stat || stat.totalSessions === 0 ? (
+                        <span style={{ color: 'var(--muted)', fontSize: 11 }}>—</span>
+                      ) : (() => {
                         const rate = stat.completionRate;
-                        const color = rate >= 70 ? 'bg-emerald-50 text-emerald-700' : rate >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600';
-                        return (
-                          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>
-                            {rate}%
-                          </span>
-                        );
+                        const color = rate >= 70 ? '#4ADE80' : rate >= 40 ? '#FBBF24' : '#F87171';
+                        return <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: `${color}20`, color }}>{rate}%</span>;
                       })()}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="inline-flex items-center gap-2">
-                        <span className={`text-xs font-semibold ${flow.isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          {flow.isActive ? 'Live' : 'Draft'}
-                        </span>
+                    <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: flow.isActive ? '#4ADE80' : 'var(--muted)' }}>{flow.isActive ? 'Live' : 'Draft'}</span>
                         <button
                           onClick={() => toggleActive(flow)}
-                          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
-                            flow.isActive ? 'bg-emerald-500' : 'bg-slate-200'
-                          }`}
-                          role="switch"
-                          aria-checked={flow.isActive}
+                          style={{
+                            width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
+                            background: flow.isActive ? '#4ADE80' : 'var(--surface-bright)',
+                            position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+                          }}
                         >
-                          <span
-                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
-                              flow.isActive ? 'translate-x-4' : 'translate-x-0'
-                            }`}
-                          />
+                          <span style={{
+                            position: 'absolute', top: 3, left: flow.isActive ? 19 : 3,
+                            width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                            transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                          }} />
                         </button>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-3">
-                        <Link
-                          href={`/flows/${flow.id}`}
-                          className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                        >
-                          Edit steps
-                        </Link>
-                        <button
-                          onClick={() => deleteFlow(flow.id)}
-                          className="text-xs text-slate-400 hover:text-red-500 transition-colors"
-                        >
-                          Delete
-                        </button>
+                    <td style={{ padding: '14px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14 }}>
+                        <Link href={`/flows/${flow.id}`} style={{ fontSize: 12, fontWeight: 500, color: 'var(--primary-bright)' }}>Edit steps</Link>
+                        <button onClick={() => deleteFlow(flow.id)} style={{ fontSize: 12, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.15s' }}
+                          onMouseEnter={e => (e.currentTarget.style.color = 'var(--error)')}
+                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
+                        >Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -297,8 +315,8 @@ export default function FlowsPage() {
             </tbody>
           </table>
         )}
-        {!loading && flows.length > 0 && (
-          <div className="px-6 py-3 border-t border-slate-100 text-xs text-slate-400">
+        {filtered.length > 0 && (
+          <div style={{ padding: '10px 20px', borderTop: '1px solid rgba(139,92,246,0.08)', fontSize: 11, color: 'var(--muted)' }}>
             Showing {filtered.length} of {flows.length} flow{flows.length !== 1 ? 's' : ''}
           </div>
         )}
@@ -308,24 +326,15 @@ export default function FlowsPage() {
 }
 
 function EmptyState({ onNew, hasSearch }: { onNew: () => void; hasSearch: boolean }) {
-  if (hasSearch) {
-    return (
-      <div className="p-12 text-center text-slate-400 text-sm">
-        No flows match your filter.
-      </div>
-    );
-  }
+  if (hasSearch) return (
+    <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>No flows match your filter.</div>
+  );
   return (
-    <div className="p-12 text-center">
-      <p className="text-3xl mb-3">◈</p>
-      <h2 className="text-base font-semibold text-slate-800 mb-1">No agent flows yet</h2>
-      <p className="text-sm text-slate-500 mb-4 max-w-sm mx-auto">
-        Create your first flow — choose a lifecycle stage and your AI employee will handle the rest.
-      </p>
-      <button
-        onClick={onNew}
-        className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-      >
+    <div style={{ padding: '48px 0', textAlign: 'center' }}>
+      <p style={{ fontSize: 32, marginBottom: 12 }}>◈</p>
+      <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--on-surface)', marginBottom: 8 }}>No agent flows yet</h2>
+      <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>Create your first flow — choose a lifecycle stage and your AI employee will handle the rest.</p>
+      <button onClick={onNew} style={{ background: 'linear-gradient(135deg,#8B5CF6,#22D3EE)', color: '#fff', padding: '9px 20px', borderRadius: 8, fontWeight: 600, fontSize: 13, border: 'none', cursor: 'pointer' }}>
         + New flow
       </button>
     </div>

@@ -52,33 +52,35 @@ export default function Sidebar() {
   return (
     <aside style={{
       width: 220,
-      minHeight: '100vh',
-      background: 'var(--surface-low)',
+      height: '100vh',
+      background: '#FFFFFF',
       display: 'flex',
       flexDirection: 'column',
       position: 'fixed',
       left: 0,
       top: 0,
       zIndex: 10,
+      borderRight: '1px solid rgba(138,43,226,0.1)',
+      overflow: 'hidden',
     }}>
       {/* Logo */}
-      <div style={{ padding: '20px 16px 16px' }}>
+      <div style={{ padding: '20px 16px 14px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <div style={{
-            width: 28, height: 28, borderRadius: 8,
-            background: 'linear-gradient(135deg, #FF857A, #EBAEE6)',
+            width: 30, height: 30, borderRadius: 9,
+            background: 'linear-gradient(135deg, #8A2BE2, #B06CF5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 16px rgba(255,133,122,0.30)',
+            boxShadow: '0 2px 10px rgba(138,43,226,0.3)',
             flexShrink: 0,
           }}>
             <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
               <path d="M9 2L15.5 6V12L9 16L2.5 12V6L9 2Z" fill="white" fillOpacity="0.95"/>
-              <path d="M9 5L13 7.5V12.5L9 15L5 12.5V7.5L9 5Z" fill="white" fillOpacity="0.25"/>
+              <path d="M9 5L13 7.5V12.5L9 15L5 12.5V7.5L9 5Z" fill="white" fillOpacity="0.3"/>
             </svg>
           </div>
           <div>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--on-surface)', letterSpacing: '-0.02em' }}>Ahaget</span>
-            {org && <p style={{ fontSize: 10, color: 'var(--muted)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130 }}>{org.name}</p>}
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#1A0530', letterSpacing: '-0.02em' }}>Ahaget</span>
+            {org && <p style={{ fontSize: 10, color: '#9B8AB0', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130 }}>{org.name}</p>}
           </div>
         </div>
 
@@ -88,14 +90,14 @@ export default function Sidebar() {
             width: '100%',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             padding: '7px 12px',
-            background: 'linear-gradient(135deg, #FF857A, #EBAEE6)',
-            color: '#3d1008',
+            background: 'linear-gradient(135deg, #8A2BE2, #A050F0)',
+            color: '#fff',
             fontWeight: 600, fontSize: 12,
             borderRadius: 8,
-            boxShadow: '0 0 18px rgba(255,133,122,0.22)',
+            boxShadow: '0 2px 10px rgba(138,43,226,0.25)',
             transition: 'opacity 0.15s',
           }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+          onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
           onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
         >
           <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,13 +107,13 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* Nav sections */}
-      <nav style={{ flex: 1, padding: '4px 8px', overflowY: 'auto' }}>
+      {/* Nav sections — scrollable */}
+      <nav style={{ flex: 1, padding: '4px 8px', overflowY: 'auto', overflowX: 'hidden' }}>
         {SECTIONS.map(({ label, items }) => (
           <div key={label} style={{ marginBottom: 20 }}>
             <p style={{
               fontSize: 10, fontWeight: 700,
-              color: 'var(--muted)',
+              color: '#C4B5D8',
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
               padding: '4px 10px 6px',
@@ -127,7 +129,7 @@ export default function Sidebar() {
                   className={active ? 'nav-item nav-active' : 'nav-item'}
                   style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}
                 >
-                  <span style={{ opacity: active ? 1 : 0.55, display: 'flex', flexShrink: 0 }}>{icon}</span>
+                  <span style={{ opacity: active ? 1 : 0.5, display: 'flex', flexShrink: 0, color: active ? '#8A2BE2' : '#5B4B7A' }}>{icon}</span>
                   {itemLabel}
                 </Link>
               );
@@ -137,29 +139,30 @@ export default function Sidebar() {
       </nav>
 
       {/* User footer */}
-      <div style={{ padding: '12px 12px', borderTop: '1px solid rgba(70,69,84,0.15)' }}>
+      <div style={{ padding: '12px', borderTop: '1px solid rgba(138,43,226,0.08)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <div style={{
-            width: 26, height: 26, borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(255,133,122,0.2), rgba(235,174,230,0.2))',
+            width: 28, height: 28, borderRadius: '50%',
+            background: 'linear-gradient(135deg, rgba(138,43,226,0.15), rgba(160,80,240,0.15))',
+            border: '1px solid rgba(138,43,226,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 11, fontWeight: 700, color: 'var(--coral)',
+            fontSize: 11, fontWeight: 700, color: '#8A2BE2',
             flexShrink: 0,
           }}>
             {user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? '?'}
           </div>
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--on-surface)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#1A0530', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user?.name ?? user?.email}
             </p>
-            <p style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'capitalize' }}>{user?.role}</p>
+            <p style={{ fontSize: 10, color: '#9B8AB0', textTransform: 'capitalize' }}>{user?.role}</p>
           </div>
         </div>
         <button
           onClick={logout}
-          style={{ fontSize: 11, color: 'var(--muted)', background: 'none', padding: 0, transition: 'color 0.15s' }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'var(--error)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
+          style={{ fontSize: 11, color: '#9B8AB0', background: 'none', padding: 0, transition: 'color 0.15s' }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#DC2626')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#9B8AB0')}
         >
           Sign out
         </button>

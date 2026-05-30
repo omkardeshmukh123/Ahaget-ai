@@ -36,6 +36,7 @@ export default function PlaybookPage() {
   const [config, setConfig]   = useState<PlaybookConfig>(DEFAULT_CONFIG);
   const [original, setOriginal] = useState<PlaybookConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
   const [saving, setSaving]   = useState(false);
   const [saved, setSaved]     = useState(false);
 
@@ -47,7 +48,8 @@ export default function PlaybookPage() {
     api.playbook.get().then(({ config: c }) => {
       setConfig(c);
       setOriginal(c);
-    }).finally(() => setLoading(false));
+    }).catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
 
   const isDirty = JSON.stringify(config) !== JSON.stringify(original);
@@ -88,6 +90,15 @@ export default function PlaybookPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="max-w-2xl">
+        <h1 className="text-2xl font-bold text-slate-900 mb-4">Playbook</h1>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-sm text-red-700">{error}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl">
       <div className="mb-8">
@@ -112,7 +123,7 @@ export default function PlaybookPage() {
                 onChange={(e) => setConfig((c) => ({ ...c, agentName: e.target.value }))}
                 placeholder="AI Assistant"
                 maxLength={60}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B06CF5]"
               />
               <p className="text-xs text-slate-400 mt-1">Shown in the widget header and used in agent messages.</p>
             </div>
@@ -123,7 +134,7 @@ export default function PlaybookPage() {
               <select
                 value={config.language}
                 onChange={(e) => setConfig((c) => ({ ...c, language: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B06CF5] bg-white"
               >
                 {LANGUAGE_OPTIONS.map((l) => (
                   <option key={l.value} value={l.value}>{l.label}</option>
@@ -141,7 +152,7 @@ export default function PlaybookPage() {
                     onClick={() => setConfig((c) => ({ ...c, tone: t.value }))}
                     className={`text-left px-3 py-2.5 rounded-lg border text-xs transition-all ${
                       config.tone === t.value
-                        ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
+                        ? 'border-[#8A2BE2] bg-[#8A2BE2]/5 text-[#8A2BE2]'
                         : 'border-slate-200 text-slate-600 hover:border-slate-300'
                     }`}
                   >
@@ -182,7 +193,7 @@ export default function PlaybookPage() {
                 onKeyDown={(e) => e.key === 'Enter' && addRule('mustAlwaysDo', newAlways)}
                 placeholder="e.g. Confirm before submitting any form"
                 maxLength={200}
-                className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B06CF5]"
               />
               <button
                 onClick={() => addRule('mustAlwaysDo', newAlways)}
@@ -216,7 +227,7 @@ export default function PlaybookPage() {
                 onKeyDown={(e) => e.key === 'Enter' && addRule('mustNeverDo', newNever)}
                 placeholder="e.g. Never share pricing without asking for their role"
                 maxLength={200}
-                className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B06CF5]"
               />
               <button
                 onClick={() => addRule('mustNeverDo', newNever)}
@@ -244,7 +255,7 @@ export default function PlaybookPage() {
                   aria-checked={config[key]}
                   onClick={() => setConfig((c) => ({ ...c, [key]: !c[key] }))}
                   className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${
-                    config[key] ? 'bg-indigo-600' : 'bg-slate-200'
+                    config[key] ? 'bg-[#8A2BE2]' : 'bg-slate-200'
                   }`}
                 >
                   <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
@@ -265,7 +276,7 @@ export default function PlaybookPage() {
               value={config.escalationWebhook ?? ''}
               onChange={(e) => setConfig((c) => ({ ...c, escalationWebhook: e.target.value || null }))}
               placeholder="https://hooks.slack.com/... or your endpoint"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B06CF5]"
             />
             <p className="text-xs text-slate-400 mt-1">
               Ahaget will POST a JSON payload with the session context when escalation fires.
@@ -278,7 +289,7 @@ export default function PlaybookPage() {
           <button
             onClick={save}
             disabled={saving || !isDirty}
-            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            className="px-5 py-2.5 bg-[#8A2BE2] hover:bg-[#7B22C9] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save playbook'}
           </button>

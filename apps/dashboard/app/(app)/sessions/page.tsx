@@ -44,6 +44,7 @@ export default function SessionsPage() {
   const [q, setQ]               = useState('');
   const [from, setFrom]         = useState('');
   const [to, setTo]             = useState('');
+  const [error, setError]       = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Debounce search input → server-side q param
@@ -58,6 +59,7 @@ export default function SessionsPage() {
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     api.sessions.list({
       limit: PAGE_SIZE,
       offset,
@@ -68,7 +70,8 @@ export default function SessionsPage() {
     }).then((d) => {
       setSessions(d.sessions);
       setTotal(d.total);
-    }).finally(() => setLoading(false));
+    }).catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
   }, [offset, statusFilter, q, from, to]);
 
   return (
@@ -149,7 +152,17 @@ export default function SessionsPage() {
 
       {/* Table */}
       <div style={{ background: 'var(--surface)', border: '1px solid rgba(70,69,84,0.12)', borderRadius: 12, overflow: 'hidden' }}>
-        {loading ? (
+        {error ? (
+          <div style={{ padding: '48px', textAlign: 'center' }}>
+            <p style={{ color: 'var(--error)', fontSize: 13, marginBottom: 12 }}>{error}</p>
+            <button
+              onClick={() => { setError(null); setLoading(true); setOffset(0); }}
+              style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, background: 'var(--surface-low)', border: '1px solid rgba(70,69,84,0.2)', color: 'var(--muted)', cursor: 'pointer' }}
+            >
+              Retry
+            </button>
+          </div>
+        ) : loading ? (
           <div style={{ padding: '48px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Loading…</div>
         ) : sessions.length === 0 ? (
           <div style={{ padding: '64px', textAlign: 'center' }}>

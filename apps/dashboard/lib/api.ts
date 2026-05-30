@@ -24,7 +24,14 @@ async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
     if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_URL}${path}`, { ...rest, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { ...rest, headers });
+  } catch (networkErr) {
+    const msg = `Network error — is the backend running? (${(networkErr as Error).message})`;
+    console.error('[api]', path, msg);
+    throw new Error(msg);
+  }
 
   if (res.status === 401) {
     // Token expired — clear and redirect to login
@@ -37,7 +44,9 @@ async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `Request failed: ${res.status}`);
+    const msg = body.error ?? body.message ?? `Request failed: ${res.status}`;
+    console.error('[api]', res.status, path, msg);
+    throw new Error(msg);
   }
 
   return res.json();

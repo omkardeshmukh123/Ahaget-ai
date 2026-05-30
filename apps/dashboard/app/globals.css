@@ -4,50 +4,50 @@
 @tailwind components;
 @tailwind utilities;
 
-
-/* ─── AI Startup "Obsidian Ahaget" — Dashboard Design System ──────────────── */
+/* ─── Ahaget Dashboard — Light Design System — #8A2BE2 ────────────────────── */
 :root {
   /* ── Core Surfaces ── */
-  --bg-void:      #030306;
-  --bg-deep:      #07070d;
-  --surface:      #0d0d18;
-  --surface-low:  #0a0a12;
-  --surface-container:      #12121f;
-  --surface-container-high: #16162a;
-  --surface-bright:         #1c1c30;
+  --bg-void:      #FFFFFF;
+  --bg-deep:      #FAFAFA;
+  --surface:      #F8F5FE;
+  --surface-low:  #F0EAF9;
+  --surface-container:      #FFFFFF;
+  --surface-container-high: #EDE3FA;
+  --surface-bright:         #E5D5F7;
 
-  /* ── Primary — Electric Violet ── */
-  --primary:        #8B5CF6;
-  --primary-bright: #A78BFA;
-  --primary-dim:    #7C3AED;
-  --primary-glow:   rgba(139, 92, 246, 0.4);
+  /* ── Primary — Blue Violet ── */
+  --primary:        #8A2BE2;
+  --primary-bright: #A050F0;
+  --primary-dim:    #7B22C9;
+  --primary-glow:   rgba(138, 43, 226, 0.2);
 
-  /* ── Accent — Cyan ── */
-  --secondary:     #22D3EE;
-  --secondary-dim: #06B6D4;
+  /* ── Accent — Sky ── */
+  --secondary:     #0EA5E9;
+  --secondary-dim: #0284C7;
 
-  /* ── Tertiary — Fuchsia ── */
-  --tertiary: #D946EF;
+  /* ── Tertiary ── */
+  --tertiary: #C44BE0;
+  --coral:    #FF6B6B;
 
   /* ── Text ── */
-  --on-surface:         #FFFFFF;
-  --on-surface-variant: #94A3B8;
+  --on-surface:         #1A0530;
+  --on-surface-variant: #5B4B7A;
   --on-primary:         #fff;
-  --muted:              #475569;
+  --muted:              #9B8AB0;
 
   /* ── Outline ── */
-  --outline:         rgba(139, 92, 246, 0.2);
-  --outline-variant: rgba(139, 92, 246, 0.08);
+  --outline:         rgba(138, 43, 226, 0.14);
+  --outline-variant: rgba(138, 43, 226, 0.07);
 
   /* ── Status ── */
-  --success: #4ADE80;
-  --warning: #FBBF24;
-  --error:   #F87171;
+  --success: #16A34A;
+  --warning: #D97706;
+  --error:   #DC2626;
 
   /* ── Gradients ── */
-  --grad-primary:  linear-gradient(135deg, #8B5CF6, #22D3EE);
-  --grad-hero:     linear-gradient(135deg, #7C3AED, #D946EF);
-  --grad-warm:     linear-gradient(135deg, #8B5CF6, #6366F1);
+  --grad-primary:  linear-gradient(135deg, #8A2BE2, #A050F0);
+  --grad-hero:     linear-gradient(135deg, #8A2BE2, #C44BE0);
+  --grad-warm:     linear-gradient(135deg, #8A2BE2, #7B22C9);
 
   /* ── Radius ── */
   --r-sm: 8px;
@@ -55,16 +55,16 @@
   --r-lg: 18px;
 
   /* ── Shadows ── */
-  --shadow-glow: 0 0 40px rgba(139, 92, 246, 0.3);
-  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(139,92,246,0.1);
-  --shadow-mint: 0 0 32px rgba(34, 211, 238, 0.2);
+  --shadow-glow: 0 0 30px rgba(138, 43, 226, 0.12);
+  --shadow-card: 0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px rgba(138,43,226,0.07);
+  --shadow-mint: 0 0 20px rgba(14,165,233,0.12);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body {
   margin: 0; padding: 0;
-  background: var(--surface);
+  background: #FFFFFF;
   color: var(--on-surface);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 14px; line-height: 1.5;
@@ -75,7 +75,7 @@ html, body {
 /* ─── Scrollbar ── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.4); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: rgba(138,43,226,0.25); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
 /* ─── Typography ── */
@@ -84,11 +84,11 @@ h1 { font-size: 1.5rem; }
 h2 { font-size: 1.25rem; }
 h3 { font-size: 1rem; }
 p { margin: 0; }
-a { color: var(--primary-bright); text-decoration: none; }
-a:hover { color: var(--secondary); }
+a { color: var(--primary); text-decoration: none; }
+a:hover { color: var(--primary-dim); }
 
 /* ─── Ghost border ── */
-.ghost-border { border: 1px solid rgba(139,92,246,0.15); }
+.ghost-border { border: 1px solid var(--outline); }
 
 /* ─── Buttons ── */
 button { cursor: pointer; font-family: inherit; border: none; outline: none; }
@@ -100,7 +100,7 @@ button { cursor: pointer; font-family: inherit; border: none; outline: none; }
   padding: 8px 16px;
   border-radius: var(--r-sm);
   transition: opacity 0.15s, transform 0.1s;
-  box-shadow: 0 0 24px rgba(139,92,246,0.3);
+  box-shadow: 0 2px 12px rgba(138,43,226,0.25);
 }
 .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
 .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
@@ -111,33 +111,33 @@ button { cursor: pointer; font-family: inherit; border: none; outline: none; }
   font-size: 13px; font-weight: 500;
   padding: 8px 14px;
   border-radius: var(--r-sm);
-  border: 1px solid rgba(139,92,246,0.18);
+  border: 1px solid var(--outline);
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.btn-ghost:hover { background: var(--surface-container-high); color: var(--on-surface); border-color: rgba(139,92,246,0.4); }
+.btn-ghost:hover { background: var(--surface-container-high); color: var(--on-surface); border-color: rgba(138,43,226,0.3); }
 
 /* ─── Card ── */
 .card {
-  background: var(--surface-container);
+  background: #FFFFFF;
   border-radius: var(--r-md);
   box-shadow: var(--shadow-card);
-  border: 1px solid rgba(139,92,246,0.1);
+  border: 1px solid var(--outline);
 }
 
 /* ─── Input ── */
 input, textarea, select {
   font-family: inherit; font-size: 13px;
   color: var(--on-surface);
-  background: var(--surface-low);
-  border: 1px solid rgba(139,92,246,0.15);
+  background: #FFFFFF;
+  border: 1px solid var(--outline);
   border-radius: var(--r-sm);
   padding: 10px 14px; outline: none;
   transition: box-shadow 0.15s, border-color 0.15s; width: 100%;
 }
 input::placeholder, textarea::placeholder { color: var(--muted); }
 input:focus, textarea:focus {
-  border-color: rgba(139,92,246,0.5);
-  box-shadow: 0 0 0 3px rgba(139,92,246,0.12);
+  border-color: rgba(138,43,226,0.4);
+  box-shadow: 0 0 0 3px rgba(138,43,226,0.1);
 }
 
 /* ─── Badge / pill ── */
@@ -146,15 +146,15 @@ input:focus, textarea:focus {
   padding: 2px 8px; border-radius: 999px;
   font-size: 11px; font-weight: 600;
 }
-.badge-primary  { background: rgba(139,92,246,0.15); color: var(--primary-bright); }
-.badge-success  { background: rgba(74,222,128,0.12);  color: var(--success); }
-.badge-cyan     { background: rgba(34,211,238,0.12);  color: var(--secondary); }
-.badge-warning  { background: rgba(251,191,36,0.12);  color: var(--warning); }
+.badge-primary  { background: rgba(138,43,226,0.1); color: var(--primary); }
+.badge-success  { background: rgba(22,163,74,0.1);  color: var(--success); }
+.badge-cyan     { background: rgba(14,165,233,0.1); color: var(--secondary); }
+.badge-warning  { background: rgba(217,119,6,0.1);  color: var(--warning); }
 
-/* ─── Nav active (violet pill) ── */
+/* ─── Nav active ── */
 .nav-active {
-  background: rgba(139,92,246,0.15);
-  color: var(--primary-bright) !important;
+  background: rgba(138,43,226,0.1);
+  color: var(--primary) !important;
   border-radius: var(--r-sm);
 }
 .nav-item {
@@ -165,4 +165,20 @@ input:focus, textarea:focus {
   transition: background 0.12s, color 0.12s;
   cursor: pointer;
 }
-.nav-item:hover:not(.nav-active) { background: var(--surface-container); color: var(--on-surface); }
+.nav-item:hover:not(.nav-active) { background: rgba(138,43,226,0.06); color: var(--on-surface); }
+
+/* ─── Animation ── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-pulse { animation: pulse 1.5s ease-in-out infinite; }
+.animate-spin  { animation: spin 1s linear infinite; }
+.fade-in       { animation: fadeIn 0.3s ease; }

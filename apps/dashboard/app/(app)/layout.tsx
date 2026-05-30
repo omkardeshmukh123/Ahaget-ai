@@ -19,9 +19,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [token, router]);
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--surface)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#F8F5FE' }}>
       <Sidebar />
-      <main style={{ flex: 1, marginLeft: 220, padding: '36px 40px', minHeight: '100vh', background: 'var(--surface)' }}>
+      <main style={{ flex: 1, marginLeft: 220, padding: '36px 40px', minHeight: '100vh', background: '#F8F5FE' }}>
         {children}
       </main>
     </div>

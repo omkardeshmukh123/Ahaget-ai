@@ -9,17 +9,20 @@ export default function QuestionsPage() {
   const [days, setDays] = useState(30);
   const [page, setPage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [openQuestion, setOpenQuestion] = useState<number | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     api.analytics.intents(days, page || undefined).then((res) => {
       const sorted = [...res.questions].sort((a, b) => b.count - a.count);
       setQuestions(sorted);
       setPages(res.pages);
       setTotalMessages(res.totalMessages);
       setOpenQuestion(sorted.length > 0 ? 0 : null);
-    }).finally(() => setLoading(false));
+    }).catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
   }, [days, page]);
 
   const topTen = questions.slice(0, 10);
@@ -38,7 +41,7 @@ export default function QuestionsPage() {
           <select
             value={page}
             onChange={(e) => setPage(e.target.value)}
-            className="text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            className="text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#B06CF5]"
           >
             <option value="">All pages</option>
             {pages.map((p) => (
@@ -48,7 +51,7 @@ export default function QuestionsPage() {
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            className="text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            className="text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#B06CF5]"
           >
             <option value={7}>Last 7 days</option>
             <option value={30}>Last 30 days</option>
@@ -73,7 +76,12 @@ export default function QuestionsPage() {
         </div>
       </div>
 
-      {loading ? (
+      {error ? (
+        <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
+          <p className="text-sm text-red-500 mb-3">{error}</p>
+          <button onClick={() => { setError(null); setLoading(true); }} className="text-xs px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50">Retry</button>
+        </div>
+      ) : loading ? (
         <PageSkeleton />
       ) : topTen.length === 0 ? (
         <EmptyState />
@@ -86,7 +94,7 @@ export default function QuestionsPage() {
                 onClick={() => setOpenQuestion(i)}
                 className={`w-full text-left px-4 py-3.5 rounded-xl border transition-colors ${
                   openQuestion === i
-                    ? 'bg-indigo-50 border-indigo-200 text-indigo-800'
+                    ? 'bg-[#8A2BE2]/5 border-[#8A2BE2]/20 text-[#8A2BE2]'
                     : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
               >
@@ -94,7 +102,7 @@ export default function QuestionsPage() {
                   <p className="text-sm font-medium truncate">{q.raw}</p>
                   <span className={`flex-shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
                     openQuestion === i
-                      ? 'bg-indigo-100 text-indigo-700'
+                      ? 'bg-[#8A2BE2]/10 text-[#8A2BE2]'
                       : 'bg-slate-100 text-slate-500'
                   }`}>
                     ×{q.count}

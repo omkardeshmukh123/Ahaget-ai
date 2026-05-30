@@ -147,7 +147,7 @@ function Navbar() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <a href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-glow group-hover:shadow-glow-lg transition-all duration-300">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#8A2BE2] to-[#B06CF5] flex items-center justify-center shadow-glow group-hover:shadow-glow-lg transition-all duration-300">
               <span className="text-white font-black text-sm">A</span>
             </div>
             <span className="text-white font-bold text-xl tracking-tight">
@@ -178,7 +178,7 @@ function Navbar() {
             </a>
             <a
               href={SIGNUP_URL}
-              className="shimmer-btn inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all duration-200 shadow-glow hover:shadow-glow-lg"
+              className="shimmer-btn inline-flex items-center gap-2 bg-gradient-to-r from-[#8A2BE2] to-[#7B22C9] hover:from-[#9B42F0] hover:to-[#8A2BE2] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all duration-200 shadow-glow hover:shadow-glow-lg"
             >
               Sign up free
             </a>
@@ -209,7 +209,7 @@ function Navbar() {
             ))}
             <a
               href={SIGNUP_URL}
-              className="block w-full text-center bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg mt-2"
+              className="block w-full text-center bg-gradient-to-r from-[#8A2BE2] to-[#7B22C9] text-white text-sm font-semibold px-4 py-2.5 rounded-lg mt-2"
               onClick={() => setMobileOpen(false)}
             >
               Sign up free
@@ -236,13 +236,13 @@ function WidgetMockup() {
   return (
     <div className="relative animate-float">
       {/* Glow rings */}
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 blur-xl scale-110" />
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-pink-500/10 blur-2xl scale-125" />
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#8A2BE2]/20 to-[#B06CF5]/20 blur-xl scale-110" />
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#8A2BE2]/10 to-pink-500/10 blur-2xl scale-125" />
 
       {/* Widget container */}
       <div className="relative glass widget-glow rounded-2xl overflow-hidden w-80 md:w-96">
         {/* Widget header */}
-        <div className="bg-gradient-to-r from-indigo-600/80 to-purple-600/80 px-4 py-3 flex items-center gap-3">
+        <div className="bg-gradient-to-r from-[#8A2BE2]/80 to-[#7B22C9]/80 px-4 py-3 flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
             <span className="text-sm">🤖</span>
           </div>
@@ -263,11 +263,11 @@ function WidgetMockup() {
         <div className="bg-surface px-4 py-2 border-b border-white/[0.06]">
           <div className="flex justify-between text-xs text-white/50 mb-1">
             <span>Onboarding Progress</span>
-            <span className="text-indigo-400 font-medium">75%</span>
+            <span className="text-[#B06CF5] font-medium">75%</span>
           </div>
           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+              className="h-full bg-gradient-to-r from-[#8A2BE2] to-[#B06CF5] rounded-full"
               style={{ width: '75%' }}
             />
           </div>
@@ -285,7 +285,7 @@ function WidgetMockup() {
                 className={`max-w-[80%] px-3 py-2 rounded-xl text-xs leading-relaxed ${
                   msg.from === 'ai'
                     ? 'bg-white/[0.07] text-white/80 rounded-tl-sm'
-                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-tr-sm'
+                    : 'bg-gradient-to-r from-[#8A2BE2] to-[#7B22C9] text-white rounded-tr-sm'
                 }`}
               >
                 {msg.text}
@@ -299,7 +299,7 @@ function WidgetMockup() {
           <div className="flex-1 bg-white/[0.06] rounded-lg px-3 py-1.5 text-xs text-white/30">
             Ask anything...
           </div>
-          <button className="w-7 h-7 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0">
+          <button className="w-7 h-7 rounded-lg bg-gradient-to-r from-[#8A2BE2] to-[#7B22C9] flex items-center justify-center flex-shrink-0">
             <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-white">
               <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
             </svg>
@@ -312,7 +312,7 @@ function WidgetMockup() {
         <div className="w-2 h-2 rounded-full bg-emerald-400" />
         <span className="text-xs text-white/80 font-medium">Churn risk detected</span>
       </div>
-      <div className="absolute -bottom-4 -left-4 glass rounded-xl px-3 py-1.5 animate-float border border-indigo-500/30" style={{ animationDelay: '2s' }}>
+      <div className="absolute -bottom-4 -left-4 glass rounded-xl px-3 py-1.5 animate-float border border-[#8A2BE2]/30" style={{ animationDelay: '2s' }}>
         <span className="text-xs text-white/80 font-medium">+34% activation rate 📈</span>
       </div>
     </div>
@@ -338,10 +338,10 @@ function HeroSection() {
     <section className="relative min-h-screen flex items-center justify-center pt-20 pb-16 overflow-hidden">
       {/* Background layers */}
       <div className="absolute inset-0 grid-bg" />
-      <div className="absolute inset-0 bg-gradient-radial from-indigo-900/20 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-gradient-radial from-[#4B0082]/20 via-transparent to-transparent" />
 
       {/* Orbs */}
-      <div className="orb w-[600px] h-[600px] bg-indigo-600/15 -top-40 -left-40" />
+      <div className="orb w-[600px] h-[600px] bg-[#8A2BE2]/15 -top-40 -left-40" />
       <div className="orb w-[500px] h-[500px] bg-purple-600/10 -bottom-20 -right-40" />
       <div className="orb w-[300px] h-[300px] bg-pink-600/10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
 
@@ -350,7 +350,7 @@ function HeroSection() {
           {/* Left — Copy */}
           <div className="text-center lg:text-left">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-6 border border-indigo-500/30 animate-fade-in">
+            <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-6 border border-[#8A2BE2]/30 animate-fade-in">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-sm text-white/70 font-medium">
                 AI-powered user lifecycle — now in beta
@@ -383,7 +383,7 @@ function HeroSection() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start animate-fade-in-up delay-300">
               <a
                 href={SIGNUP_URL}
-                className="shimmer-btn group inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold px-7 py-3.5 rounded-xl transition-all duration-200 shadow-glow hover:shadow-glow-lg hover:scale-[1.02] active:scale-[0.98]"
+                className="shimmer-btn group inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-[#8A2BE2] to-[#7B22C9] hover:from-[#9B42F0] hover:to-[#8A2BE2] text-white font-semibold px-7 py-3.5 rounded-xl transition-all duration-200 shadow-glow hover:shadow-glow-lg hover:scale-[1.02] active:scale-[0.98]"
               >
                 Start free — no credit card
                 <IconArrowRight />
@@ -392,7 +392,7 @@ function HeroSection() {
                 href="#how-it-works"
                 className="group inline-flex items-center justify-center gap-2.5 glass hover:bg-white/[0.08] text-white/80 hover:text-white font-semibold px-7 py-3.5 rounded-xl transition-all duration-200 border border-white/[0.12] hover:border-white/20"
               >
-                <span className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
+                <span className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-[#8A2BE2]/20 transition-colors">
                   <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-white ml-0.5">
                     <path d="M6.3 2.841A1.5 1.5 0 004.5 4.11V19.89a1.5 1.5 0 002.36 1.228l13.5-8.88a1.5 1.5 0 000-2.538L6.86 2.87a1.5 1.5 0 00-.56-.029z" />
                   </svg>
@@ -467,6 +467,105 @@ function SocialProof() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// TESTIMONIALS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const testimonials = [
+  {
+    quote: "Ahaget cut our trial-to-paid conversion time by 40%. The AI handles onboarding questions we used to answer manually — and it's always on.",
+    name: 'Rohan Kapoor',
+    title: 'CEO, FlowBase',
+    initials: 'RK',
+    color: 'from-[#8A2BE2] to-[#B06CF5]',
+  },
+  {
+    quote: "We saw a 60% drop in support tickets within a week of deploying Ahaget. Users now self-serve answers we used to field over email every day.",
+    name: 'Priya Mehta',
+    title: 'Head of Product, Nexus HQ',
+    initials: 'PM',
+    color: 'from-rose-500 to-pink-500',
+  },
+  {
+    quote: "Ahaget surfaced a churn segment we had absolutely no visibility into. Three of those users upgraded after the AI reached out. Mind-blowing.",
+    name: 'Arjun Singh',
+    title: 'Founder, LoopStack',
+    initials: 'AS',
+    color: 'from-emerald-500 to-teal-500',
+  },
+];
+
+function TestimonialsSection() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
+      { threshold: 0.1 }
+    );
+    if (sectionRef.current) observer.observe(sectionRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <section ref={sectionRef} className="py-24 relative overflow-hidden">
+      <div className="absolute inset-0 grid-bg opacity-20" />
+      <div className="orb w-[400px] h-[400px] bg-[#8A2BE2]/8 right-0 top-0 translate-x-1/3" />
+
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className={`text-center mb-14 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-4 border border-[#8A2BE2]/20">
+            <span className="text-sm">⭐</span>
+            <span className="text-sm text-[#B06CF5] font-medium">What teams are saying</span>
+          </div>
+          <h2 className="text-4xl sm:text-5xl font-black text-white mb-4">
+            Real results. Real teams.
+          </h2>
+          <p className="text-white/50 text-lg max-w-xl mx-auto">
+            Fast-growing SaaS teams trust Ahaget to run their user lifecycle on autopilot.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {testimonials.map((t, i) => (
+            <div
+              key={t.name}
+              className={`glass glass-hover rounded-2xl p-7 flex flex-col transition-all duration-700 ${
+                visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+              }`}
+              style={{ transitionDelay: `${i * 100}ms` }}
+            >
+              {/* Stars */}
+              <div className="flex gap-1 mb-4">
+                {[...Array(5)].map((_, s) => (
+                  <span key={s} className="text-amber-400 text-sm">★</span>
+                ))}
+              </div>
+
+              {/* Quote */}
+              <p className="text-white/70 text-sm leading-relaxed flex-1 mb-6">
+                &ldquo;{t.quote}&rdquo;
+              </p>
+
+              {/* Author */}
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center flex-shrink-0`}>
+                  <span className="text-white text-xs font-bold">{t.initials}</span>
+                </div>
+                <div>
+                  <p className="text-white text-sm font-semibold">{t.name}</p>
+                  <p className="text-white/40 text-xs">{t.title}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // FEATURES
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -476,8 +575,8 @@ const features = [
     title: 'AI Onboarding',
     description:
       'Personalized, context-aware onboarding flows that adapt to each user\'s role, goal, and behavior — fully automated.',
-    color: 'from-indigo-500 to-violet-600',
-    glow: 'rgba(99,102,241,0.25)',
+    color: 'from-[#8A2BE2] to-[#7B22C9]',
+    glow: 'rgba(138,43,226,0.25)',
   },
   {
     icon: <IconShield />,
@@ -540,9 +639,9 @@ function FeaturesSection() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className={`text-center mb-16 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-4 border border-indigo-500/20">
+          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-4 border border-[#8A2BE2]/20">
             <IconZap />
-            <span className="text-sm text-indigo-400 font-medium">Everything you need</span>
+            <span className="text-sm text-[#B06CF5] font-medium">Everything you need</span>
           </div>
           <h2 className="text-4xl sm:text-5xl font-black text-white mb-4">
             One AI. Every user journey.
@@ -577,7 +676,7 @@ function FeaturesSection() {
               <p className="relative text-white/50 text-sm leading-relaxed">{feature.description}</p>
 
               {/* Arrow on hover */}
-              <div className="relative mt-4 flex items-center gap-1 text-indigo-400 text-sm font-medium opacity-0 group-hover:opacity-100 translate-x-0 group-hover:translate-x-1 transition-all duration-300">
+              <div className="relative mt-4 flex items-center gap-1 text-[#B06CF5] text-sm font-medium opacity-0 group-hover:opacity-100 translate-x-0 group-hover:translate-x-1 transition-all duration-300">
                 <span>Learn more</span>
                 <IconArrowRight />
               </div>
@@ -616,7 +715,7 @@ function HowItWorksSection() {
       code: `<script src="https://cdn.ahaget.ai/widget.js"
   data-key="YOUR_API_KEY">
 </script>`,
-      color: 'from-indigo-500 to-violet-500',
+      color: 'from-[#8A2BE2] to-[#7B22C9]',
     },
     {
       step: '02',
@@ -639,13 +738,13 @@ function HowItWorksSection() {
   return (
     <section id="how-it-works" ref={sectionRef} className="py-24 relative overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-950/10 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#2D0075]/10 to-transparent" />
       <div className="orb w-[400px] h-[400px] bg-purple-600/10 -left-40 top-1/2 -translate-y-1/2" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className={`text-center mb-16 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-4 border border-purple-500/20">
+          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-4 border border-[#8A2BE2]/20">
             <span className="text-purple-400 text-sm">⚡</span>
             <span className="text-sm text-purple-400 font-medium">Up in minutes</span>
           </div>
@@ -660,7 +759,7 @@ function HowItWorksSection() {
         {/* Steps */}
         <div className="grid md:grid-cols-3 gap-8 relative">
           {/* Connecting lines (desktop) */}
-          <div className="hidden md:block absolute top-16 left-[calc(33%+1rem)] right-[calc(33%+1rem)] h-px bg-gradient-to-r from-indigo-500/50 via-purple-500/50 to-pink-500/50" />
+          <div className="hidden md:block absolute top-16 left-[calc(33%+1rem)] right-[calc(33%+1rem)] h-px bg-gradient-to-r from-[#8A2BE2]/50 via-purple-500/50 to-pink-500/50" />
 
           {steps.map((step, i) => (
             <div
@@ -819,13 +918,13 @@ function PricingSection() {
   return (
     <section id="pricing" ref={sectionRef} className="py-24 relative">
       <div className="absolute inset-0 grid-bg opacity-20" />
-      <div className="orb w-[500px] h-[500px] bg-indigo-600/8 right-0 top-0 translate-x-1/2" />
+      <div className="orb w-[500px] h-[500px] bg-[#8A2BE2]/8 right-0 top-0 translate-x-1/2" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className={`text-center mb-12 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-4 border border-indigo-500/20">
-            <span className="text-sm text-indigo-400 font-medium">💰 Simple pricing</span>
+          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-4 border border-[#8A2BE2]/20">
+            <span className="text-sm text-[#B06CF5] font-medium">💰 Simple pricing</span>
           </div>
           <h2 className="text-4xl sm:text-5xl font-black text-white mb-4">
             Start free. Scale as you grow.
@@ -840,7 +939,7 @@ function PricingSection() {
               onClick={() => setBilling('usd')}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 billing === 'usd'
-                  ? 'bg-indigo-600 text-white shadow-glow'
+                  ? 'bg-[#8A2BE2] text-white shadow-glow'
                   : 'text-white/50 hover:text-white'
               }`}
             >
@@ -850,7 +949,7 @@ function PricingSection() {
               onClick={() => setBilling('inr')}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 billing === 'inr'
-                  ? 'bg-indigo-600 text-white shadow-glow'
+                  ? 'bg-[#8A2BE2] text-white shadow-glow'
                   : 'text-white/50 hover:text-white'
               }`}
             >
@@ -866,14 +965,14 @@ function PricingSection() {
               key={plan.name}
               className={`relative rounded-2xl p-6 transition-all duration-700 flex flex-col ${
                 plan.highlight
-                  ? 'bg-gradient-to-b from-indigo-600/20 to-purple-600/10 popular-ring'
+                  ? 'bg-gradient-to-b from-[#8A2BE2]/20 to-[#7B22C9]/10 popular-ring'
                   : 'glass'
               } ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}
               style={{ transitionDelay: `${i * 100}ms` }}
             >
               {/* Popular badge */}
               {plan.badge && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-glow whitespace-nowrap">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#8A2BE2] to-[#B06CF5] text-white text-xs font-bold px-3 py-1 rounded-full shadow-glow whitespace-nowrap">
                   {plan.badge}
                 </div>
               )}
@@ -899,7 +998,7 @@ function PricingSection() {
                 href={plan.name === 'Scale' ? 'mailto:sales@ahaget.ai' : SIGNUP_URL}
                 className={`block text-center py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 mb-6 ${
                   plan.highlight
-                    ? 'shimmer-btn bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-glow hover:shadow-glow-lg hover:scale-[1.02]'
+                    ? 'shimmer-btn bg-gradient-to-r from-[#8A2BE2] to-[#7B22C9] hover:from-[#9B42F0] hover:to-[#8A2BE2] text-white shadow-glow hover:shadow-glow-lg hover:scale-[1.02]'
                     : 'glass hover:bg-white/[0.1] text-white border border-white/[0.1] hover:border-white/20'
                 }`}
               >
@@ -913,7 +1012,7 @@ function PricingSection() {
               <ul className="space-y-2.5 flex-1">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2.5">
-                    <span className={`mt-0.5 flex-shrink-0 ${plan.highlight ? 'text-indigo-400' : 'text-emerald-500'}`}>
+                    <span className={`mt-0.5 flex-shrink-0 ${plan.highlight ? 'text-[#B06CF5]' : 'text-emerald-500'}`}>
                       <IconCheck />
                     </span>
                     <span className="text-white/60 text-xs">{feature}</span>
@@ -927,7 +1026,7 @@ function PricingSection() {
         {/* Compare note */}
         <p className="text-center text-white/30 text-sm mt-8">
           All plans include SSL, 99.9% uptime SLA, and GDPR compliance. &nbsp;
-          <a href="#" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+          <a href="#" className="text-[#B06CF5] hover:text-[#C490F7] underline underline-offset-2">
             Compare all features →
           </a>
         </p>
@@ -955,8 +1054,8 @@ function CTASection() {
 
   return (
     <section ref={sectionRef} className="py-24 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/30 via-purple-900/20 to-background" />
-      <div className="orb w-[600px] h-[600px] bg-indigo-600/20 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#4B0082]/20 via-[#7B22C9]/10 to-background" />
+      <div className="orb w-[600px] h-[600px] bg-[#8A2BE2]/20 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
       <div className="absolute inset-0 grid-bg opacity-20" />
 
       <div className="relative max-w-4xl mx-auto px-4 text-center">
@@ -965,9 +1064,9 @@ function CTASection() {
             visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
           }`}
         >
-          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-6 border border-indigo-500/30">
+          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-6 border border-[#8A2BE2]/30">
             <span className="text-lg">🚀</span>
-            <span className="text-sm text-indigo-300 font-medium">Ready to deploy in minutes</span>
+            <span className="text-sm text-[#C490F7] font-medium">Ready to deploy in minutes</span>
           </div>
 
           <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-tight mb-6">
@@ -984,7 +1083,7 @@ function CTASection() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
               href={SIGNUP_URL}
-              className="shimmer-btn group inline-flex items-center justify-center gap-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-lg px-8 py-4 rounded-xl transition-all duration-200 shadow-glow-lg hover:scale-[1.02] active:scale-[0.98]"
+              className="shimmer-btn group inline-flex items-center justify-center gap-3 bg-gradient-to-r from-[#8A2BE2] to-[#7B22C9] hover:from-[#9B42F0] hover:to-[#8A2BE2] text-white font-bold text-lg px-8 py-4 rounded-xl transition-all duration-200 shadow-glow-lg hover:scale-[1.02] active:scale-[0.98]"
             >
               Create free account
               <IconArrowRight />
@@ -1069,7 +1168,7 @@ function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <a href="/" className="flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#8A2BE2] to-[#B06CF5] flex items-center justify-center">
                 <span className="text-white font-black text-sm">A</span>
               </div>
               <span className="text-white font-bold text-xl">Ahaget</span>
@@ -1139,6 +1238,7 @@ export default function HomePage() {
       <Navbar />
       <HeroSection />
       <SocialProof />
+      <TestimonialsSection />
       <FeaturesSection />
       <HowItWorksSection />
       <PricingSection />

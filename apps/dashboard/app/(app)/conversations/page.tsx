@@ -10,6 +10,7 @@ export default function ConversationsPage() {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -17,7 +18,8 @@ export default function ConversationsPage() {
     api.conversations.list({ limit: PAGE_SIZE, offset }).then((res) => {
       setConversations(res.conversations);
       setTotal(res.total);
-    }).finally(() => setLoading(false));
+    }).catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
   }, [offset]);
 
   const filtered = search
@@ -52,7 +54,12 @@ export default function ConversationsPage() {
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        {loading ? (
+        {error ? (
+          <div className="p-10 text-center">
+            <p className="text-sm text-red-500 mb-3">{error}</p>
+            <button onClick={() => { setError(null); setLoading(true); setOffset(0); }} className="text-xs px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50">Retry</button>
+          </div>
+        ) : loading ? (
           <div className="p-8 text-center text-slate-400 text-sm animate-pulse">Loading…</div>
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">

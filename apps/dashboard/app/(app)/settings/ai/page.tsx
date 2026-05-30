@@ -3,6 +3,15 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, KnowledgeArticle, McpConnector } from '@/lib/api';
 
+const S = {
+  card: { background: 'var(--surface-container)', border: '1px solid rgba(139,92,246,0.1)', borderRadius: 12, padding: '20px 24px', marginBottom: 16 } as React.CSSProperties,
+  label: { fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase' as const },
+  sub: { fontSize: 12, color: 'var(--muted)', marginTop: 4, marginBottom: 16, lineHeight: 1.6 } as React.CSSProperties,
+  row: { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: '1px solid rgba(139,92,246,0.1)', borderRadius: 8, marginBottom: 8 } as React.CSSProperties,
+};
+
+import React from 'react';
+
 export default function AIConfigPage() {
   const [instructions, setInstructions] = useState('');
   const [original, setOriginal] = useState('');
@@ -13,17 +22,17 @@ export default function AIConfigPage() {
   const [connectors, setConnectors] = useState<McpConnector[]>([]);
 
   useEffect(() => {
-    Promise.all([
-      api.config.get(),
-      api.kb.list(),
-      api.mcp.list(),
-    ]).then(([cfg, kb, mcp]) => {
-      const val = cfg.customInstructions ?? '';
-      setInstructions(val);
-      setOriginal(val);
-      setArticles(kb.articles);
-      setConnectors(mcp.connectors);
-    }).finally(() => setLoading(false));
+    Promise.allSettled([api.config.get(), api.kb.list(), api.mcp.list()])
+      .then(([cfg, kb, mcp]) => {
+        if (cfg.status === 'fulfilled') {
+          const val = cfg.value.customInstructions ?? '';
+          setInstructions(val);
+          setOriginal(val);
+        }
+        if (kb.status === 'fulfilled') setArticles(kb.value.articles);
+        if (mcp.status === 'fulfilled') setConnectors(mcp.value.connectors);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   async function save() {
@@ -42,161 +51,126 @@ export default function AIConfigPage() {
   const isDirty = instructions !== original;
 
   return (
-    <div className="max-w-2xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Configure agent</h1>
-        <p className="text-slate-500 text-sm mt-1">
+    <div style={{ maxWidth: 680 }}>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--on-surface)', letterSpacing: '-0.03em' }}>Configure agent</h1>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
           Set context, connect your knowledge, and write instructions to control how the AI behaves.
         </p>
       </div>
 
-      <div className="space-y-4">
-
-        {/* Context */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Context</span>
+      {/* Context */}
+      <div style={S.card}>
+        <p style={S.label}>Context</p>
+        <p style={S.sub}>The AI always knows the page your user is on via the widget. No setup required.</p>
+        <div style={{ ...S.row, background: 'var(--surface-low)' }}>
+          <span style={{ fontSize: 18 }}>📍</span>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--on-surface)' }}>Current page</p>
+            <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>URL, page title, and user metadata passed automatically from the widget</p>
           </div>
-          <p className="text-xs text-slate-400 mb-4">
-            The AI always knows the page your user is on via the widget. No setup required.
-          </p>
-          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm text-slate-600">
-            <span className="text-base">📍</span>
-            <div>
-              <p className="font-medium text-slate-700">Current page</p>
-              <p className="text-xs text-slate-400 mt-0.5">URL, page title, and user metadata passed automatically from the widget</p>
-            </div>
-            <span className="ml-auto text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Auto</span>
-          </div>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--success)', background: 'rgba(74,222,128,0.1)', padding: '2px 10px', borderRadius: 999 }}>Auto</span>
         </div>
+      </div>
 
-        {/* Knowledge & Tools */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Knowledge &amp; Tools</span>
-          </div>
-          <p className="text-xs text-slate-400 mb-4">
-            Articles and integrations the AI can reference in conversations.
-          </p>
-
-          {loading ? (
-            <div className="space-y-2">
-              <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
-              <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {/* KB articles */}
-              {articles.slice(0, 3).map((a) => (
-                <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 border border-slate-200 rounded-lg">
-                  <span className="text-slate-400 text-sm">📄</span>
-                  <span className="text-sm text-slate-700 flex-1 truncate">{a.title}</span>
-                  {a.tags.slice(0, 2).map((t) => (
-                    <span key={t} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">{t}</span>
-                  ))}
-                </div>
-              ))}
-              {articles.length > 3 && (
-                <p className="text-xs text-slate-400 pl-1">+{articles.length - 3} more articles</p>
-              )}
-              {articles.length === 0 && (
-                <div className="text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg px-4 py-3 text-center">
-                  No knowledge articles yet
-                </div>
-              )}
-
-              {/* MCP connectors */}
-              {connectors.slice(0, 2).map((c) => (
-                <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 border border-slate-200 rounded-lg">
-                  <span className="text-slate-400 text-sm">🔌</span>
-                  <span className="text-sm text-slate-700 flex-1 truncate">{c.name}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    c.enabled ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
-                  }`}>
-                    {c.enabled ? 'Connected' : 'Disabled'}
-                  </span>
-                </div>
-              ))}
-
-              <div className="flex gap-2 pt-1">
-                <Link
-                  href="/settings/knowledge"
-                  className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                >
-                  Manage knowledge base →
-                </Link>
-                <span className="text-xs text-slate-300">·</span>
-                <Link
-                  href="/settings/integrations"
-                  className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                >
-                  Manage integrations →
-                </Link>
-              </div>
-            </div>
-          )}
+      {/* Knowledge & Tools */}
+      <div style={S.card}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <p style={S.label}>Knowledge &amp; Tools</p>
         </div>
+        <p style={S.sub}>Articles and integrations the AI can reference in conversations.</p>
 
-        {/* Instructions */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Instructions</span>
-            <span className="text-xs text-slate-400">{instructions.length} / 2000</span>
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[...Array(2)].map((_, i) => <div key={i} style={{ height: 44, borderRadius: 8, background: 'var(--surface-low)', animation: 'pulse 1.5s infinite' }} />)}
           </div>
-          <p className="text-xs text-slate-400 mb-3">
-            Tell the AI how to behave — your product's tone, what to avoid, and any special handling.
-          </p>
-          {loading ? (
-            <div className="h-40 bg-slate-100 rounded-lg animate-pulse" />
-          ) : (
-            <textarea
-              value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
-              rows={8}
-              maxLength={2000}
-              placeholder={`Examples:\n- Our product is a project management tool for remote teams\n- Users often get confused at the "invite teammates" step\n- Always encourage users to invite at least 2 teammates before proceeding\n- Tone: friendly and encouraging, never pushy`}
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none font-mono leading-relaxed"
-            />
-          )}
-
-          {/* Base prompt preview */}
-          <div className="mt-3 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-xs text-slate-500 leading-relaxed font-mono">
-            <span className="text-slate-400 not-italic">Base prompt (always included):</span><br />
-            You are an AI assistant embedded inside &quot;[Your Product]&quot;.<br />
-            Help users who are stuck or have questions. Be concise and action-oriented.<br />
-            <span className="text-indigo-400">+ your instructions above</span>
-          </div>
-
-          <div className="flex items-center gap-3 mt-4">
-            <button
-              onClick={save}
-              disabled={saving || !isDirty}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              {saving ? 'Saving…' : 'Save instructions'}
-            </button>
-            {isDirty && (
-              <button
-                onClick={() => setInstructions(original)}
-                className="px-4 py-2.5 text-slate-500 hover:text-slate-800 text-sm"
-              >
-                Discard
-              </button>
-            )}
-            {saved && <span className="text-emerald-600 text-sm font-medium">✓ Saved</span>}
-          </div>
-        </div>
-
-        {/* Model info */}
-        <div className="bg-white rounded-xl border border-slate-200 px-6 py-4 flex items-center gap-3">
-          <span className="text-base">🤖</span>
+        ) : (
           <div>
-            <p className="text-sm font-medium text-slate-700">Claude Sonnet 4.6</p>
-            <p className="text-xs text-slate-400">Model powering your AI assistant</p>
+            {articles.slice(0, 3).map((a) => (
+              <div key={a.id} style={S.row}>
+                <span style={{ fontSize: 16 }}>📄</span>
+                <span style={{ fontSize: 13, color: 'var(--on-surface)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.title}</span>
+                {a.tags.slice(0, 2).map((t) => (
+                  <span key={t} style={{ fontSize: 10, fontWeight: 600, color: 'var(--primary-bright)', background: 'rgba(139,92,246,0.12)', padding: '2px 7px', borderRadius: 999 }}>{t}</span>
+                ))}
+              </div>
+            ))}
+            {articles.length > 3 && <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>+{articles.length - 3} more articles</p>}
+            {articles.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--muted)', border: '1px dashed rgba(139,92,246,0.15)', borderRadius: 8, padding: '14px', textAlign: 'center', marginBottom: 8 }}>
+                No knowledge articles yet
+              </div>
+            )}
+            {connectors.slice(0, 2).map((c) => (
+              <div key={c.id} style={S.row}>
+                <span style={{ fontSize: 16 }}>🔌</span>
+                <span style={{ fontSize: 13, color: 'var(--on-surface)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: c.enabled ? 'var(--success)' : 'var(--muted)', background: c.enabled ? 'rgba(74,222,128,0.1)' : 'rgba(71,85,105,0.1)', padding: '2px 10px', borderRadius: 999 }}>
+                  {c.enabled ? 'Connected' : 'Disabled'}
+                </span>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 14, marginTop: 12 }}>
+              <Link href="/knowledge" style={{ fontSize: 12, fontWeight: 500, color: 'var(--primary-bright)' }}>Manage knowledge base →</Link>
+              <Link href="/mcp" style={{ fontSize: 12, fontWeight: 500, color: 'var(--primary-bright)' }}>Manage integrations →</Link>
+            </div>
           </div>
-          <span className="ml-auto text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Active</span>
+        )}
+      </div>
+
+      {/* Instructions */}
+      <div style={S.card}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <p style={S.label}>Instructions</p>
+          <span style={{ fontSize: 11, color: 'var(--muted)' }}>{instructions.length} / 2000</span>
+        </div>
+        <p style={S.sub}>Tell the AI how to behave — your product&apos;s tone, what to avoid, and any special handling.</p>
+        {loading ? (
+          <div style={{ height: 160, borderRadius: 8, background: 'var(--surface-low)', animation: 'pulse 1.5s infinite' }} />
+        ) : (
+          <textarea
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            rows={8}
+            maxLength={2000}
+            placeholder={`Examples:\n- Our product is a project management tool for remote teams\n- Users often get confused at the "invite teammates" step\n- Always encourage users to invite at least 2 teammates before proceeding\n- Tone: friendly and encouraging, never pushy`}
+            style={{ width: '100%', background: 'var(--surface-low)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: 'var(--on-surface)', fontFamily: 'monospace', lineHeight: 1.6, resize: 'vertical', boxSizing: 'border-box' }}
+          />
+        )}
+
+        {/* Base prompt preview */}
+        <div style={{ marginTop: 12, background: 'var(--surface-low)', border: '1px solid rgba(139,92,246,0.1)', borderRadius: 8, padding: '12px 14px', fontSize: 11, color: 'var(--muted)', fontFamily: 'monospace', lineHeight: 1.6 }}>
+          <span style={{ color: 'var(--on-surface-variant)' }}>Base prompt (always included):</span><br />
+          You are an AI assistant embedded inside &quot;[Your Product]&quot;.<br />
+          Help users who are stuck or have questions. Be concise and action-oriented.<br />
+          <span style={{ color: 'var(--primary-bright)' }}>+ your instructions above</span>
         </div>
 
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
+          <button
+            onClick={save}
+            disabled={saving || !isDirty}
+            style={{ background: 'linear-gradient(135deg,#8B5CF6,#22D3EE)', color: '#fff', padding: '9px 20px', borderRadius: 8, fontWeight: 600, fontSize: 13, border: 'none', cursor: (saving || !isDirty) ? 'not-allowed' : 'pointer', opacity: (saving || !isDirty) ? 0.5 : 1 }}
+          >
+            {saving ? 'Saving…' : 'Save instructions'}
+          </button>
+          {isDirty && (
+            <button onClick={() => setInstructions(original)} style={{ fontSize: 13, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
+              Discard
+            </button>
+          )}
+          {saved && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--success)' }}>✓ Saved</span>}
+        </div>
+      </div>
+
+      {/* Model info */}
+      <div style={{ ...S.card, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ fontSize: 20 }}>🤖</span>
+        <div style={{ flex: 1 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--on-surface)' }}>Claude Sonnet 4.6</p>
+          <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Model powering your AI assistant</p>
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--success)', background: 'rgba(74,222,128,0.1)', padding: '2px 10px', borderRadius: 999 }}>Active</span>
       </div>
     </div>
   );

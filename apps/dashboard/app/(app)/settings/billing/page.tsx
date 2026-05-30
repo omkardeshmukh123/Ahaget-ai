@@ -52,7 +52,7 @@ function BillingPageInner() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    api.billing.status().then(setStatus).finally(() => setLoading(false));
+    api.billing.status().then(setStatus).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const handleUpgrade = async (priceId: string, planKey: string) => {

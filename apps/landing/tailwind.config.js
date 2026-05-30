@@ -13,13 +13,13 @@ module.exports = {
         'surface-2': '#1a1a24',
         border: '#ffffff12',
         primary: {
-          DEFAULT: '#6366f1',
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
+          DEFAULT: '#8A2BE2',
+          50: '#F3E8FD',
+          100: '#E8D5FB',
+          400: '#B06CF5',
+          500: '#8A2BE2',
+          600: '#7B22C9',
+          700: '#6219AE',
         },
         accent: '#f97316',
       },
@@ -29,7 +29,7 @@ module.exports = {
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-        'hero-glow': 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99,102,241,0.25), transparent)',
+        'hero-glow': 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(138,43,226,0.25), transparent)',
         'grid-pattern': `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
       },
       animation: {
@@ -72,8 +72,8 @@ module.exports = {
           '50%': { transform: 'translateY(-20px)' },
         },
         pulseGlow: {
-          '0%, 100%': { boxShadow: '0 0 20px rgba(99,102,241,0.3)' },
-          '50%': { boxShadow: '0 0 60px rgba(99,102,241,0.7), 0 0 100px rgba(99,102,241,0.3)' },
+          '0%, 100%': { boxShadow: '0 0 20px rgba(138,43,226,0.3)' },
+          '50%': { boxShadow: '0 0 60px rgba(138,43,226,0.7), 0 0 100px rgba(138,43,226,0.3)' },
         },
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
@@ -85,12 +85,12 @@ module.exports = {
         },
         blink: {
           '0%, 100%': { borderColor: 'transparent' },
-          '50%': { borderColor: '#6366f1' },
+          '50%': { borderColor: '#8A2BE2' },
         },
       },
       boxShadow: {
-        glow: '0 0 40px rgba(99,102,241,0.3)',
-        'glow-lg': '0 0 80px rgba(99,102,241,0.4)',
+        glow: '0 0 40px rgba(138,43,226,0.3)',
+        'glow-lg': '0 0 80px rgba(138,43,226,0.4)',
         'glow-accent': '0 0 40px rgba(249,115,22,0.3)',
         card: '0 4px 24px rgba(0,0,0,0.5)',
         glass: 'inset 0 1px 0 rgba(255,255,255,0.08)',
