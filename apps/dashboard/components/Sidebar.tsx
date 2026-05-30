@@ -66,18 +66,9 @@ export default function Sidebar() {
       {/* Logo */}
       <div style={{ padding: '20px 16px 14px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 9,
-            background: 'linear-gradient(135deg, #8A2BE2, #B06CF5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 2px 10px rgba(138,43,226,0.3)',
-            flexShrink: 0,
-          }}>
-            <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
-              <path d="M9 2L15.5 6V12L9 16L2.5 12V6L9 2Z" fill="white" fillOpacity="0.95"/>
-              <path d="M9 5L13 7.5V12.5L9 15L5 12.5V7.5L9 5Z" fill="white" fillOpacity="0.3"/>
-            </svg>
-          </div>
+          <svg width="28" height="28" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+            <path fill="#8A2BE2" fillRule="evenodd" clipRule="evenodd" d="M48.6 36A24 24 0 1 0 38 48.8L38 36ZM43 21A11 11 0 1 0 21 21A11 11 0 1 0 43 21Z"/>
+          </svg>
           <div>
             <span style={{ fontSize: 15, fontWeight: 700, color: '#1A0530', letterSpacing: '-0.02em' }}>Ahaget</span>
             {org && <p style={{ fontSize: 10, color: '#9B8AB0', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130 }}>{org.name}</p>}

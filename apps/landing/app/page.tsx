@@ -147,12 +147,10 @@ function Navbar() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <a href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#8A2BE2] to-[#B06CF5] flex items-center justify-center shadow-glow group-hover:shadow-glow-lg transition-all duration-300">
-              <span className="text-white font-black text-sm">A</span>
-            </div>
-            <span className="text-white font-bold text-xl tracking-tight">
-              Ahaget
-            </span>
+            <svg width="32" height="32" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" className="group-hover:opacity-90 transition-opacity duration-300">
+              <path fill="#8A2BE2" fillRule="evenodd" clipRule="evenodd" d="M48.6 36A24 24 0 1 0 38 48.8L38 36ZM43 21A11 11 0 1 0 21 21A11 11 0 1 0 43 21Z"/>
+            </svg>
+            <span className="text-white font-bold text-xl tracking-tight">Ahaget</span>
           </a>
 
           {/* Desktop Links */}
@@ -1168,10 +1166,10 @@ function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <a href="/" className="flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#8A2BE2] to-[#B06CF5] flex items-center justify-center">
-                <span className="text-white font-black text-sm">A</span>
-              </div>
-              <span className="text-white font-bold text-xl">Ahaget</span>
+              <svg width="28" height="28" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#8A2BE2" fillRule="evenodd" clipRule="evenodd" d="M48.6 36A24 24 0 1 0 38 48.8L38 36ZM43 21A11 11 0 1 0 21 21A11 11 0 1 0 43 21Z"/>
+              </svg>
+              <span className="text-white font-bold text-lg">Ahaget</span>
             </a>
             <p className="text-white/40 text-sm leading-relaxed mb-4">
               The AI employee for SaaS user lifecycle management.

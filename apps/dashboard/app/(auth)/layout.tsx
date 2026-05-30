@@ -7,12 +7,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {/* Logo */}
           <div className="mb-10">
             <div className="flex items-center gap-2.5 mb-1">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                  <path d="M9 2L15.5 6V12L9 16L2.5 12V6L9 2Z" fill="white" fillOpacity="0.9"/>
-                  <path d="M9 5L13 7.5V12.5L9 15L5 12.5V7.5L9 5Z" fill="white" fillOpacity="0.3"/>
-                </svg>
-              </div>
+              <svg width="32" height="32" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#8A2BE2" fillRule="evenodd" clipRule="evenodd" d="M48.6 36A24 24 0 1 0 38 48.8L38 36ZM43 21A11 11 0 1 0 21 21A11 11 0 1 0 43 21Z"/>
+              </svg>
               <span className="text-xl font-bold text-slate-900 tracking-tight">Ahaget</span>
             </div>
             <p className="text-sm text-slate-500">AI-guided onboarding that converts</p>

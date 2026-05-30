@@ -19,12 +19,10 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
       <header className="border-b border-slate-200/60 bg-white/80 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-              <svg width="15" height="15" viewBox="0 0 18 18" fill="none">
-                <path d="M9 2L15.5 6V12L9 16L2.5 12V6L9 2Z" fill="white" fillOpacity="0.9"/>
-              </svg>
-            </div>
+          <div className="flex items-center gap-2">
+            <svg width="26" height="26" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path fill="#8A2BE2" fillRule="evenodd" clipRule="evenodd" d="M48.6 36A24 24 0 1 0 38 48.8L38 36ZM43 21A11 11 0 1 0 21 21A11 11 0 1 0 43 21Z"/>
+            </svg>
             <span className="text-base font-bold text-slate-900 tracking-tight">Ahaget</span>
           </div>
 
