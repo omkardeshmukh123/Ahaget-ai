@@ -2,7 +2,14 @@ import OpenAI from 'openai';
 import { OnboardingStep } from '@prisma/client';
 
 let _openai: OpenAI | null = null;
-const openai = () => { if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); return _openai; };
+const openai = () => {
+  if (!_openai) _openai = new OpenAI({
+    apiKey: process.env.OPENROUTER_API_KEY,
+    baseURL: 'https://openrouter.ai/api/v1',
+    defaultHeaders: { 'HTTP-Referer': 'https://ahaget.ai', 'X-Title': 'Ahaget' },
+  });
+  return _openai;
+};
 
 /**
  * Given the current page URL/path and user behavior context,
@@ -24,7 +31,7 @@ export async function detectIntent(
     .join('\n');
 
   const response = await openai().chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: 'openai/gpt-4o-mini',
     max_tokens: 64,
     temperature: 0,
     messages: [

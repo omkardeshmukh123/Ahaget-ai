@@ -10,7 +10,17 @@ import { extractJsonField } from '../utils/streaming';
 import { prisma } from '../utils/prisma';
 
 let _openai: OpenAI | null = null;
-const openai = () => { if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); return _openai; };
+const openai = () => {
+  if (!_openai) _openai = new OpenAI({
+    apiKey: process.env.OPENROUTER_API_KEY,
+    baseURL: 'https://openrouter.ai/api/v1',
+    defaultHeaders: {
+      'HTTP-Referer': 'https://ahaget.ai',
+      'X-Title': 'Ahaget',
+    },
+  });
+  return _openai;
+};
 
 // ─── Tool definitions ─────────────────────────────────────────────────────────
 
@@ -278,10 +288,10 @@ function selectModel(opts: {
 }): string {
   const { isInit, isVerify, hasActionConfig, hasUnansweredQuestions, hasKbResults } = opts;
 
-  if (isVerify) return 'gpt-4o-mini';
-  if (isInit && hasActionConfig && !hasUnansweredQuestions) return 'gpt-4o-mini';
-  if (hasKbResults) return 'gpt-4o';
-  return 'gpt-4o-mini';
+  if (isVerify) return 'openai/gpt-4o-mini';
+  if (isInit && hasActionConfig && !hasUnansweredQuestions) return 'openai/gpt-4o-mini';
+  if (hasKbResults) return 'openai/gpt-4o';
+  return 'openai/gpt-4o-mini';
 }
 
 // ─── Interface map context loader ────────────────────────────────────────────
@@ -609,7 +619,7 @@ async function summarizeHistory(
 ): Promise<string> {
   const result = await Promise.race([
     openai().chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'openai/gpt-4o-mini',
       max_tokens: 150,
       temperature: 0,
       messages: [
@@ -1260,7 +1270,7 @@ ${pageHint}`.trim();
 
   const response = await withRetry(
     () => openai().chat.completions.create({
-      model: 'gpt-4o',
+      model: 'openai/gpt-4o',
       max_tokens: 1024,
       temperature: 0,
       tools: [planTool],
@@ -1592,7 +1602,7 @@ ${org.customInstructions ?? ''}${failureContextBlock}${goalLangInstruction}`.tri
   // to hit the <1.5s first-token target — saves ~40% latency on majority of turns.
   const hasKbInContext = kbResults.length > 0;
   const needsBigModel = isFirstGoalTurn || hasKbInContext || wrongPageBlock.length > 0;
-  const goalModel = needsBigModel ? 'gpt-4o' : 'gpt-4o-mini';
+  const goalModel = needsBigModel ? 'openai/gpt-4o' : 'openai/gpt-4o-mini';
 
   const rawResponse = await withRetry(
     () => Promise.race([

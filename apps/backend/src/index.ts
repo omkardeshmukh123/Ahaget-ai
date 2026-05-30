@@ -40,7 +40,7 @@ import { runKbRefresh } from './jobs/kbRefresh';
 
 // ─── Startup env validation ───────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
-const OPTIONAL_ENV = ['OPENAI_API_KEY'];
+const OPTIONAL_ENV = ['OPENROUTER_API_KEY', 'OPENAI_API_KEY'];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length > 0) {
   console.error(`[startup] Missing required env vars: ${missing.join(', ')}`);
