@@ -64,7 +64,7 @@ async function getOrCreateEndUser(orgId: string, userId: string, metadata: Recor
 // --- POST /api/v1/session/warmup ---------------------------------------------
 // Phase 5: called by the widget on idle init to pre-warm DB connection pool and
 // Ahageta client before the user types anything. Returns 200 immediately.
-// No DB writes — just a lightweight ping that keeps the connection warm.
+// No DB writes ï¿½ just a lightweight ping that keeps the connection warm.
 router.post('/warmup', async (req: AuthenticatedRequest, res: Response) => {
   try {
     // Fire-and-forget: validate org key is valid (already done by middleware)
@@ -100,7 +100,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  // find session — prefer the specified flow, otherwise find the active one
+  // find session ï¿½ prefer the specified flow, otherwise find the active one
   const session = await prisma.userOnboardingSession.findFirst({
     where: {
       endUserId: endUser.id,
@@ -192,7 +192,7 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
   });
   const agentName = playbookConfig?.agentName ?? 'AI Assistant';
 
-  // Upsert end user first (idempotent) — eliminates MTU TOCTOU race
+  // Upsert end user first (idempotent) ï¿½ eliminates MTU TOCTOU race
   const endUser = await getOrCreateEndUser(org.id, userId, metadata ?? {});
 
   // MTU check after upsert: count is now accurate
@@ -209,7 +209,7 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
     }
   }
 
-  // find the org's active flow — priority: role > segment > plan > global
+  // find the org's active flow ï¿½ priority: role > segment > plan > global
   const userRole    = (metadata?.role    as string | undefined) ?? '';
   const userSegment = (metadata?.segment as string | undefined) ?? '';
   const userPlan    = (metadata?.plan    as string | undefined) ?? '';
@@ -285,7 +285,7 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
         if (variantFlow) flow = variantFlow;
       }
     } else {
-      // Fresh assignment — deterministic hash of userId + experimentId ? bucket 0-99
+      // Fresh assignment ï¿½ deterministic hash of userId + experimentId ? bucket 0-99
       const raw = userId + experiment.id;
       const bucket = raw.split('').reduce((acc, c) => ((acc * 31 + c.charCodeAt(0)) >>> 0), 0) % 100;
       experimentVariant = bucket < experiment.trafficSplit ? 'variant' : 'control';
@@ -401,7 +401,7 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
     },
     isReturning: otherSessionCount > 0,
     agentName,
-    // Trigger controls — widget reads these to decide when/where to show
+    // Trigger controls ï¿½ widget reads these to decide when/where to show
     trigger: {
       delayMs: flow.triggerDelayMs,
       urlPattern: flow.urlPattern,
@@ -423,7 +423,7 @@ function guardCompleteStep(
   const questions = (step.smartQuestions as string[]) ?? [];
   const unanswered = questions.filter((q) => !(q in collectedData) || collectedData[q] === '');
 
-  if (unanswered.length === 0) return action; // all answered — allow completion
+  if (unanswered.length === 0) return action; // all answered ï¿½ allow completion
 
   return {
     type: 'ask_clarification',
@@ -472,7 +472,7 @@ async function applyActionSideEffects(opts: {
 
   const isInternalMessage = userMessage === '__init__' || userMessage === '__verify__' || userMessage.startsWith('__navigated__:');
 
-  // -- Store messages (skip internal triggers) — return assistant message id -
+  // -- Store messages (skip internal triggers) ï¿½ return assistant message id -
   let assistantMessageId: string | null = null;
   if (!isInternalMessage) {
     const agentContent =
@@ -504,7 +504,7 @@ async function applyActionSideEffects(opts: {
     });
     assistantMessageId = assistantMsg.id;
 
-    // -- Audit log — fire-and-forget, never block the response --------------
+    // -- Audit log ï¿½ fire-and-forget, never block the response --------------
     const auditPayload: Record<string, unknown> = { message: agentContent };
     if (action.type === 'execute_page_action') {
       auditPayload.actionType = action.actionType;
@@ -650,7 +650,7 @@ async function applyActionSideEffects(opts: {
     });
 
   } else {
-    // in_progress — preserve original startedAt
+    // in_progress ï¿½ preserve original startedAt
     const existing = await prisma.userStepProgress.findUnique({
       where: { sessionId_stepId: { sessionId: session.id, stepId: currentStep.id } },
       select: { startedAt: true },
@@ -727,19 +727,19 @@ router.post('/heal', async (req: AuthenticatedRequest, res: Response) => {
       },
     });
 
-    // Alert threshold: 3 failures in 24 h — avoids noise on one-off misses
+    // Alert threshold: 3 failures in 24 h ï¿½ avoids noise on one-off misses
     if (recentFailures >= 3) {
       fetch(org.selectorAlertWebhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: `?? Broken selector: \`${originalSelector}\` has failed ${recentFailures}× in the last 24 h on \`${page}\`. Update the step's actionConfig selector.`,
+          text: `?? Broken selector: \`${originalSelector}\` has failed ${recentFailures}ï¿½ in the last 24 h on \`${page}\`. Update the step's actionConfig selector.`,
           selector: originalSelector,
           page,
           failures: recentFailures,
           stepId: stepId ?? null,
         }),
-      }).catch(() => {}); // non-blocking — never interrupt the flow
+      }).catch(() => {}); // non-blocking ï¿½ never interrupt the flow
     }
   }
 
@@ -854,7 +854,7 @@ router.post('/act', async (req: AuthenticatedRequest, res: Response) => {
   if (userMessage.startsWith('__navigated__:')) {
     try {
       const nav = JSON.parse(userMessage.slice('__navigated__:'.length)) as { from?: string; to?: string; stepTitle?: string };
-      effectiveMessage = `NAVIGATION COMPLETE: You navigated from ${nav.from ?? 'previous page'} to ${nav.to ?? 'current page'}. Current page is now loaded. Resume step "${nav.stepTitle ?? currentStep.title}" — re-scan LIVE PAGE ELEMENTS and continue.`;
+      effectiveMessage = `NAVIGATION COMPLETE: You navigated from ${nav.from ?? 'previous page'} to ${nav.to ?? 'current page'}. Current page is now loaded. Resume step "${nav.stepTitle ?? currentStep.title}" ï¿½ re-scan LIVE PAGE ELEMENTS and continue.`;
     } catch {
       effectiveMessage = '__init__';
     }
@@ -869,6 +869,7 @@ router.post('/act', async (req: AuthenticatedRequest, res: Response) => {
     ? session.liveContextSnapshot
     : undefined;
 
+  const agentT0 = Date.now();
   const action = await runAgentSafe({
     org: req.organization!,
     step: currentStep,
@@ -883,6 +884,19 @@ router.post('/act', async (req: AuthenticatedRequest, res: Response) => {
     detectedLang,
     flowGoal: session.flow.description || undefined,
     liveContext,
+  });
+  logger.info('agent.eval', {
+    orgId: req.organization!.id,
+    sessionId: session.id,
+    stepId: currentStep.id,
+    toolCalled: action.type,
+    latencyMs: Date.now() - agentT0,
+    isInit: agentMessage === '__init__',
+    isVerify: agentMessage === '__verify__',
+    stepCompletedOnTurn: action.type === 'complete_step',
+    selectorValid: action.type === 'execute_page_action'
+      ? !!(pageContext?.elements?.some((e) => e.selector === action.payload?.selector))
+      : null,
   });
 
   // -- Guard: block premature complete_step ---------------------------------
@@ -930,7 +944,7 @@ setInterval(() => {
   }
 }, 5 * 60_000);
 
-// --- POST /api/v1/session/act/stream — SSE streaming variant -----------------
+// --- POST /api/v1/session/act/stream ï¿½ SSE streaming variant -----------------
 // Sends a `thinking` event immediately on connect so the widget shows a typing
 // indicator. Sends the `action` event when the agent finishes. Closes with `done`.
 router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
@@ -965,7 +979,7 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  // -- Set SSE headers immediately — this is what eliminates perceived latency -
+  // -- Set SSE headers immediately ï¿½ this is what eliminates perceived latency -
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -975,7 +989,7 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   };
 
-  // Acknowledge immediately — widget shows typing indicator
+  // Acknowledge immediately ï¿½ widget shows typing indicator
   send('thinking', { ts: Date.now() });
 
   try {
@@ -997,7 +1011,7 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
     // -- Real GPT-4o streaming -------------------------------------------------
     // runAgentStream yields { type:'word' } tokens as arguments build in GPT-4o,
     // then a final { type:'action' } when the tool call is complete.
-    // Words are sent immediately — no artificial delay.
+    // Words are sent immediately ï¿½ no artificial delay.
     const isLastStep  = currentStep.order === Math.max(...session.flow.steps.map((s) => s.order));
     const userHistory = await getUserHistory(session.endUserId, session.id).catch(() => null);
 
@@ -1005,7 +1019,7 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
     if (userMessage.startsWith('__navigated__:')) {
       try {
         const nav = JSON.parse(userMessage.slice('__navigated__:'.length)) as { from?: string; to?: string; stepTitle?: string };
-        streamEffectiveMessage = `NAVIGATION COMPLETE: You navigated from ${nav.from ?? 'previous page'} to ${nav.to ?? 'current page'}. Current page is now loaded. Resume step "${nav.stepTitle ?? currentStep.title}" — re-scan LIVE PAGE ELEMENTS and continue.`;
+        streamEffectiveMessage = `NAVIGATION COMPLETE: You navigated from ${nav.from ?? 'previous page'} to ${nav.to ?? 'current page'}. Current page is now loaded. Resume step "${nav.stepTitle ?? currentStep.title}" ï¿½ re-scan LIVE PAGE ELEMENTS and continue.`;
       } catch {
         streamEffectiveMessage = '__init__';
       }
@@ -1055,6 +1069,21 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
+    logger.info('agent.eval', {
+      orgId: req.organization!.id,
+      sessionId: session.id,
+      stepId: currentStep.id,
+      toolCalled: finalAction.type,
+      latencyMs: Date.now() - streamStart,
+      isInit: streamAgentMessage === '__init__',
+      isVerify: streamAgentMessage === '__verify__',
+      stepCompletedOnTurn: finalAction.type === 'complete_step',
+      streaming: true,
+      selectorValid: finalAction.type === 'execute_page_action'
+        ? !!(pageContext?.elements?.some((e) => e.selector === finalAction.payload?.selector))
+        : null,
+    });
+
     const guardedAction = guardCompleteStep(finalAction, currentStep, session.collectedData as Record<string, unknown>);
     const localizedStreamAction = await localizeAction(guardedAction, streamDetectedLang);
 
@@ -1076,7 +1105,7 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-// --- POST /api/v1/session/act/plan — decompose goal into phases --------------
+// --- POST /api/v1/session/act/plan ï¿½ decompose goal into phases --------------
 router.post('/act/plan', async (req: AuthenticatedRequest, res: Response) => {
   const { goal, pageContext } = req.body as {
     goal: string;
@@ -1092,7 +1121,7 @@ router.post('/act/plan', async (req: AuthenticatedRequest, res: Response) => {
   res.json({ phases });
 });
 
-// --- POST /api/v1/session/act/goal — ReAct goal mode -------------------------
+// --- POST /api/v1/session/act/goal ï¿½ ReAct goal mode -------------------------
 router.post('/act/goal', async (req: AuthenticatedRequest, res: Response) => {
   const { sessionId, goal, pageContext, turnHistory = [], turnCount = 0 } = req.body as {
     sessionId: string;

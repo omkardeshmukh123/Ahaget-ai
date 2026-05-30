@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { logger } from '../utils/logger';
+import { Sentry } from '../utils/sentry';
 
 export function errorHandler(
   err: Error,
@@ -20,6 +21,7 @@ export function errorHandler(
     return;
   }
 
+  Sentry.captureException(err);
   logger.httpError(req.method, req.path, 500, err);
 
   res.status(500).json({ error: 'Internal server error' });

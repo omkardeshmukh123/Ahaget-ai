@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import 'express-async-errors';
+import { initSentry } from './utils/sentry';
+initSentry();
 import http from 'http';
 import express from 'express';
 import cors from 'cors';
@@ -136,100 +138,105 @@ httpServer.listen(PORT, () => {
   console.log(`[server] WS   → ws://localhost:${PORT}/ws`);
   console.log(`[server] Env  → ${process.env.NODE_ENV ?? 'development'}`);
 
-  // ── Flow alert scheduler ─────────────────────────────────────────────────
-  // Run once 2 minutes after startup, then every hour.
-  const ALERT_INTERVAL_MS = 60 * 60 * 1000; // 1 h
-  setTimeout(() => {
-    checkFlowAlerts().catch((e) => console.error('[alerting] uncaught error:', e));
-    setInterval(() => {
+  // ── Cron guard: set CRON_ENABLED=false on replica instances to prevent duplicate runs ──
+  const CRON_ENABLED = process.env.CRON_ENABLED !== 'false';
+  if (!CRON_ENABLED) {
+    console.log('[cron] CRON_ENABLED=false — all scheduled jobs disabled on this instance');
+  }
+
+  if (CRON_ENABLED) {
+    // ── Flow alert scheduler ───────────────────────────────────────────────
+    // Run once 2 minutes after startup, then every hour.
+    const ALERT_INTERVAL_MS = 60 * 60 * 1000; // 1 h
+    setTimeout(() => {
       checkFlowAlerts().catch((e) => console.error('[alerting] uncaught error:', e));
-    }, ALERT_INTERVAL_MS);
-  }, 2 * 60 * 1000);
+      setInterval(() => {
+        checkFlowAlerts().catch((e) => console.error('[alerting] uncaught error:', e));
+      }, ALERT_INTERVAL_MS);
+    }, 2 * 60 * 1000);
 
-  // ── Daily trigger evaluator ───────────────────────────────────────────────
-  // Evaluates inactivity + feature_unused triggers for all orgs once per day.
-  const DAILY_MS = 24 * 60 * 60 * 1000;
-  const runDailyTriggers = async () => {
-    console.log('[triggers] Running daily server-side trigger evaluation...');
-    try {
-      const rules = await prisma.triggerRule.findMany({
-        where: { isActive: true, triggerType: { in: ['inactivity', 'feature_unused', 'page_never_visited'] } },
-        include: { flow: { select: { id: true, name: true, flowType: true, organizationId: true } } },
-      });
-      console.log(`[triggers] Evaluating ${rules.length} server-side rules`);
-      // Per-rule evaluation is handled on-demand via /evaluate at widget init.
-      // This cron is a hook for future push notifications (Phase 3).
-    } catch (e) {
-      console.error('[triggers] daily evaluation error:', e);
-    }
-  };
-  setTimeout(() => {
-    runDailyTriggers();
-    setInterval(runDailyTriggers, DAILY_MS);
-  }, 5 * 60 * 1000); // 5 min after startup
-
-  // ── Proactive messaging cron ──────────────────────────────────────────────
-  // Runs daily at startup + 24h interval.
-  // Identifies users who qualify for proactive outreach and sends in-app + email.
-  const PROACTIVE_INTERVAL_MS = 24 * 60 * 60 * 1000;
-  setTimeout(() => {
-    runProactiveMessaging().catch((e) => console.error('[proactive] cron error:', e));
-    setInterval(() => {
-      runProactiveMessaging().catch((e) => console.error('[proactive] cron error:', e));
-    }, PROACTIVE_INTERVAL_MS);
-  }, 10 * 60 * 1000); // 10 min after startup
-
-  // ── KB auto-refresh cron ─────────────────────────────────────────────────
-  // Re-crawls URL sources older than 24 h. Runs every 6 h; first run 60 s after boot.
-  const KB_CRON_MS = 6 * 60 * 60 * 1000;
-  setTimeout(() => {
-    runKbRefresh().catch((e) => console.error('[kb-refresh] startup run error:', e));
-    setInterval(() => {
-      runKbRefresh().catch((e) => console.error('[kb-refresh] cron error:', e));
-    }, KB_CRON_MS);
-  }, 60_000);
-
-  // ── Session abandonment sweeper ───────────────────────────────────────────
-  // Marks sessions inactive for >30 min as abandoned. Runs every 5 minutes.
-  const ABANDON_THRESHOLD_MS = 30 * 60 * 1000; // 30 min
-  const ABANDON_INTERVAL_MS  = 5 * 60 * 1000;  // 5 min
-
-  const sweepAbandonedSessions = async () => {
-    const cutoff = new Date(Date.now() - ABANDON_THRESHOLD_MS);
-    try {
-      const stale = await prisma.userOnboardingSession.findMany({
-        where: { status: 'active', lastActiveAt: { lt: cutoff } },
-        select: { id: true, currentStepId: true },
-        take: 200,
-      });
-      if (stale.length === 0) return;
-
-      const sessionIds = stale.map((s) => s.id);
-
-      // Mark sessions abandoned
-      await prisma.userOnboardingSession.updateMany({
-        where: { id: { in: sessionIds } },
-        data: { status: 'abandoned' },
-      });
-
-      // Mark each session's current in-progress step as dropped
-      for (const s of stale) {
-        if (!s.currentStepId) continue;
-        await prisma.userStepProgress.updateMany({
-          where: { sessionId: s.id, stepId: s.currentStepId, status: 'in_progress' },
-          data: { outcome: 'dropped', dropReason: 'idle_timeout' },
+    // ── Daily trigger evaluator ─────────────────────────────────────────────
+    // Evaluates inactivity + feature_unused triggers for all orgs once per day.
+    const DAILY_MS = 24 * 60 * 60 * 1000;
+    const runDailyTriggers = async () => {
+      console.log('[triggers] Running daily server-side trigger evaluation...');
+      try {
+        const rules = await prisma.triggerRule.findMany({
+          where: { isActive: true, triggerType: { in: ['inactivity', 'feature_unused', 'page_never_visited'] } },
+          include: { flow: { select: { id: true, name: true, flowType: true, organizationId: true } } },
         });
+        console.log(`[triggers] Evaluating ${rules.length} server-side rules`);
+        // Per-rule evaluation is handled on-demand via /evaluate at widget init.
+        // This cron is a hook for future push notifications (Phase 3).
+      } catch (e) {
+        console.error('[triggers] daily evaluation error:', e);
       }
+    };
+    setTimeout(() => {
+      runDailyTriggers();
+      setInterval(runDailyTriggers, DAILY_MS);
+    }, 5 * 60 * 1000); // 5 min after startup
 
-      console.log(`[sweeper] Marked ${stale.length} sessions abandoned`);
-    } catch (e) {
-      console.error('[sweeper] abandonment sweep error:', e);
-    }
-  };
+    // ── Proactive messaging cron ────────────────────────────────────────────
+    // Runs daily at startup + 24h interval.
+    const PROACTIVE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+    setTimeout(() => {
+      runProactiveMessaging().catch((e) => console.error('[proactive] cron error:', e));
+      setInterval(() => {
+        runProactiveMessaging().catch((e) => console.error('[proactive] cron error:', e));
+      }, PROACTIVE_INTERVAL_MS);
+    }, 10 * 60 * 1000); // 10 min after startup
 
-  setInterval(() => {
-    sweepAbandonedSessions();
-  }, ABANDON_INTERVAL_MS);
+    // ── KB auto-refresh cron ────────────────────────────────────────────────
+    // Re-crawls URL sources older than 24 h. Runs every 6 h; first run 60 s after boot.
+    const KB_CRON_MS = 6 * 60 * 60 * 1000;
+    setTimeout(() => {
+      runKbRefresh().catch((e) => console.error('[kb-refresh] startup run error:', e));
+      setInterval(() => {
+        runKbRefresh().catch((e) => console.error('[kb-refresh] cron error:', e));
+      }, KB_CRON_MS);
+    }, 60_000);
+
+    // ── Session abandonment sweeper ─────────────────────────────────────────
+    // Marks sessions inactive for >30 min as abandoned. Runs every 5 minutes.
+    const ABANDON_THRESHOLD_MS = 30 * 60 * 1000; // 30 min
+    const ABANDON_INTERVAL_MS  = 5 * 60 * 1000;  // 5 min
+
+    const sweepAbandonedSessions = async () => {
+      const cutoff = new Date(Date.now() - ABANDON_THRESHOLD_MS);
+      try {
+        const stale = await prisma.userOnboardingSession.findMany({
+          where: { status: 'active', lastActiveAt: { lt: cutoff } },
+          select: { id: true, currentStepId: true },
+          take: 200,
+        });
+        if (stale.length === 0) return;
+
+        const sessionIds = stale.map((s) => s.id);
+
+        await prisma.userOnboardingSession.updateMany({
+          where: { id: { in: sessionIds } },
+          data: { status: 'abandoned' },
+        });
+
+        for (const s of stale) {
+          if (!s.currentStepId) continue;
+          await prisma.userStepProgress.updateMany({
+            where: { sessionId: s.id, stepId: s.currentStepId, status: 'in_progress' },
+            data: { outcome: 'dropped', dropReason: 'idle_timeout' },
+          });
+        }
+
+        console.log(`[sweeper] Marked ${stale.length} sessions abandoned`);
+      } catch (e) {
+        console.error('[sweeper] abandonment sweep error:', e);
+      }
+    };
+
+    setInterval(() => {
+      sweepAbandonedSessions();
+    }, ABANDON_INTERVAL_MS);
+  }
 });
 
 export default app;
