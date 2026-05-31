@@ -1,3 +1,5 @@
+import AhagetLogo from '@/components/AhagetLogo';
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex">
@@ -7,9 +9,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {/* Logo */}
           <div className="mb-10">
             <div className="flex items-center gap-2.5 mb-1">
-              <svg width="32" height="32" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill="#8A2BE2" fillRule="evenodd" clipRule="evenodd" d="M48.6 36A24 24 0 1 0 38 48.8L38 36ZM43 21A11 11 0 1 0 21 21A11 11 0 1 0 43 21Z"/>
-              </svg>
+              <AhagetLogo size={36} />
               <span className="text-xl font-bold text-slate-900 tracking-tight">Ahaget</span>
             </div>
             <p className="text-sm text-slate-500">AI-guided onboarding that converts</p>
@@ -34,8 +34,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {/* Fake assistant widget preview */}
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-5 mb-8 text-left shadow-2xl">
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-violet-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                P
+              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0 overflow-hidden">
+                <AhagetLogo size={22} variant="dark" />
               </div>
               <div className="flex-1">
                 <p className="text-white text-sm font-medium mb-1">Ahaget Assistant</p>

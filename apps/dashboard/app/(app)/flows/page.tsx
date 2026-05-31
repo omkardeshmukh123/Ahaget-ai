@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { api, OnboardingFlow, FlowTemplateMeta, FlowActivationStat } from '@/lib/api';
 
 const FLOW_TYPES = [
-  { value: 'onboarding', label: 'Onboarding', color: '#6366f1', desc: 'Get new users to their first value moment' },
-  { value: 'adoption',   label: 'Adoption',   color: '#22D3EE', desc: 'Surface unused features to existing users' },
+  { value: 'onboarding', label: 'Onboarding', color: '#8A2BE2', desc: 'Get new users to their first value moment' },
+  { value: 'adoption',   label: 'Adoption',   color: '#A050F0', desc: 'Surface unused features to existing users' },
   { value: 'upsell',     label: 'Upsell',     color: '#FBBF24', desc: 'Contextual upgrade prompts at the right moment' },
   { value: 'retention',  label: 'Retention',  color: '#F87171', desc: 'Re-engage inactive or at-risk users' },
-  { value: 'support',    label: 'Support',    color: '#4ADE80', desc: 'Unblock confused users mid-task' },
+  { value: 'support',    label: 'Support',    color: '#7B22C9', desc: 'Unblock confused users mid-task' },
 ] as const;
 
 type FlowTypeValue = typeof FLOW_TYPES[number]['value'];
@@ -125,7 +125,7 @@ export default function FlowsPage() {
           />
           <button
             onClick={openNewModal}
-            style={{ background: 'linear-gradient(135deg,#8B5CF6,#22D3EE)', color: '#fff', padding: '8px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, border: 'none', cursor: 'pointer', boxShadow: '0 0 20px rgba(139,92,246,0.3)' }}
+            style={{ background: 'linear-gradient(135deg,#8A2BE2,#A050F0)', color: '#fff', padding: '8px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, border: 'none', cursor: 'pointer', boxShadow: '0 0 20px rgba(138,43,226,0.3)' }}
           >
             + New flow
           </button>
@@ -283,12 +283,12 @@ export default function FlowsPage() {
                     </td>
                     <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: flow.isActive ? '#4ADE80' : 'var(--muted)' }}>{flow.isActive ? 'Live' : 'Draft'}</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: flow.isActive ? '#8A2BE2' : 'var(--muted)' }}>{flow.isActive ? 'Live' : 'Draft'}</span>
                         <button
                           onClick={() => toggleActive(flow)}
                           style={{
                             width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
-                            background: flow.isActive ? '#4ADE80' : 'var(--surface-bright)',
+                            background: flow.isActive ? '#8A2BE2' : 'var(--surface-bright)',
                             position: 'relative', transition: 'background 0.2s', flexShrink: 0,
                           }}
                         >
@@ -334,7 +334,7 @@ function EmptyState({ onNew, hasSearch }: { onNew: () => void; hasSearch: boolea
       <p style={{ fontSize: 32, marginBottom: 12 }}>◈</p>
       <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--on-surface)', marginBottom: 8 }}>No agent flows yet</h2>
       <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>Create your first flow — choose a lifecycle stage and your AI employee will handle the rest.</p>
-      <button onClick={onNew} style={{ background: 'linear-gradient(135deg,#8B5CF6,#22D3EE)', color: '#fff', padding: '9px 20px', borderRadius: 8, fontWeight: 600, fontSize: 13, border: 'none', cursor: 'pointer' }}>
+      <button onClick={onNew} style={{ background: 'linear-gradient(135deg,#8A2BE2,#A050F0)', color: '#fff', padding: '9px 20px', borderRadius: 8, fontWeight: 600, fontSize: 13, border: 'none', cursor: 'pointer' }}>
         + New flow
       </button>
     </div>

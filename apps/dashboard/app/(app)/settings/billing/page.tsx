@@ -80,7 +80,7 @@ function BillingPageInner() {
   };
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Billing</h1>
         <p className="text-slate-500 text-sm mt-1">Manage your plan and usage.</p>

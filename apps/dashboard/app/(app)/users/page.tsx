@@ -15,8 +15,8 @@ function timeAgo(iso: string): string {
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
-    completed: 'bg-green-100 text-green-700',
-    active:    'bg-brand-100 text-brand-700',
+    completed: 'bg-brand-100 text-brand-600',
+    active:    'bg-brand-50 text-brand-500',
     abandoned: 'bg-slate-100 text-slate-500',
   };
   return map[status] ?? 'bg-slate-100 text-slate-500';
@@ -29,7 +29,7 @@ function stepStatusIcon(status: string) {
 }
 
 function stepStatusColor(status: string) {
-  if (status === 'completed') return 'text-green-600';
+  if (status === 'completed') return 'text-brand-500';
   if (status === 'in_progress') return 'text-brand-600';
   return 'text-slate-300';
 }
@@ -132,7 +132,7 @@ function UserPanel({ userId, onClose }: { userId: string; onClose: () => void })
           </p>
           <div className="flex gap-3 mt-2 text-xs text-slate-500">
             <span><span className="font-medium text-slate-700">{detail.totalSessions}</span> sessions</span>
-            <span><span className="font-medium text-green-600">{detail.completedSessions}</span> completed</span>
+            <span><span className="font-medium text-brand-500">{detail.completedSessions}</span> completed</span>
           </div>
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-lg leading-none">✕</button>
@@ -200,7 +200,7 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Users</h1>
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--on-surface)' }}>Users</h1>
         <p className="text-slate-500 text-sm mt-1">
           All end users and their onboarding history across sessions.
         </p>

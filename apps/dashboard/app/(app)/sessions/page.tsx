@@ -6,14 +6,14 @@ import { api, SessionListItem } from '@/lib/api';
 const PAGE_SIZE = 25;
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  completed: { bg: '#ecfdf5', text: '#059669', dot: '#10b981' },
-  active:    { bg: '#eff6ff', text: '#2563eb', dot: '#3b82f6' },
+  completed: { bg: '#F5EEFF', text: '#7B22C9', dot: '#8A2BE2' },
+  active:    { bg: '#EBD9FF', text: '#6B1CAE', dot: '#8A2BE2' },
   abandoned: { bg: '#fef2f2', text: '#dc2626', dot: '#ef4444' },
 };
 
 const FLOW_TYPE_COLORS: Record<string, string> = {
-  onboarding: '#6366f1', adoption: '#0ea5e9', upsell: '#f59e0b',
-  retention: '#ef4444', support: '#10b981',
+  onboarding: '#8A2BE2', adoption: '#A050F0', upsell: '#f59e0b',
+  retention: '#ef4444', support: '#7B22C9',
 };
 
 function fmt(ms: number) {
@@ -75,7 +75,7 @@ export default function SessionsPage() {
   }, [offset, statusFilter, q, from, to]);
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 1100 }}>
+    <div>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
@@ -271,7 +271,7 @@ export default function SessionsPage() {
                     <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                       <Link
                         href={`/sessions/${s.id}`}
-                        style={{ fontSize: 12, fontWeight: 600, color: '#FF857A', textDecoration: 'none' }}
+                        style={{ fontSize: 12, fontWeight: 600, color: '#8A2BE2', textDecoration: 'none' }}
                       >
                         Replay →
                       </Link>

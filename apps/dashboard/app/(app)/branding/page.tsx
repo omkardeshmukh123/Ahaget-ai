@@ -57,7 +57,7 @@ export default function BrandingPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl space-y-4">
+      <div className="max-w-4xl mx-auto space-y-4">
         {[1, 2].map((i) => (
           <div key={i} className="h-40 bg-slate-100 rounded-2xl animate-pulse" />
         ))}
@@ -66,7 +66,7 @@ export default function BrandingPage() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-4xl mx-auto">
       {toast && (
         <div className="fixed bottom-6 right-6 bg-slate-900 text-white text-sm px-4 py-2.5 rounded-xl shadow-xl z-50">
           {toast}

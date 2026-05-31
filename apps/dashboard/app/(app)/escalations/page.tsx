@@ -5,14 +5,14 @@ import { api, EscalationTicket } from '@/lib/api';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   open:        { bg: '#fef2f2', text: '#dc2626', dot: '#ef4444' },
-  in_progress: { bg: '#eff6ff', text: '#2563eb', dot: '#3b82f6' },
-  resolved:    { bg: '#ecfdf5', text: '#059669', dot: '#10b981' },
+  in_progress: { bg: '#EBD9FF', text: '#6B1CAE', dot: '#8A2BE2' },
+  resolved:    { bg: '#F5EEFF', text: '#7B22C9', dot: '#8A2BE2' },
 };
 
 const TRIGGER_META: Record<string, { label: string; bg: string; text: string }> = {
-  agent_detected: { label: 'Auto',   bg: '#fef3c7', text: '#92400e' },
-  user_requested: { label: 'User',   bg: '#f3e8ff', text: '#6d28d9' },
-  manual:         { label: 'Manual', bg: '#e0f2fe', text: '#0369a1' },
+  agent_detected: { label: 'Auto',   bg: '#F5EEFF', text: '#7B22C9' },
+  user_requested: { label: 'User',   bg: '#EBD9FF', text: '#6B1CAE' },
+  manual:         { label: 'Manual', bg: '#fef3c7', text: '#92400e' },
 };
 
 function fmtDate(iso: string) {
@@ -40,7 +40,7 @@ export default function EscalationsPage() {
   }, [statusFilter]);
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 1100 }}>
+    <div>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--on-surface)', margin: 0 }}>Escalations</h1>
         <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
@@ -155,7 +155,7 @@ export default function EscalationsPage() {
                     <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                       <Link
                         href={`/escalations/${t.id}`}
-                        style={{ fontSize: 12, fontWeight: 600, color: '#FF857A', textDecoration: 'none' }}
+                        style={{ fontSize: 12, fontWeight: 600, color: '#8A2BE2', textDecoration: 'none' }}
                       >
                         View →
                       </Link>

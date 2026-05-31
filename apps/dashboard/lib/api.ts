@@ -698,6 +698,7 @@ export interface OverviewStats {
   conversationsThisWeek: number;
   activeUsers: number;
   avgMessagesPerConv: number;
+  totalMessages: number;   // Fix #1: exact count from backend
   conversionRate: number;
 }
 

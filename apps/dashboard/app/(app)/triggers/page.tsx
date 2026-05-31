@@ -150,7 +150,7 @@ export default function TriggersPage() {
   const labelStyle = { fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 4, display: 'block' as const };
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 900 }}>
+    <div style={{ padding: '28px 32px', maxWidth: 900, margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
@@ -162,7 +162,7 @@ export default function TriggersPage() {
         <button
           onClick={() => setShowNew(true)}
           style={{
-            background: 'linear-gradient(135deg, #FF857A, #EBAEE6)', color: '#3d1008',
+            background: 'linear-gradient(135deg, #8A2BE2, #6A0DAD)', color: '#fff',
             border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 600, fontSize: 13,
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
           }}
@@ -267,7 +267,7 @@ export default function TriggersPage() {
                   onClick={createRule} disabled={saving || !nFlowId}
                   style={{
                     flex: 1, padding: '9px 0', borderRadius: 8, fontWeight: 600, fontSize: 13,
-                    background: 'linear-gradient(135deg, #FF857A, #EBAEE6)', color: '#3d1008',
+                    background: 'linear-gradient(135deg, #8A2BE2, #6A0DAD)', color: '#fff',
                     border: 'none', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1,
                   }}
                 >

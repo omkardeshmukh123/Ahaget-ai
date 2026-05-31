@@ -98,7 +98,7 @@ export default function ExpansionPage() {
   };
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 960 }}>
+    <div style={{ padding: '28px 32px', maxWidth: 960, margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
@@ -111,7 +111,7 @@ export default function ExpansionPage() {
           {['7d', '30d', '90d'].map((p) => (
             <button key={p} onClick={() => setPeriod(p)} style={{
               padding: '5px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              background: period === p ? 'linear-gradient(135deg,#FF857A,#EBAEE6)' : 'var(--surface-low)',
+              background: period === p ? 'linear-gradient(135deg, #8A2BE2, #6A0DAD)' : 'var(--surface-low)',
               color: period === p ? '#3d1008' : 'var(--muted)',
               border: `1px solid ${period === p ? 'transparent' : 'rgba(70,69,84,0.2)'}`,
             }}>{p}</button>
@@ -255,7 +255,7 @@ export default function ExpansionPage() {
                   saveFlow(editFlow.id, { targetPlan: plan || undefined, upgradeUrl: url || undefined, mrrPerConversion: isNaN(mrr) ? undefined : mrr });
                 }} disabled={saving} style={{
                   flex: 1, padding: '9px 0', borderRadius: 8, fontWeight: 600, fontSize: 13,
-                  background: 'linear-gradient(135deg,#FF857A,#EBAEE6)', color: '#3d1008',
+                  background: 'linear-gradient(135deg, #8A2BE2, #6A0DAD)', color: '#fff',
                   border: 'none', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1,
                 }}>{saving ? 'Saving…' : 'Save'}</button>
                 <button onClick={() => setEditFlow(null)} style={{

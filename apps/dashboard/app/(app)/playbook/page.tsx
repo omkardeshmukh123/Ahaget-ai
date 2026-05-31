@@ -82,7 +82,7 @@ export default function PlaybookPage() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl space-y-4">
+      <div className="max-w-2xl mx-auto space-y-4">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="h-32 bg-slate-100 rounded-xl animate-pulse" />
         ))}
@@ -92,7 +92,7 @@ export default function PlaybookPage() {
 
   if (error) {
     return (
-      <div className="max-w-2xl">
+      <div className="max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold text-slate-900 mb-4">Playbook</h1>
         <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-sm text-red-700">{error}</div>
       </div>
@@ -100,7 +100,7 @@ export default function PlaybookPage() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Playbook</h1>
         <p className="text-slate-500 text-sm mt-1">
@@ -198,7 +198,7 @@ export default function PlaybookPage() {
               <button
                 onClick={() => addRule('mustAlwaysDo', newAlways)}
                 disabled={!newAlways.trim()}
-                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg disabled:opacity-40"
+              className="px-3 py-2 bg-[#8A2BE2] hover:bg-[#7B22C9] text-white text-xs font-semibold rounded-lg disabled:opacity-40"
               >Add</button>
             </div>
           </div>
@@ -232,7 +232,7 @@ export default function PlaybookPage() {
               <button
                 onClick={() => addRule('mustNeverDo', newNever)}
                 disabled={!newNever.trim()}
-                className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg disabled:opacity-40"
+              className="px-3 py-2 bg-[#8A2BE2] hover:bg-[#7B22C9] text-white text-xs font-semibold rounded-lg disabled:opacity-40"
               >Add</button>
             </div>
           </div>

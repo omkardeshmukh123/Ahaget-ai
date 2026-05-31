@@ -163,7 +163,7 @@ export default function McpConnectorsPage() {
   };
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">MCP Connectors</h1>
         <p className="text-slate-500 text-sm mt-1">

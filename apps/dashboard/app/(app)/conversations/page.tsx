@@ -90,7 +90,7 @@ export default function ConversationsPage() {
                   </td>
                   <td className="px-5 py-3.5 text-slate-600">{c.messageCount}</td>
                   <td className="px-5 py-3.5">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c.status === 'active' ? 'bg-brand-100 text-brand-600' : 'bg-slate-100 text-slate-500'}`}>
                       {c.status}
                     </span>
                   </td>

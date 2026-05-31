@@ -209,7 +209,7 @@ export default function KnowledgePage() {
   ];
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 900 }}>
+    <div style={{ padding: '28px 32px', maxWidth: 900, margin: '0 auto' }}>
 
       {/* Toast */}
       {toast && (

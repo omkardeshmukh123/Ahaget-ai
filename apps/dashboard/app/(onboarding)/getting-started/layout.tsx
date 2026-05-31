@@ -1,5 +1,6 @@
 'use client';
 import { usePathname } from 'next/navigation';
+import AhagetLogo from '@/components/AhagetLogo';
 
 const STEPS = [
   { key: 'workspace',    label: 'Website URL' },
@@ -20,10 +21,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <svg width="26" height="26" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path fill="#8A2BE2" fillRule="evenodd" clipRule="evenodd" d="M48.6 36A24 24 0 1 0 38 48.8L38 36ZM43 21A11 11 0 1 0 21 21A11 11 0 1 0 43 21Z"/>
-            </svg>
-            <span className="text-base font-bold text-slate-900 tracking-tight">Ahaget</span>
+            <AhagetLogo size={28} showWordmark wordmarkColor="#0F0A1A" wordmarkSize={15} />
           </div>
 
           {/* Step progress */}

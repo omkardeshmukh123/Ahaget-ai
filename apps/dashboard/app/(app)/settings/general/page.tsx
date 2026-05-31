@@ -53,7 +53,7 @@ export default function SettingsGeneralPage() {
   ];
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl mx-auto">
       {toast && (
         <div className="fixed bottom-6 right-6 bg-slate-900 text-white text-sm px-4 py-2.5 rounded-xl shadow-xl z-50">
           {toast}

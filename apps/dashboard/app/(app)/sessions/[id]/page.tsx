@@ -87,8 +87,8 @@ function ChatTranscript({
             <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start' }}>
               <div style={{
                 maxWidth: '82%',
-                background: isUser ? 'linear-gradient(135deg, #FF857A22, #EBAEE622)' : 'var(--surface-low)',
-                border: `1px solid ${isUser ? 'rgba(255,133,122,0.25)' : 'rgba(70,69,84,0.12)'}`,
+                background: isUser ? 'rgba(138,43,226,0.08)' : 'var(--surface-low)',
+                border: `1px solid ${isUser ? 'rgba(138,43,226,0.25)' : 'rgba(70,69,84,0.12)'}`,
                 borderRadius: isUser ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
                 padding: '8px 12px',
               }}>
@@ -222,7 +222,7 @@ export default function SessionReplayPage() {
   const isHandedOff  = !!(session.escalationTicketId || handoffResult);
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1080 }}>
+    <div style={{ padding: '24px 32px', maxWidth: 1080, margin: '0 auto' }}>
       <style>{`@keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
 
       {/* Back */}
@@ -289,9 +289,9 @@ export default function SessionReplayPage() {
               onClick={() => setShowHandoff(true)}
               style={{
                 padding: '5px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                background: 'linear-gradient(135deg, #FF857A, #EBAEE6)',
-                color: '#3d1008', border: 'none', cursor: 'pointer',
-                boxShadow: '0 0 12px rgba(255,133,122,0.22)',
+                background: 'linear-gradient(135deg, #8A2BE2, #6A0DAD)',
+                color: '#fff', border: 'none', cursor: 'pointer',
+                boxShadow: '0 0 12px rgba(138,43,226,0.3)',
               }}
             >
               ↗ Hand Off to Team
@@ -315,7 +315,7 @@ export default function SessionReplayPage() {
             <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
               User
             </p>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#FF857A', margin: '4px 0 0', wordBreak: 'break-all' }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#8A2BE2', margin: '4px 0 0', wordBreak: 'break-all' }}>
               {session.endUser.externalId ?? 'anonymous'}
             </p>
           </div>
@@ -657,10 +657,10 @@ export default function SessionReplayPage() {
                 disabled={handoffLoading}
                 style={{
                   padding: '7px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  background: handoffLoading ? 'rgba(255,133,122,0.5)' : 'linear-gradient(135deg, #FF857A, #EBAEE6)',
-                  color: '#3d1008', border: 'none',
+                  background: handoffLoading ? 'rgba(138,43,226,0.4)' : 'linear-gradient(135deg, #8A2BE2, #6A0DAD)',
+                  color: '#fff', border: 'none',
                   cursor: handoffLoading ? 'not-allowed' : 'pointer',
-                  boxShadow: handoffLoading ? 'none' : '0 0 12px rgba(255,133,122,0.22)',
+                  boxShadow: handoffLoading ? 'none' : '0 0 12px rgba(138,43,226,0.3)',
                 }}
               >
                 {handoffLoading ? 'Creating ticket…' : 'Hand Off'}
