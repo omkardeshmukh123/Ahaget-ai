@@ -174,9 +174,9 @@ In-memory cosine similarity. Works at 50 articles; unusable at 5000.
 - [x] Log agent eval metrics per turn — 2 hours
 
 ### Week 2 — Product Quality
-- [ ] Selector validation before execution — 1 day
-- [ ] Request correlation IDs — half day
-- [ ] AgentEvalLog Prisma model — half day
+- [x] Selector validation before execution — 1 day (session.ts:897–899)
+- [x] Request correlation IDs — half day (middleware/requestId.ts, threaded into Sentry + errorHandler)
+- [x] AgentEvalLog Prisma model — half day (agent_eval_logs table live, fire-and-forget writes in session.ts)
 
 ### Month 1 — Competitive Moat
 - [ ] Cross-session user memory store — 1 week
