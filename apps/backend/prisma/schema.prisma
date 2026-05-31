@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")   // non-pooled URL for migrations (Supabase/Railway)
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ─── Organization (your paying customer: a SaaS startup) ───────────────────
@@ -786,6 +785,21 @@ model PlaybookConfig {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("playbook_configs")
+}
+
+// ─── UserMemory — cross-session facts extracted after each complete_step ──────
+model UserMemory {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  endUserId      String   @map("end_user_id")
+  memoryType     String   @map("memory_type") // completed_step | failed_attempt | stated_goal | objection
+  content        String
+  confidence     Float    @default(0.8)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([organizationId, endUserId])
+  @@index([createdAt])
+  @@map("user_memories")
 }
 
 // ─── AgentEvalLog — one row per agent turn, powers the 3 pivot1 KPIs ─────────

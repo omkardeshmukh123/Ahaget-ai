@@ -4,7 +4,7 @@ import { prisma } from '../utils/prisma';
 import { authenticateApiKey } from '../middleware/auth';
 import { getMtuUsage } from '../middleware/rateLimit';
 import { PLANS } from '../utils/plans';
-import { runAgentSafe, runAgentStream, runAgentGoal, runAgentPlan, GoalTurn } from '../services/agent';
+import { runAgentSafe, runAgentStream, runAgentGoal, runAgentPlan, GoalTurn, extractAndSaveMemory } from '../services/agent';
 import { loadRestContext, matchesRestEndpoint } from '../services/mcp';
 import { detectIntent } from '../services/intent';
 import { detectLanguage, translateText, transcribeAudio, synthesizeSpeech, isSarvamEnabled } from '../services/sarvam';
@@ -526,6 +526,18 @@ async function applyActionSideEffects(opts: {
     }).catch(() => {}); // non-blocking
   }
 
+  // -- Fire-and-forget memory extraction on step completion ------------------
+  if (action.type === 'complete_step' && session.endUserId) {
+    const stepWithTitle = currentStep as typeof currentStep & { title?: string };
+    extractAndSaveMemory({
+      orgId,
+      endUserId: session.endUserId,
+      stepTitle: stepWithTitle.title ?? currentStep.aiPrompt ?? '',
+      collectedData: action.type === 'complete_step' ? (action.collectedData ?? {}) : {},
+      conversationHistory: opts.conversationHistory,
+    });
+  }
+
   // -- Step progress + session state -----------------------------------------
   if (action.type === 'complete_step' || action.type === 'celebrate_milestone') {
     const newData = {
@@ -881,6 +893,7 @@ router.post('/act', async (req: AuthenticatedRequest, res: Response) => {
     userHistoryFormatted: userHistory?.formatted,
     userMetadata: (session.endUser.metadata ?? {}) as Record<string, unknown>,
     sessionId: session.id,
+    endUserId: session.endUserId,
     detectedLang,
     flowGoal: session.flow.description || undefined,
     liveContext,
@@ -1050,6 +1063,8 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
       pageContext,
       userHistoryFormatted: userHistory?.formatted,
       userMetadata: (session.endUser.metadata ?? {}) as Record<string, unknown>,
+      sessionId: session.id,
+      endUserId: session.endUserId,
       detectedLang: streamDetectedLang,
       flowGoal: session.flow.description || undefined,
       liveContext: streamLiveContext,
