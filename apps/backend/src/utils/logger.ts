@@ -85,11 +85,12 @@ export const logger = {
   latency: (operation: string, ms: number, fields?: LogFields) =>
     log(ms > 800 ? 'warn' : 'info', 'latency', { operation, ms: Math.round(ms), ...fields }),
 
-  httpError: (method: string, path: string, status: number, error: unknown) =>
+  httpError: (method: string, path: string, status: number, error: unknown, requestId?: string) =>
     log('error', 'http.error', {
       method,
       path,
       status,
       error: error instanceof Error ? error.message : String(error),
+      ...(requestId ? { requestId } : {}),
     }),
 };

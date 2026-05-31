@@ -9,4 +9,5 @@ export interface AuthenticatedRequest extends Request {
     role: string;
   };
   organization?: Organization;
+  requestId?: string;
 }

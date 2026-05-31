@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")   // non-pooled URL for migrations (Supabase/Railway)
 }
 
 // ─── Organization (your paying customer: a SaaS startup) ───────────────────
@@ -785,6 +786,32 @@ model PlaybookConfig {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("playbook_configs")
+}
+
+// ─── AgentEvalLog — one row per agent turn, powers the 3 pivot1 KPIs ─────────
+// KPIs: first-turn completion rate, p95 latency, selector success rate.
+// model/kbHit/kbTopScore are nullable until agent.ts splits in Month 1.
+model AgentEvalLog {
+  id                  String   @id @default(uuid())
+  organizationId      String   @map("organization_id")
+  sessionId           String?  @map("session_id")
+  stepId              String?  @map("step_id")
+  model               String?
+  toolCalled          String   @map("tool_called")
+  latencyMs           Int      @map("latency_ms")
+  isInit              Boolean  @map("is_init")
+  isVerify            Boolean  @map("is_verify")
+  kbHit               Boolean? @map("kb_hit")
+  kbTopScore          Float?   @map("kb_top_score")
+  selectorValid       Boolean? @map("selector_valid")
+  stepCompletedOnTurn Boolean  @map("step_completed_on_turn")
+  streaming           Boolean  @default(false)
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  @@index([organizationId])
+  @@index([createdAt])
+  @@index([organizationId, createdAt])
+  @@map("agent_eval_logs")
 }
 
 // ─── BrandingConfig (per-org widget colours, position, idle threshold) ─────────

@@ -885,8 +885,8 @@ router.post('/act', async (req: AuthenticatedRequest, res: Response) => {
     flowGoal: session.flow.description || undefined,
     liveContext,
   });
-  logger.info('agent.eval', {
-    orgId: req.organization!.id,
+  const evalFields = {
+    organizationId: req.organization!.id,
     sessionId: session.id,
     stepId: currentStep.id,
     toolCalled: action.type,
@@ -897,7 +897,9 @@ router.post('/act', async (req: AuthenticatedRequest, res: Response) => {
     selectorValid: action.type === 'execute_page_action'
       ? !!(pageContext?.elements?.some((e) => e.selector === action.payload?.selector))
       : null,
-  });
+  };
+  logger.info('agent.eval', { orgId: evalFields.organizationId, ...evalFields });
+  prisma.agentEvalLog.create({ data: evalFields }).catch(() => {});
 
   // -- Guard: block premature complete_step ---------------------------------
   const guardedAction = guardCompleteStep(action, currentStep, session.collectedData as Record<string, unknown>);
@@ -1069,8 +1071,8 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    logger.info('agent.eval', {
-      orgId: req.organization!.id,
+    const streamEvalFields = {
+      organizationId: req.organization!.id,
       sessionId: session.id,
       stepId: currentStep.id,
       toolCalled: finalAction.type,
@@ -1082,7 +1084,9 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
       selectorValid: finalAction.type === 'execute_page_action'
         ? !!(pageContext?.elements?.some((e) => e.selector === finalAction.payload?.selector))
         : null,
-    });
+    };
+    logger.info('agent.eval', { orgId: streamEvalFields.organizationId, ...streamEvalFields });
+    prisma.agentEvalLog.create({ data: streamEvalFields }).catch(() => {});
 
     const guardedAction = guardCompleteStep(finalAction, currentStep, session.collectedData as Record<string, unknown>);
     const localizedStreamAction = await localizeAction(guardedAction, streamDetectedLang);

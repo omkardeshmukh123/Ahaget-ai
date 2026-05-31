@@ -21,8 +21,12 @@ export function errorHandler(
     return;
   }
 
-  Sentry.captureException(err);
-  logger.httpError(req.method, req.path, 500, err);
+  const rid = (req as import('../types').AuthenticatedRequest).requestId;
+  Sentry.withScope((scope) => {
+    if (rid) scope.setTag('request_id', rid);
+    Sentry.captureException(err);
+  });
+  logger.httpError(req.method, req.path, 500, err, rid);
 
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(500).json({ error: 'Internal server error', requestId: rid });
 }

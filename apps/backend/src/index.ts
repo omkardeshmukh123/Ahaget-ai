@@ -35,6 +35,7 @@ import interfaceMapRoutes from './controllers/interfaceMap';
 import messagesRoutes from './controllers/messages';
 import { prisma } from './utils/prisma';
 import { errorHandler } from './middleware/errorHandler';
+import { requestId } from './middleware/requestId';
 import { attachWebSocketServer } from './utils/websocket';
 import { checkFlowAlerts } from './services/alerting';
 import { runProactiveMessaging } from './services/proactive';
@@ -89,6 +90,7 @@ app.use(cors({
 app.use(express.json({ limit: '2mb' })); // KB manual articles can be long
 app.use(express.urlencoded({ extended: false, limit: '2mb' }));
 
+app.use(requestId);
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ─── REST routes ─────────────────────────────────────────────────────────────
