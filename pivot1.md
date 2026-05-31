@@ -10,7 +10,7 @@ Source: YC Founder Office Hours critique (2026-05-31)
 `runAgentStream` is wired in `session.ts:1027` and streams tokens via SSE. Already implemented.
 
 ### ❌ 2. Cross-Session Memory — The Agent Forgets Everything
-**Status:** TODO (Month 1)
+**Status:** DONE ✅ (pivot1-w3)
 
 Every session starts fresh. No cross-session facts about a user's past failures, stated goals, or completed steps.
 
@@ -88,7 +88,7 @@ KB section gets sliced when context grows — worst answers when conversation is
 ## Backend — Critical Issues
 
 ### ❌ 6. agent.ts is 71KB — Single Point of Failure
-**Status:** TODO (Month 1)
+**Status:** DONE ✅ (pivot1-w3)
 
 1800-line file. Every change touches the same file.
 
@@ -179,9 +179,9 @@ In-memory cosine similarity. Works at 50 articles; unusable at 5000.
 - [x] AgentEvalLog Prisma model — half day (agent_eval_logs table live, fire-and-forget writes in session.ts)
 
 ### Month 1 — Competitive Moat
-- [ ] Cross-session user memory store — 1 week
+- [x] Cross-session user memory store — UserMemory model, extractAndSaveMemory, loadUserMemory wired
+- [x] Split agent.ts into modules — 7-file agent/ module (types, routing, tools, context, memory, _openai, index)
 - [ ] pgvector for KB search — 2 days
-- [ ] Split agent.ts into modules — 2 days
 - [ ] Hierarchical context management — 3 days
 
 ### Month 2 — Scale
