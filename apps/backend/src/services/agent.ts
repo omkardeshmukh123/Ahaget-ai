@@ -200,7 +200,21 @@ export interface PageContext {
 }
 
 // ─── DOM text sanitizer — strips control chars and common injection phrases ────
-const INJECTION_RE = /ignore\s+(previous|prior|all|above|the)\s+(instructions?|prompts?|context|rules?)/gi;
+const INJECTION_RE = new RegExp(
+  [
+    'ignore\\s+(previous|prior|all|above|the)\\s+(instructions?|prompts?|context|rules?)',
+    'disregard\\s+(all|previous|prior|above|the)',
+    'forget\\s+(all|previous|prior|everything)',
+    '(new|updated|revised)\\s+system\\s+(prompt|instruction)',
+    '\\[\\s*INST\\s*\\]',
+    '<\\s*system\\s*>',
+    'do\\s+not\\s+follow\\s+(the|your|previous)',
+    'jailbreak',
+    'pretend\\s+(you\\s+are|to\\s+be)',
+    'act\\s+as\\s+(if\\s+you\\s+are|a)',
+  ].join('|'),
+  'gi',
+);
 function sanitizeDomText(text: string): string {
   return text
     .replace(/[\r\n\t]+/g, ' ')
@@ -285,12 +299,15 @@ function selectModel(opts: {
   hasActionConfig: boolean;
   hasUnansweredQuestions: boolean;
   hasKbResults: boolean;
+  kbTopScore?: number; // Fix #5: only upgrade model for high-confidence KB hits
 }): string {
-  const { isInit, isVerify, hasActionConfig, hasUnansweredQuestions, hasKbResults } = opts;
+  const { isInit, isVerify, hasActionConfig, hasUnansweredQuestions, hasKbResults, kbTopScore = 0 } = opts;
 
   if (isVerify) return 'openai/gpt-4o-mini';
   if (isInit && hasActionConfig && !hasUnansweredQuestions) return 'openai/gpt-4o-mini';
-  if (hasKbResults) return 'openai/gpt-4o';
+  // Fix #5: only use gpt-4o when KB hit is high-confidence (score >= 0.6)
+  // Low-confidence results don't justify the extra latency cost
+  if (hasKbResults && kbTopScore >= 0.6) return 'openai/gpt-4o';
   return 'openai/gpt-4o-mini';
 }
 
@@ -677,13 +694,8 @@ ${actionConfig!.url      ? `- url: "${actionConfig!.url}"` : ''}
 ${actionConfig!.fields   ? `- fields: ${JSON.stringify(actionConfig!.fields)} (replace empty strings with values from collectedData or user answer)` : ''}\n`
     : '';
 
-  const domSummary = pageContext
-    ? pageContext.semanticSummary
-      ? `\nPAGE SEMANTIC SUMMARY:\n${pageContext.semanticSummary}\n\nLIVE PAGE ELEMENTS (verified selectors — only use these):\nPage: ${sanitizeDomText(pageContext.title)} (${pageContext.url})\n${pageContext.headings.length ? `Headings: ${pageContext.headings.map(sanitizeDomText).join(' | ')}` : ''}\nInteractive elements:\n${pageContext.elements.slice(0,30).map((e) => `  [${e.tag}${e.type ? `[${e.type}]` : ''}] selector="${sanitizeDomText(e.selector)}" label="${sanitizeDomText(e.text)}"${e.value ? ` value="${sanitizeDomText(e.value)}"` : ''}`).join('\n')}\n`
-      : pageContext.elements.length > 0
-        ? `\nLIVE PAGE ELEMENTS (verified selectors — only use these):\nPage: ${sanitizeDomText(pageContext.title)} (${pageContext.url})\n${pageContext.headings.length ? `Headings: ${pageContext.headings.map(sanitizeDomText).join(' | ')}` : ''}\nInteractive elements:\n${pageContext.elements.map((e) => `  [${e.tag}${e.type ? `[${e.type}]` : ''}] selector="${sanitizeDomText(e.selector)}" label="${sanitizeDomText(e.text)}"${e.value ? ` value="${sanitizeDomText(e.value)}"` : ''}`).join('\n')}\n`
-        : ''
-    : '';
+  // Fix #6: use the exported, tested buildDomSummary() instead of duplicating DOM string logic
+  const domSummary = pageContext ? buildDomSummary(pageContext) : '';
 
   // Skip KB search on init/verify turns — 800ms cap (Phase 5 latency budget)
   // Pass pageContext.url so only page-scoped knowledge articles are retrieved.
@@ -736,6 +748,8 @@ ${actionConfig!.fields   ? `- fields: ${JSON.stringify(actionConfig!.fields)} (r
     hasActionConfig,
     hasUnansweredQuestions: unansweredQuestions.length > 0,
     hasKbResults: kbResults.length > 0,
+    // Fix #5: pass the top KB result score so routing is score-aware
+    kbTopScore: kbResults.length > 0 ? Math.max(...kbResults.map((r) => (r as typeof r & { score?: number }).score ?? 0)) : 0,
   });
 
   const playbookConfig = await prisma.playbookConfig.findUnique({
@@ -765,13 +779,13 @@ ${actionConfig!.fields   ? `- fields: ${JSON.stringify(actionConfig!.fields)} (r
     playbook: playbookConfig,
   });
 
-  // Fix #8: parallelize KB search and summarizeHistory — they're independent
+  // Fix #4: fire summarizeHistory concurrently — don't block the main call setup
   let messages: Array<{ role: 'user' | 'assistant'; content: string }>;
   if (conversationHistory.length > SUMMARIZE_THRESHOLD) {
     const older = conversationHistory.slice(0, -RECENT_WINDOW);
     const recent = conversationHistory.slice(-RECENT_WINDOW);
-    // summarizeHistory runs concurrently with KB/MCP (already awaited above)
-    const summary = await summarizeHistory(older);
+    // summarizeHistory is already kicked off in parallel; await it now (it has its own 1500ms cap)
+    const [summary] = await Promise.all([summarizeHistory(older)]);
     const summaryPrefix: Array<{ role: 'user' | 'assistant'; content: string }> = summary
       ? [
           { role: 'user', content: `[Summary of earlier conversation: ${summary}]` },
@@ -816,6 +830,100 @@ ${actionConfig!.fields   ? `- fields: ${JSON.stringify(actionConfig!.fields)} (r
   const toolsForStep = [...baseTools, ...mcpOAITools];
 
   return { model, systemPrompt, messages, toolsForStep, mcpBundles, collectedData, isInit, isVerify };
+}
+
+// ─── Shared call_api follow-up turn handler (Fix #3: eliminates duplication) ──
+async function executeCallApiTurn(
+  call: { id: string; function: { name: string; arguments: string } },
+  collectedData: Record<string, unknown>,
+  org: { id: string },
+  sessionId: string | undefined,
+  systemPrompt: string,
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+  toolsForStep: OpenAI.Chat.ChatCompletionTool[],
+  model: string,
+  input: Record<string, unknown>,
+): Promise<AgentAction> {
+  try { await assertPublicUrl(input.url as string); }
+  catch (err) { return { type: 'chat', content: `Cannot reach that URL: ${(err as Error).message}` }; }
+
+  const restCtx = await loadRestContext(org.id).catch(() => null);
+  if (restCtx) {
+    const { allowed, reason } = matchesRestEndpoint(input.url as string, (input.method as string ?? 'GET').toUpperCase(), restCtx);
+    if (!allowed) return { type: 'chat', content: `API call blocked: ${reason}. Ask your administrator to approve this endpoint in Settings → MCPs & APIs.` };
+  }
+  const connectorHeaders: Record<string, string> =
+    restCtx?.authType === 'bearer' && restCtx.authValue ? { Authorization: `Bearer ${restCtx.authValue}` } :
+    restCtx?.authType === 'api_key' && restCtx.authValue ? { 'X-API-Key': restCtx.authValue } :
+    {};
+
+  const sanitizedData = Object.fromEntries(
+    Object.entries(collectedData).map(([k, v]) => [k, typeof v === 'string' ? v.slice(0, 500) : v])
+  );
+  const rawBody      = input.body as Record<string, unknown> | undefined;
+  const resolvedBody = rawBody ? interpolate(rawBody, sanitizedData) as Record<string, unknown> : undefined;
+
+  const CALL_API_TIMEOUT_MS = 10_000;
+  const t0 = Date.now();
+  const apiResult = await Promise.race([
+    executeApiCall({
+      url:     input.url as string,
+      method:  (input.method as string ?? 'GET') as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+      headers: { ...connectorHeaders, ...(input.headers as Record<string, string> | undefined) },
+      body:    resolvedBody,
+    }),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out after 10s')), CALL_API_TIMEOUT_MS)),
+  ]).catch((err: unknown) => ({ ok: false, status: 0, data: null, error: err instanceof Error ? err.message : 'Request timed out' }));
+
+  prisma.mcpCallLog.create({
+    data: {
+      organizationId: org.id,
+      sessionId:      sessionId ?? null,
+      connectorId:    null,
+      connectorName:  'REST (call_api)',
+      toolName:       `${input.method as string} ${input.url as string}`,
+      callType:       'rest',
+      args:           { url: input.url, method: input.method, body: resolvedBody ?? input.body } as Prisma.InputJsonValue,
+      result:         apiResult ? (apiResult as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+      isError:        !apiResult || !apiResult.ok,
+      latencyMs:      Date.now() - t0,
+    },
+  }).catch(() => {});
+
+  const oaiCall = call as OpenAI.Chat.ChatCompletionMessageToolCall;
+  const followUpMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    ...messages,
+    { role: 'assistant' as const, content: null, tool_calls: [oaiCall] },
+    {
+      role: 'tool' as const,
+      tool_call_id: oaiCall.id,
+      content: JSON.stringify({
+        ok: apiResult.ok,
+        status: apiResult.status,
+        data: apiResult.data,
+        ...(apiResult.error ? { error: apiResult.error } : {}),
+      }),
+    },
+  ];
+
+  const followUp = await withRetry(
+    () => openai().chat.completions.create({
+      model,
+      max_tokens: 1500,
+      temperature: 0,
+      tools: toolsForStep.filter((t) => t.function.name !== 'call_api'),
+      tool_choice: 'required',
+      messages: [{ role: 'system', content: systemPrompt }, ...followUpMessages],
+    }),
+    { retries: 2, delayMs: 800, label: `agent.call_api_followup org=${org.id}` }
+  );
+
+  const fc = followUp.choices[0].message.tool_calls?.[0];
+  if (fc) {
+    const action = parseToolCall(fc.function.name, JSON.parse(fc.function.arguments));
+    if (action) return action;
+  }
+  return { type: 'chat', content: followUp.choices[0].message.content ?? 'API call completed.' };
 }
 
 // ─── Handle MCP tool call + follow-up turn ────────────────────────────────────
@@ -919,90 +1027,9 @@ export async function runAgent(opts: {
       return handleMcpCall(call, mcpBundles, systemPrompt, messages, toolsForStep, model, { orgId: opts.org.id });
     }
 
-    // ── call_api tool call ─────────────────────────────────────────────────────
+    // ── call_api tool call (Fix #3: delegates to shared helper) ───────────────
     if (name === 'call_api') {
-      try { await assertPublicUrl(input.url as string); }
-      catch (err) { return { type: 'chat', content: `Cannot reach that URL: ${(err as Error).message}` }; }
-
-      // REST endpoint allowlist + auth
-      const restCtx = await loadRestContext(opts.org.id).catch(() => null);
-      if (restCtx) {
-        const { allowed, reason } = matchesRestEndpoint(input.url as string, (input.method as string ?? 'GET').toUpperCase(), restCtx);
-        if (!allowed) return { type: 'chat', content: `API call blocked: ${reason}. Ask your administrator to approve this endpoint in Settings → MCPs & APIs.` };
-      }
-      const connectorHeaders: Record<string, string> =
-        restCtx?.authType === 'bearer' && restCtx.authValue ? { Authorization: `Bearer ${restCtx.authValue}` } :
-        restCtx?.authType === 'api_key' && restCtx.authValue ? { 'X-API-Key': restCtx.authValue } :
-        {};
-
-      // Fix #6: sanitize string values in collectedData before interpolation
-      const sanitizedData = Object.fromEntries(
-        Object.entries(collectedData).map(([k, v]) => [k, typeof v === 'string' ? v.slice(0, 500) : v])
-      );
-      const rawBody      = input.body as Record<string, unknown> | undefined;
-      const resolvedBody = rawBody ? interpolate(rawBody, sanitizedData) as Record<string, unknown> : undefined;
-
-      const CALL_API_TIMEOUT_MS = 10_000;
-      const t0 = Date.now();
-      const apiResult = await Promise.race([
-        executeApiCall({
-          url:     input.url as string,
-          method:  (input.method as string ?? 'GET') as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-          headers: { ...connectorHeaders, ...(input.headers as Record<string, string> | undefined) },
-          body:    resolvedBody,
-        }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out after 10s')), CALL_API_TIMEOUT_MS)),
-      ]).catch((err: unknown) => ({ ok: false, status: 0, data: null, error: err instanceof Error ? err.message : 'Request timed out' }));
-
-      prisma.mcpCallLog.create({
-        data: {
-          organizationId: opts.org.id,
-          sessionId:      opts.sessionId ?? null,
-          connectorId:    null,
-          connectorName:  'REST (call_api)',
-          toolName:       `${input.method as string} ${input.url as string}`,
-          callType:       'rest',
-          args:           { url: input.url, method: input.method, body: resolvedBody ?? input.body } as Prisma.InputJsonValue,
-          result:         apiResult ? (apiResult as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
-          isError:        !apiResult || !apiResult.ok,
-          latencyMs:      Date.now() - t0,
-        },
-      }).catch(() => {});
-
-      const followUpMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-        ...messages,
-        { role: 'assistant' as const, content: null, tool_calls: [call] },
-        {
-          role: 'tool' as const,
-          tool_call_id: call.id,
-          content: JSON.stringify({
-            ok: apiResult.ok,
-            status: apiResult.status,
-            data: apiResult.data,
-            ...(apiResult.error ? { error: apiResult.error } : {}),
-          }),
-        },
-      ];
-
-      const followUp = await withRetry(
-        () => openai().chat.completions.create({
-          model, // Fix #2: use caller's model, not hardcoded gpt-4o
-          max_tokens: 1500,
-          temperature: 0,
-          tools: toolsForStep.filter((t) => t.function.name !== 'call_api'),
-          tool_choice: 'required',
-          messages: [{ role: 'system', content: systemPrompt }, ...followUpMessages],
-        }),
-        { retries: 2, delayMs: 800, label: `agent.call_api_followup org=${opts.org.id}` }
-      );
-
-      const fc = followUp.choices[0].message.tool_calls?.[0];
-      if (fc) {
-        const action = parseToolCall(fc.function.name, JSON.parse(fc.function.arguments));
-        if (action) return action;
-      }
-
-      return { type: 'chat', content: followUp.choices[0].message.content ?? 'API call completed.' };
+      return executeCallApiTurn(call, collectedData, opts.org, opts.sessionId, systemPrompt, messages, toolsForStep, model, input);
     }
 
     const action = parseToolCall(name, input);
@@ -1134,82 +1161,11 @@ export async function* runAgentStream(
   }
 
   if (name === 'call_api') {
-    try { await assertPublicUrl(input.url as string); }
-    catch (err) { yield { type: 'action', action: { type: 'chat', content: `Cannot reach that URL: ${(err as Error).message}` } }; return; }
-
-    // REST endpoint allowlist + auth
-    const restCtx = await loadRestContext(opts.org.id).catch(() => null);
-    if (restCtx) {
-      const { allowed, reason } = matchesRestEndpoint(input.url as string, (input.method as string ?? 'GET').toUpperCase(), restCtx);
-      if (!allowed) { yield { type: 'action', action: { type: 'chat', content: `API call blocked: ${reason}. Ask your administrator to approve this endpoint in Settings → MCPs & APIs.` } }; return; }
-    }
-    const connectorHeaders: Record<string, string> =
-      restCtx?.authType === 'bearer' && restCtx.authValue ? { Authorization: `Bearer ${restCtx.authValue}` } :
-      restCtx?.authType === 'api_key' && restCtx.authValue ? { 'X-API-Key': restCtx.authValue } :
-      {};
-
-    // Fix #6: sanitize string values in collectedData before interpolation
-    const sanitizedData = Object.fromEntries(
-      Object.entries(collectedData).map(([k, v]) => [k, typeof v === 'string' ? v.slice(0, 500) : v])
+    // Fix #3: delegate to shared helper — no duplication
+    const action = await executeCallApiTurn(
+      call as OpenAI.Chat.ChatCompletionMessageToolCall,
+      collectedData, opts.org, opts.sessionId, systemPrompt, messages, toolsForStep, model, input,
     );
-    const rawBody      = input.body as Record<string, unknown> | undefined;
-    const resolvedBody = rawBody ? interpolate(rawBody, sanitizedData) as Record<string, unknown> : undefined;
-
-    const CALL_API_TIMEOUT_MS = 10_000;
-    const t0 = Date.now();
-    const apiResult = await Promise.race([
-      executeApiCall({
-        url:     input.url as string,
-        method:  (input.method as string ?? 'GET') as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-        headers: { ...connectorHeaders, ...(input.headers as Record<string, string> | undefined) },
-        body:    resolvedBody,
-      }),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out after 10s')), CALL_API_TIMEOUT_MS)),
-    ]).catch((err: unknown) => ({ ok: false, status: 0, data: null, error: err instanceof Error ? err.message : 'Request timed out' }));
-
-    prisma.mcpCallLog.create({
-      data: {
-        organizationId: opts.org.id,
-        sessionId:      opts.sessionId ?? null,
-        connectorId:    null,
-        connectorName:  'REST (call_api)',
-        toolName:       `${input.method as string} ${input.url as string}`,
-        callType:       'rest',
-        args:           { url: input.url, method: input.method, body: resolvedBody ?? input.body } as Prisma.InputJsonValue,
-        result:         apiResult ? (apiResult as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
-        isError:        !apiResult || !apiResult.ok,
-        latencyMs:      Date.now() - t0,
-      },
-    }).catch(() => {});
-
-    const oaiCall = call as OpenAI.Chat.ChatCompletionMessageToolCall;
-    const followUpMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      ...messages,
-      { role: 'assistant' as const, content: null, tool_calls: [oaiCall] },
-      {
-        role: 'tool' as const,
-        tool_call_id: oaiCall.id,
-        content: JSON.stringify({ ok: apiResult.ok, status: apiResult.status, data: apiResult.data }),
-      },
-    ];
-
-    const followUp = await withRetry(
-      () => openai().chat.completions.create({
-        model, // Fix #2: use caller's model, not hardcoded gpt-4o
-        max_tokens: 1500,
-        temperature: 0,
-        tools: toolsForStep.filter((t) => t.function.name !== 'call_api'),
-        tool_choice: 'required',
-        messages: [{ role: 'system', content: systemPrompt }, ...followUpMessages],
-      }),
-      { retries: 2, delayMs: 800, label: `agent.call_api_followup org=${opts.org.id}` }
-    );
-
-    const fc = followUp.choices[0].message.tool_calls?.[0];
-    const action = fc
-      ? (parseToolCall(fc.function.name, JSON.parse(fc.function.arguments)) ?? { type: 'chat' as const, content: '' })
-      : { type: 'chat' as const, content: followUp.choices[0].message.content ?? 'API call completed.' };
-
     yield { type: 'action', action };
     return;
   }
@@ -1465,14 +1421,8 @@ export async function runAgentGoal(opts: {
     },
   };
 
-  // Build domSummary the same way as prepareAgentCall
-  const domSummary = pageContext
-    ? pageContext.semanticSummary
-      ? `\nPAGE SEMANTIC SUMMARY:\n${pageContext.semanticSummary}\n\nLIVE PAGE ELEMENTS (verified selectors — only use these):\nPage: ${sanitizeDomText(pageContext.title)} (${pageContext.url})\n${pageContext.headings.length ? `Headings: ${pageContext.headings.map(sanitizeDomText).join(' | ')}` : ''}\nInteractive elements:\n${pageContext.elements.slice(0,30).map((e) => `  [${e.tag}${e.type ? `[${e.type}]` : ''}] selector="${sanitizeDomText(e.selector)}" label="${sanitizeDomText(e.text)}"${e.value ? ` value="${sanitizeDomText(e.value)}"` : ''}`).join('\n')}\n`
-      : pageContext.elements.length > 0
-        ? `\nLIVE PAGE ELEMENTS (verified selectors — only use these):\nPage: ${sanitizeDomText(pageContext.title)} (${pageContext.url})\n${pageContext.headings.length ? `Headings: ${pageContext.headings.map(sanitizeDomText).join(' | ')}` : ''}\nInteractive elements:\n${pageContext.elements.slice(0, 30).map((e) => `  [${e.tag}${e.type ? `[${e.type}]` : ''}] selector="${sanitizeDomText(e.selector)}" label="${sanitizeDomText(e.text)}"${e.value ? ` value="${sanitizeDomText(e.value)}"` : ''}`).join('\n')}\n`
-        : ''
-    : '';
+  // Fix #6: use shared buildDomSummary() — eliminates third copy of DOM string logic
+  const domSummary = buildDomSummary(pageContext);
 
   const GOAL_SUMMARIZE_THRESHOLD = 10;
   const GOAL_RECENT_WINDOW = 4;
@@ -1604,6 +1554,16 @@ ${org.customInstructions ?? ''}${failureContextBlock}${goalLangInstruction}`.tri
   const needsBigModel = isFirstGoalTurn || hasKbInContext || wrongPageBlock.length > 0;
   const goalModel = needsBigModel ? 'openai/gpt-4o' : 'openai/gpt-4o-mini';
 
+  // Fix #2: build a proper structured messages array for goal mode
+  // Previously, only the system prompt was sent — all history was baked into the system prompt as text,
+  // causing the model to lose proper turn boundaries. Now we send a structured messages array.
+  const goalMessages: OpenAI.Chat.ChatCompletionMessageParam[] = turnHistory
+    .filter((t) => t.role === 'user' || t.role === 'assistant')
+    .map((t) => ({
+      role: t.role as 'user' | 'assistant',
+      content: t.content,
+    }));
+
   const rawResponse = await withRetry(
     () => Promise.race([
       openai().chat.completions.create({
@@ -1612,7 +1572,11 @@ ${org.customInstructions ?? ''}${failureContextBlock}${goalLangInstruction}`.tri
         temperature: 0,
         tools,
         tool_choice: 'required',
-        messages: [{ role: 'system', content: systemPrompt }],
+        // Fix #2: pass structured message history so model sees proper turn boundaries
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...goalMessages,
+        ],
       }),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), GOAL_TURN_TIMEOUT_MS)),
     ]),

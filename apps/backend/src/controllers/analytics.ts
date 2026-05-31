@@ -100,6 +100,7 @@ router.get('/overview', authenticateJWT, async (req: AuthenticatedRequest, res: 
     conversationsThisWeek,
     activeUsers,
     avgMessagesPerConv,
+    totalMessages,       // Fix #1: expose exact count so dashboard doesn't compute from rounded values
     conversionRate,
     periodDays: 30,
   });
@@ -602,7 +603,7 @@ router.get('/choke-points', authenticateJWT, async (req: AuthenticatedRequest, r
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
       const priorSince = new Date(Date.now() - 2 * days * 24 * 60 * 60 * 1000);
 
-      // Fetch all steps belonging to this org
+      // ── 1. Fetch all steps for this org (1 query) ────────────────────────
       const steps = await prisma.onboardingStep.findMany({
         where: { flow: { organizationId } },
         select: {
@@ -614,118 +615,163 @@ router.get('/choke-points', authenticateJWT, async (req: AuthenticatedRequest, r
         },
       });
 
-      const chokePoints = await Promise.all(
-        steps.map(async (step) => {
-          const [started, completed, droppedProgress] = await Promise.all([
-            prisma.userStepProgress.count({
-              where: {
-                stepId: step.id,
-                session: { startedAt: { gte: since } },
-                status: { in: ['in_progress', 'completed', 'skipped'] },
-              },
-            }),
-            prisma.userStepProgress.count({
-              where: {
-                stepId: step.id,
-                session: { startedAt: { gte: since } },
-                status: 'completed',
-              },
-            }),
-            prisma.userStepProgress.findMany({
-              where: {
-                stepId: step.id,
-                session: { startedAt: { gte: since } },
-                outcome: 'dropped',
-              },
-              select: { attempts: true, timeSpentMs: true, sessionId: true },
-              take: 500,
-            }),
-          ]);
+      if (steps.length === 0) {
+        const result = { choke_points: [], page_summary: [], generated_at: new Date().toISOString(), days };
+        chokeCache.set(cacheKey, { data: result, expiresAt: Date.now() + 60_000 });
+        chokeInflight.delete(cacheKey);
+        return result;
+      }
 
+      const stepIds = steps.map((s) => s.id);
+
+      // ── 2. Current-period: started counts per step (1 query) ─────────────
+      const startedRaw = await prisma.userStepProgress.groupBy({
+        by: ['stepId'],
+        where: {
+          stepId: { in: stepIds },
+          session: { startedAt: { gte: since } },
+          status: { in: ['in_progress', 'completed', 'skipped'] },
+        },
+        _count: { id: true },
+      });
+      const startedMap = new Map(startedRaw.map((r) => [r.stepId, r._count.id]));
+
+      // ── 3. Current-period: completed counts per step (1 query) ───────────
+      const completedRaw = await prisma.userStepProgress.groupBy({
+        by: ['stepId'],
+        where: {
+          stepId: { in: stepIds },
+          session: { startedAt: { gte: since } },
+          status: 'completed',
+        },
+        _count: { id: true },
+      });
+      const completedMap = new Map(completedRaw.map((r) => [r.stepId, r._count.id]));
+
+      // ── 4. Current-period: dropped progress rows (avg attempts + time) ───
+      const droppedRaw = await prisma.userStepProgress.findMany({
+        where: {
+          stepId: { in: stepIds },
+          session: { startedAt: { gte: since } },
+          outcome: 'dropped',
+        },
+        select: { stepId: true, attempts: true, timeSpentMs: true, sessionId: true },
+        take: 5000,
+      });
+      // Group dropped rows by stepId
+      const droppedByStep = new Map<string, typeof droppedRaw>();
+      for (const row of droppedRaw) {
+        const arr = droppedByStep.get(row.stepId) ?? [];
+        arr.push(row);
+        droppedByStep.set(row.stepId, arr);
+      }
+
+      // ── 5. Negative feedback counts per step (1 query) ───────────────────
+      const negRaw = await prisma.sessionMessage.groupBy({
+        by: ['stepId'],
+        where: {
+          stepId: { in: stepIds },
+          feedback: -1,
+          session: { startedAt: { gte: since } },
+        },
+        _count: { id: true },
+      });
+      const negMap = new Map(negRaw.map((r) => [r.stepId!, r._count.id]));
+
+      // ── 6. Total messages per step (1 query) ─────────────────────────────
+      const totalMsgRaw = await prisma.sessionMessage.groupBy({
+        by: ['stepId'],
+        where: {
+          stepId: { in: stepIds },
+          session: { startedAt: { gte: since } },
+        },
+        _count: { id: true },
+      });
+      const totalMsgMap = new Map(totalMsgRaw.map((r) => [r.stepId!, r._count.id]));
+
+      // ── 7. Prior-period started + completed (2 queries) ──────────────────
+      const priorStartedRaw = await prisma.userStepProgress.groupBy({
+        by: ['stepId'],
+        where: {
+          stepId: { in: stepIds },
+          session: { startedAt: { gte: priorSince, lt: since } },
+          status: { in: ['in_progress', 'completed', 'skipped'] },
+        },
+        _count: { id: true },
+      });
+      const priorStartedMap = new Map(priorStartedRaw.map((r) => [r.stepId, r._count.id]));
+
+      const priorCompletedRaw = await prisma.userStepProgress.groupBy({
+        by: ['stepId'],
+        where: {
+          stepId: { in: stepIds },
+          session: { startedAt: { gte: priorSince, lt: since } },
+          status: 'completed',
+        },
+        _count: { id: true },
+      });
+      const priorCompletedMap = new Map(priorCompletedRaw.map((r) => [r.stepId, r._count.id]));
+
+      // ── 8. Example messages from dropped sessions (1 query) ───────────────
+      const droppedSessionIds = [...new Set(droppedRaw.slice(0, 200).map((r) => r.sessionId))];
+      const exampleMsgRaw = droppedSessionIds.length > 0
+        ? await prisma.sessionMessage.findMany({
+            where: {
+              stepId: { in: stepIds },
+              role: 'user',
+              sessionId: { in: droppedSessionIds },
+              content: { notIn: ['__init__', '__verify__'] },
+            },
+            select: { stepId: true, content: true },
+            orderBy: { createdAt: 'desc' },
+            take: 500,
+          })
+        : [];
+      // Group example messages by stepId (up to 3 unique per step)
+      const examplesByStep = new Map<string, string[]>();
+      for (const msg of exampleMsgRaw) {
+        if (!msg.stepId) continue;
+        const arr = examplesByStep.get(msg.stepId) ?? [];
+        const trimmed = msg.content.trim().slice(0, 200);
+        if (!arr.includes(trimmed) && arr.length < 3) arr.push(trimmed);
+        examplesByStep.set(msg.stepId, arr);
+      }
+
+      // ── Compute choke points from aggregated data ─────────────────────────
+      const chokePoints = steps
+        .map((step) => {
+          const started = startedMap.get(step.id) ?? 0;
           if (started < 3) return null;
+
+          const completed = completedMap.get(step.id) ?? 0;
+          const dropped = droppedByStep.get(step.id) ?? [];
+          const negMessages = negMap.get(step.id) ?? 0;
+          const totalMessages = totalMsgMap.get(step.id) ?? 0;
+          const priorStarted = priorStartedMap.get(step.id) ?? 0;
+          const priorCompleted = priorCompletedMap.get(step.id) ?? 0;
 
           const dropRate = Math.round(((started - completed) / started) * 100);
 
           const avgAttempts =
-            droppedProgress.length > 0
-              ? droppedProgress.reduce((s, p) => s + p.attempts, 0) / droppedProgress.length
+            dropped.length > 0
+              ? dropped.reduce((s, p) => s + p.attempts, 0) / dropped.length
               : 0;
 
           const avgTimeStuckSecs =
-            droppedProgress.length > 0
-              ? Math.round(
-                  droppedProgress.reduce((s, p) => s + p.timeSpentMs, 0) /
-                    droppedProgress.length /
-                    1000,
-                )
+            dropped.length > 0
+              ? Math.round(dropped.reduce((s, p) => s + p.timeSpentMs, 0) / dropped.length / 1000)
               : 0;
-
-          const [negMessages, totalMessages] = await Promise.all([
-            prisma.sessionMessage.count({
-              where: { stepId: step.id, feedback: -1, session: { startedAt: { gte: since } } },
-            }),
-            prisma.sessionMessage.count({
-              where: { stepId: step.id, session: { startedAt: { gte: since } } },
-            }),
-          ]);
 
           const negFeedbackRate =
             totalMessages > 0 ? Math.round((negMessages / totalMessages) * 100) : 0;
 
-          const score = computeSeverityScore({
-            dropRate,
-            avgAttempts,
-            avgTimeStuckSecs,
-            negFeedbackRate,
-          });
-
-          // Example user messages from dropped sessions (distinct, max 3)
-          const droppedSessionIds = droppedProgress.slice(0, 20).map((p) => p.sessionId);
-          const exampleMessages =
-            droppedSessionIds.length > 0
-              ? (
-                  await prisma.sessionMessage.findMany({
-                    where: {
-                      stepId: step.id,
-                      role: 'user',
-                      sessionId: { in: droppedSessionIds },
-                      content: { notIn: ['__init__', '__verify__'] },
-                    },
-                    select: { content: true },
-                    orderBy: { createdAt: 'desc' },
-                    take: 20,
-                  })
-                )
-                  .map((m) => m.content.trim().slice(0, 200))
-                  .filter((c, i, arr) => arr.indexOf(c) === i)
-                  .slice(0, 3)
-              : [];
-
-          // Trend: compare drop_rate to prior period
-          const [priorStarted, priorCompleted] = await Promise.all([
-            prisma.userStepProgress.count({
-              where: {
-                stepId: step.id,
-                session: { startedAt: { gte: priorSince, lt: since } },
-                status: { in: ['in_progress', 'completed', 'skipped'] },
-              },
-            }),
-            prisma.userStepProgress.count({
-              where: {
-                stepId: step.id,
-                session: { startedAt: { gte: priorSince, lt: since } },
-                status: 'completed',
-              },
-            }),
-          ]);
+          const score = computeSeverityScore({ dropRate, avgAttempts, avgTimeStuckSecs, negFeedbackRate });
 
           let trend: 'worsening' | 'improving' | 'stable' | 'new';
           if (priorStarted < 3) {
             trend = 'new';
           } else {
-            const priorDropRate = Math.round(
-              ((priorStarted - priorCompleted) / priorStarted) * 100,
-            );
+            const priorDropRate = Math.round(((priorStarted - priorCompleted) / priorStarted) * 100);
             const delta = dropRate - priorDropRate;
             trend = delta > 5 ? 'worsening' : delta < -5 ? 'improving' : 'stable';
           }
@@ -744,18 +790,17 @@ router.get('/choke-points', authenticateJWT, async (req: AuthenticatedRequest, r
             neg_feedback_rate: negFeedbackRate,
             severity_score: score,
             severity_label: severityLabel(score),
-            example_messages: exampleMessages,
+            example_messages: examplesByStep.get(step.id) ?? [],
             trend,
           };
-        }),
-      );
+        });
 
       const ranked = chokePoints
         .filter((cp): cp is NonNullable<typeof cp> => cp !== null)
         .sort((a, b) => b.severity_score - a.severity_score)
         .map((cp, i) => ({ rank: i + 1, ...cp }));
 
-      // Page summary: top URLs by session count in the window
+      // ── Page summary (1 query) ─────────────────────────────────────────────
       const pageSessions = await prisma.userOnboardingSession.groupBy({
         by: ['pageUrl'],
         where: { organizationId, startedAt: { gte: since }, pageUrl: { not: null } },
