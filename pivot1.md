@@ -73,7 +73,7 @@ model AgentEvalLog {
 ---
 
 ### ❌ 5. Context Window Built Wrong — Token-Stuffing
-**Status:** TODO (Month 1)
+**Status:** DONE ✅ (pivot1-m1)
 
 KB section gets sliced when context grows — worst answers when conversation is longest.
 
@@ -144,7 +144,7 @@ Synchronous MCP calls inside AI pipeline. 3s MCP → 3s+ widget latency.
 ---
 
 ### ❌ 10. KB Search Has No Vector Index — Dies Past 1000 Articles
-**Status:** TODO (Month 1)
+**Status:** DONE ✅ (pivot1-m1)
 
 In-memory cosine similarity. Works at 50 articles; unusable at 5000.
 
@@ -181,8 +181,8 @@ In-memory cosine similarity. Works at 50 articles; unusable at 5000.
 ### Month 1 — Competitive Moat
 - [x] Cross-session user memory store — UserMemory model, extractAndSaveMemory, loadUserMemory wired
 - [x] Split agent.ts into modules — 7-file agent/ module (types, routing, tools, context, memory, _openai, index)
-- [ ] pgvector for KB search — 2 days
-- [ ] Hierarchical context management — 3 days
+- [x] pgvector for KB search — HNSW index live, upsertEmbeddingVec at all 6 write sites
+- [x] Hierarchical context management — §1 invariant/§2 step/§3 dynamic/§4 turn-type
 
 ### Month 2 — Scale
 - [ ] BullMQ job queue — 1 week
