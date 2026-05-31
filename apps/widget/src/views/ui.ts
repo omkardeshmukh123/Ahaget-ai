@@ -295,3 +295,248 @@ export function addStepsCard(messagesEl: HTMLElement, steps: StepsResponse): HTM
   return card;
 }
 
+// -- Numbered choice card (Tandem-style intake) ---------------------------------
+// Renders a paginated card with numbered options, a write-in row, and Skip.
+export interface ChoiceCardOptions {
+  question: string;
+  options: string[];
+  questionIndex: number;   // 0-based
+  questionTotal: number;   // total questions in this intake (or 0 if unknown)
+  onSelect: (answer: string) => void;
+  onSkip?: () => void;
+}
+
+export function addChoiceCard(messagesEl: HTMLElement, opts: ChoiceCardOptions): HTMLDivElement {
+  const { question, options, questionIndex, questionTotal, onSelect, onSkip } = opts;
+  const card = document.createElement('div');
+  card.className = 'oai-choice-card';
+
+  // ── Header row ──────────────────────────────────────────────────────────────
+  const header = document.createElement('div');
+  header.className = 'oai-choice-header';
+
+  const title = document.createElement('span');
+  title.className = 'oai-choice-title';
+  title.textContent = question;
+
+  const pagination = document.createElement('div');
+  pagination.className = 'oai-choice-pagination';
+  if (questionTotal > 0) {
+    pagination.innerHTML = `
+      <button class="oai-choice-page-btn oai-choice-prev" aria-label="Previous" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span class="oai-choice-page-num">${questionIndex + 1} of ${questionTotal}</span>
+      <button class="oai-choice-page-btn oai-choice-next" aria-label="Next" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    `;
+  }
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'oai-choice-close';
+  closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  closeBtn.setAttribute('aria-label', 'Dismiss');
+  closeBtn.addEventListener('click', () => {
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(-4px)';
+    setTimeout(() => card.remove(), 200);
+    onSkip?.();
+  });
+
+  header.appendChild(title);
+  if (questionTotal > 0) header.appendChild(pagination);
+  header.appendChild(closeBtn);
+  card.appendChild(header);
+
+  // ── Divider ──────────────────────────────────────────────────────────────────
+  const divider = document.createElement('div');
+  divider.className = 'oai-choice-divider';
+  card.appendChild(divider);
+
+  // ── Options list ─────────────────────────────────────────────────────────────
+  const list = document.createElement('div');
+  list.className = 'oai-choice-list';
+
+  const disable = () => {
+    list.querySelectorAll<HTMLButtonElement>('.oai-choice-option').forEach(b => (b.disabled = true));
+    const writeIn = card.querySelector<HTMLInputElement>('.oai-choice-write-input');
+    if (writeIn) writeIn.disabled = true;
+  };
+
+  options.forEach((opt, i) => {
+    const row = document.createElement('button');
+    row.className = 'oai-choice-option';
+    row.innerHTML = `
+      <span class="oai-choice-num">${i + 1}</span>
+      <span class="oai-choice-label">${opt}</span>
+    `;
+    row.addEventListener('click', () => {
+      row.classList.add('oai-choice-selected');
+      disable();
+      card.style.opacity = '0.7';
+      card.style.pointerEvents = 'none';
+      setTimeout(() => onSelect(opt), 150);
+    });
+
+    if (i < options.length - 1) {
+      const sep = document.createElement('div');
+      sep.className = 'oai-choice-sep';
+      list.appendChild(row);
+      list.appendChild(sep);
+    } else {
+      list.appendChild(row);
+    }
+  });
+
+  card.appendChild(list);
+
+  // ── Write-in + Skip row ───────────────────────────────────────────────────────
+  const footer = document.createElement('div');
+  footer.className = 'oai-choice-footer';
+
+  const writeRow = document.createElement('div');
+  writeRow.className = 'oai-choice-write-row';
+
+  const pencilIcon = document.createElement('span');
+  pencilIcon.className = 'oai-choice-pencil';
+  pencilIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+
+  const writeIn = document.createElement('input');
+  writeIn.className = 'oai-choice-write-input';
+  writeIn.placeholder = 'Something else';
+  writeIn.setAttribute('aria-label', 'Custom answer');
+  writeIn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && writeIn.value.trim()) {
+      disable();
+      card.style.opacity = '0.7';
+      card.style.pointerEvents = 'none';
+      onSelect(writeIn.value.trim());
+    }
+  });
+
+  const skipBtn = document.createElement('button');
+  skipBtn.className = 'oai-choice-skip';
+  skipBtn.textContent = 'Skip';
+  skipBtn.addEventListener('click', () => {
+    card.style.opacity = '0.7';
+    card.style.pointerEvents = 'none';
+    onSkip?.();
+  });
+
+  writeRow.appendChild(pencilIcon);
+  writeRow.appendChild(writeIn);
+  footer.appendChild(writeRow);
+  footer.appendChild(skipBtn);
+  card.appendChild(footer);
+
+  messagesEl.appendChild(card);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return card;
+}
+
+// ─── Proactive contextual suggestion card (Tandem-style) ─────────────────────
+// A dark floating overlay that appears after a user action, reads page context,
+// and suggests the next logical step with a direct "Start now" CTA.
+export interface ProactiveSuggestionOpts {
+  agentName: string;
+  agentInitial: string;
+  gradFrom: string;
+  gradTo: string;
+  headline: string;
+  // Body text with **bold** markdown-style fragments supported
+  body: string;
+  ctaLabel?: string;
+  onStart: () => void;
+  onDismiss?: () => void;
+}
+
+export function addProactiveSuggestionCard(opts: ProactiveSuggestionOpts): HTMLDivElement {
+  const {
+    agentName, agentInitial, gradFrom, gradTo,
+    headline, body, ctaLabel = 'Start now',
+    onStart, onDismiss,
+  } = opts;
+
+  // Remove any existing suggestion card first
+  document.getElementById('oai-proactive-card')?.remove();
+
+  const card = document.createElement('div');
+  card.id = 'oai-proactive-card';
+  card.className = 'oai-suggest-card';
+
+  // ── Header row ────────────────────────────────────────────────────────────
+  const headerRow = document.createElement('div');
+  headerRow.className = 'oai-suggest-header';
+
+  // Agent avatar
+  const avatar = document.createElement('div');
+  avatar.className = 'oai-suggest-avatar';
+  avatar.style.background = `linear-gradient(135deg, ${gradFrom}, ${gradTo})`;
+  avatar.textContent = agentInitial;
+
+  const agentLabel = document.createElement('span');
+  agentLabel.className = 'oai-suggest-agent-name';
+  agentLabel.textContent = agentName;
+
+  // Close button
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'oai-suggest-close';
+  closeBtn.setAttribute('aria-label', 'Dismiss');
+  closeBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+  closeBtn.addEventListener('click', () => dismiss());
+
+  headerRow.appendChild(avatar);
+  headerRow.appendChild(agentLabel);
+  headerRow.appendChild(closeBtn);
+  card.appendChild(headerRow);
+
+  // ── "Suggested for you" badge ─────────────────────────────────────────────
+  const badge = document.createElement('div');
+  badge.className = 'oai-suggest-badge';
+  badge.textContent = 'SUGGESTED FOR YOU';
+  card.appendChild(badge);
+
+  // ── Headline ──────────────────────────────────────────────────────────────
+  const titleEl = document.createElement('div');
+  titleEl.className = 'oai-suggest-title';
+  titleEl.textContent = headline;
+  card.appendChild(titleEl);
+
+  // ── Body (supports **bold** syntax) ───────────────────────────────────────
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'oai-suggest-body';
+  bodyEl.innerHTML = body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  card.appendChild(bodyEl);
+
+  // ── CTA button ────────────────────────────────────────────────────────────
+  const ctaBtn = document.createElement('button');
+  ctaBtn.className = 'oai-suggest-cta';
+  ctaBtn.textContent = ctaLabel + ' →';
+  ctaBtn.addEventListener('click', () => {
+    dismiss();
+    onStart();
+  });
+  card.appendChild(ctaBtn);
+
+  document.body.appendChild(card);
+
+  // Animate in
+  requestAnimationFrame(() => {
+    card.style.opacity = '1';
+    card.style.transform = 'translateY(0)';
+  });
+
+  // Auto-dismiss after 20s
+  const autoDismiss = setTimeout(() => dismiss(), 20000);
+
+  function dismiss() {
+    clearTimeout(autoDismiss);
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(8px)';
+    setTimeout(() => card.remove(), 280);
+    onDismiss?.();
+  }
+
+  return card;
+}

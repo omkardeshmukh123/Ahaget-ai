@@ -624,7 +624,170 @@ export function injectStyles(branding: WidgetBranding) {
       font-size: 12px;
     }
 
+
+    /* ── Numbered choice card (Tandem-style) ─────────────────────────────────── */
+    .oai-choice-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      align-self: stretch;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      animation: oai-msg-in 0.22s ease both;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .oai-choice-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 13px 14px 11px;
+    }
+    .oai-choice-title {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 700;
+      color: #1e293b;
+      line-height: 1.35;
+    }
+    .oai-choice-pagination {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .oai-choice-page-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .oai-choice-page-btn svg { width: 12px; height: 12px; }
+    .oai-choice-page-num {
+      font-size: 10px;
+      color: #64748b;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .oai-choice-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+      transition: color 0.12s;
+    }
+    .oai-choice-close:hover { color: #64748b; }
+    .oai-choice-close svg { width: 12px; height: 12px; }
+    .oai-choice-divider {
+      height: 1px;
+      background: #f1f5f9;
+    }
+    .oai-choice-list {
+      display: flex;
+      flex-direction: column;
+    }
+    .oai-choice-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      transition: background 0.12s;
+    }
+    .oai-choice-option:hover:not(:disabled) {
+      background: #f8fafc;
+    }
+    .oai-choice-option:disabled {
+      cursor: default;
+    }
+    .oai-choice-option.oai-choice-selected .oai-choice-num {
+      background: ${primaryColor};
+      color: white;
+      border-color: ${primaryColor};
+    }
+    .oai-choice-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1.5px solid #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+      flex-shrink: 0;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .oai-choice-label {
+      font-size: 12.5px;
+      color: #1e293b;
+      line-height: 1.4;
+    }
+    .oai-choice-sep {
+      height: 1px;
+      background: #f1f5f9;
+      margin: 0 14px;
+    }
+    .oai-choice-footer {
+      display: flex;
+      align-items: center;
+      padding: 9px 14px;
+      border-top: 1px solid #f1f5f9;
+      gap: 8px;
+    }
+    .oai-choice-write-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex: 1;
+    }
+    .oai-choice-pencil {
+      color: #94a3b8;
+      display: flex;
+      flex-shrink: 0;
+    }
+    .oai-choice-pencil svg { width: 13px; height: 13px; }
+    .oai-choice-write-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 12px;
+      color: #64748b;
+      background: transparent;
+      font-family: inherit;
+    }
+    .oai-choice-write-input::placeholder { color: #94a3b8; }
+    .oai-choice-skip {
+      background: none;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      color: #64748b;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.12s, color 0.12s;
+      font-family: inherit;
+    }
+    .oai-choice-skip:hover { background: #f1f5f9; color: #475569; }
+
     /* ── Plan checklist card ────────────────────────────────────────────────── */
+
     .oai-plan-card {
       background: white;
       border: 1px solid #e2e8f0;
@@ -705,6 +868,114 @@ export function injectStyles(branding: WidgetBranding) {
       margin-top: 2px;
       line-height: 1.4;
     }
+
+    /* ── Proactive contextual suggestion card (Tandem-style) ──────────────── */
+    .oai-suggest-card {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      width: 380px;
+      background: #18181b;
+      border-radius: 18px;
+      padding: 20px 20px 18px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.42), 0 4px 16px rgba(0,0,0,0.24);
+      z-index: 2147483647;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    }
+    .oai-suggest-header {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 12px;
+    }
+    .oai-suggest-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .oai-suggest-agent-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e2e8f0;
+      flex: 1;
+    }
+    .oai-suggest-close {
+      background: rgba(255,255,255,0.08);
+      border: none;
+      border-radius: 6px;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #94a3b8;
+      flex-shrink: 0;
+      transition: background 0.15s, color 0.15s;
+      padding: 0;
+    }
+    .oai-suggest-close:hover { background: rgba(255,255,255,0.14); color: #e2e8f0; }
+    .oai-suggest-close svg { width: 11px; height: 11px; }
+    .oai-suggest-badge {
+      display: inline-block;
+      background: #166534;
+      color: #4ade80;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      padding: 3px 8px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+      border: 1px solid #166534;
+    }
+    .oai-suggest-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #f8fafc;
+      line-height: 1.3;
+      margin-bottom: 10px;
+      letter-spacing: -0.02em;
+    }
+    .oai-suggest-body {
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.6;
+      margin-bottom: 18px;
+    }
+    .oai-suggest-body strong {
+      color: #e2e8f0;
+      font-weight: 600;
+    }
+    .oai-suggest-cta {
+      width: 100%;
+      padding: 11px 0;
+      background: #ffffff;
+      color: #18181b;
+      border: none;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.12s;
+      font-family: inherit;
+      letter-spacing: -0.01em;
+    }
+    .oai-suggest-cta:hover {
+      background: #f1f5f9;
+      transform: scale(1.01);
+    }
+    .oai-suggest-cta:active { transform: scale(0.99); }
+
   `;
 
   const style = document.createElement('style');

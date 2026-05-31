@@ -142,7 +142,7 @@ export default function FlowsPage() {
               key={val}
               onClick={() => setTypeFilter(val)}
               style={{
-                padding: '5px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
+                padding: '5px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 background: active ? (meta ? `${meta.color}22` : 'rgba(139,92,246,0.15)') : 'var(--surface-container)',
                 color: active ? (meta ? meta.color : 'var(--primary-bright)') : 'var(--muted)',
                 border: active ? `1px solid ${meta ? meta.color + '40' : 'rgba(139,92,246,0.3)'}` : '1px solid transparent',

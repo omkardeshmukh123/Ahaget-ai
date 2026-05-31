@@ -13,7 +13,7 @@ import { CopilotManager, AgentAction, CopilotSession } from '../features/copilot
 import {
   createRoot, createSidePanel,
   addMessage, addFeedbackButtons, tryParseSteps, addStepsCard,
-  addChips, addActionToast, addCelebration, addStepPill,
+  addChips, addChoiceCard, addActionToast, addCelebration, addStepPill,
   renderStepProgress, createStreamingBubble,
   renderPlanChecklist, updatePlanPhase, PlanPhase,
 } from '../views/ui';
@@ -655,17 +655,48 @@ export class AhagetWidget {
 
     switch (action.type) {
       case 'ask_clarification': {
-        const chipWrap = addChips(
-          this.messagesEl,
-          action.question,
-          action.options ?? [],
-          (opt) => {
-            this.inputEl.value = opt;
-            this.submitMessage();
+        const hasOptions = (action.options ?? []).length > 0;
+        if (hasOptions) {
+          // Tandem-style numbered choice card
+          addMessage(this.messagesEl, action.question, 'assistant');
+          addChoiceCard(this.messagesEl, {
+            question: action.question,
+            options: action.options!,
+            questionIndex: 0,
+            questionTotal: 0,
+            onSelect: (opt) => {
+              addMessage(this.messagesEl, opt, 'user');
+              this.isSending = true;
+              this.sendBtn.disabled = true;
+              const stream = createStreamingBubble(this.messagesEl);
+              this.copilot.sendMessage(opt, (word) => {
+                stream.classList.remove('oai-streaming');
+                stream.textContent = (stream.textContent ?? '') + word;
+                this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+              }).then((res) => {
+                if (res) this.handleAgentAction(res.action, stream, res.messageId);
+                else { stream.textContent = 'Sorry, try again.'; this.isSending = false; this.sendBtn.disabled = false; }
+              });
+            },
+            onSkip: () => {
+              this.inputEl.value = '__skip__';
+              this.submitMessage();
+            },
+          });
+        } else {
+          // Plain text question (no options) — keep original behaviour
+          const chipWrap = addChips(
+            this.messagesEl,
+            action.question,
+            [],
+            (opt) => {
+              this.inputEl.value = opt;
+              this.submitMessage();
+            }
+          );
+          if (messageId) {
+            addFeedbackButtons(chipWrap, (v) => this.copilot.sendFeedback(messageId, v));
           }
-        );
-        if (messageId) {
-          addFeedbackButtons(chipWrap, (v) => this.copilot.sendFeedback(messageId, v));
         }
         break;
       }
