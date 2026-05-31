@@ -17,7 +17,7 @@ import { Router, Response, Request } from 'express';
 import multer from 'multer';
 import { prisma } from '../utils/prisma';
 import { authenticateJWT, authenticateApiKey } from '../middleware/auth';
-import { embedText, searchKnowledgeBase } from '../services/knowledge';
+import { embedText, upsertEmbeddingVec, searchKnowledgeBase } from '../services/knowledge';
 import { crawlUrl, validatePublicUrl } from '../services/crawl';
 import { AuthenticatedRequest } from '../types';
 
@@ -155,6 +155,7 @@ router.post('/ingest-url', async (req: AuthenticatedRequest, res: Response) => {
           syncedAt: new Date(),
         },
       });
+      upsertEmbeddingVec(placeholder.id, embedding).catch(() => {});
     } catch (err) {
       console.error(`[kb/ingest-url] crawl failed for ${parsed.toString()}:`, err);
       await prisma.knowledgeBaseArticle.update({
@@ -200,6 +201,7 @@ router.post('/ingest-file', upload.single('file'), async (req: AuthenticatedRequ
     },
   });
 
+  upsertEmbeddingVec(article.id, embedding).catch(() => {});
   res.status(201).json({ article });
 });
 
@@ -240,6 +242,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
     },
   });
 
+  upsertEmbeddingVec(article.id, embedding).catch(() => {});
   res.status(201).json({ article });
 });
 
@@ -285,6 +288,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
     },
   });
 
+  if (contentChanged) upsertEmbeddingVec(req.params.id, embedding as number[]).catch(() => {});
   res.json({ article });
 });
 
@@ -316,6 +320,7 @@ router.post('/:id/sync', async (req: AuthenticatedRequest, res: Response) => {
         where: { id: existing.id },
         data: { title, content: text, embedding, wordCount, syncStatus: 'idle', syncedAt: new Date() },
       });
+      upsertEmbeddingVec(existing.id, embedding).catch(() => {});
     } catch (err) {
       console.error(`[kb/sync] failed for ${existing.sourceUrl}:`, err);
       await prisma.knowledgeBaseArticle.update({

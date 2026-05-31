@@ -1,6 +1,6 @@
 import { prisma } from '../utils/prisma';
 import { crawlUrl } from '../services/crawl';
-import { embedText } from '../services/knowledge';
+import { embedText, upsertEmbeddingVec } from '../services/knowledge';
 
 const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 h
 const MAX_CONCURRENT = 3;
@@ -38,6 +38,7 @@ export async function runKbRefresh(): Promise<void> {
           where: { id: article.id },
           data: { title, content: text, embedding, wordCount, syncStatus: 'idle', syncedAt: new Date() },
         });
+        upsertEmbeddingVec(article.id, embedding).catch(() => {});
         console.log(`[kb-refresh] refreshed ${article.organizationId}/${article.id} ${article.sourceUrl}`);
       } catch (err) {
         console.error(`[kb-refresh] failed ${article.sourceUrl}:`, err);

@@ -55,15 +55,28 @@ export async function loadInterfaceContext(orgId: string, pageUrl: string | unde
   }
 }
 
-// ─── System prompt builder ────────────────────────────────────────────────────
-
-// Token budgets by turn type — controls how much variable content is included.
+// ─── Token budgets ────────────────────────────────────────────────────────────
+// Controls how much variable content (DOM + KB) is injected per turn type.
 // init/verify: small (fast, action-focused). KB Q&A: large (needs context). Default: medium.
 const TOKEN_BUDGET: Record<'init_verify' | 'kb_qa' | 'default', number> = {
   init_verify: 8_000,
   kb_qa:       32_000,
   default:     16_000,
 };
+
+// ─── System prompt builder ────────────────────────────────────────────────────
+//
+// Prompt structure is ordered for maximum OpenRouter prefix-cache hits:
+//
+//   § 1  INVARIANT HEADER  — role, org name, absolute rules, playbook
+//         ↳ identical across every turn for the same org → cached after turn 1
+//   § 2  STEP CONTEXT      — title, goal, aiPrompt, actionHint, flow goal
+//         ↳ static per step → cached within the same step
+//   § 3  PER-TURN DYNAMIC  — user profile, memory, history, live context,
+//                            DOM, interface map, KB, MCP, collected data
+//         ↳ changes every turn → not cached, but trimmed by token budget
+//   § 4  TURN INSTRUCTIONS — init / verify / general + language
+//         ↳ changes by turn type
 
 export function buildSystemPrompt(opts: {
   orgName: string;
@@ -99,6 +112,42 @@ export function buildSystemPrompt(opts: {
     detectedLang, flowGoal, liveContext, memorySection, playbook,
   } = opts;
 
+  // ── Playbook-derived strings ──────────────────────────────────────────────────
+  const agentName = playbook?.agentName || 'Ahaget';
+  const toneMap: Record<string, string> = {
+    friendly: 'Be warm, encouraging, and approachable.',
+    formal:   'Be professional and precise. Avoid colloquialisms.',
+    concise:  'Be extremely brief. Use short sentences only.',
+  };
+  const toneInstruction    = playbook?.tone && toneMap[playbook.tone] ? `\nTONE: ${toneMap[playbook.tone]}` : '';
+  const mustAlwaysSection  = playbook?.mustAlwaysDo?.length ? `\nMUST ALWAYS:\n${playbook.mustAlwaysDo.map((r) => `- ${r}`).join('\n')}` : '';
+  const mustNeverSection   = playbook?.mustNeverDo?.length  ? `\nMUST NEVER:\n${playbook.mustNeverDo.map((r) => `- ${r}`).join('\n')}` : '';
+
+  // ── § 1  INVARIANT HEADER ─────────────────────────────────────────────────────
+  const invariantHeader = [
+    `You are ${agentName}, an AI onboarding guide inside "${orgName}". You ALWAYS call exactly one tool — never respond with plain text.`,
+    `\nABSOLUTE RULES:\n- Only use selectors that appear verbatim in LIVE PAGE ELEMENTS.\n- Never confirm, summarise, or ask "are you ready?".\n- Never call complete_step speculatively — only when the user has provably finished.\n- Keep all user-facing text under 25 words.\n- If the user asks a factual question and the KNOWLEDGE BASE section is empty or has no relevant answer, respond via ask_clarification with exactly: "I don't have that in my knowledge base. Please reach out to support."\n- NEVER fill or read fields of type password, or whose label contains: password, ssn, credit card, cvv, cvc, or pin.`,
+    customInstructions   ?? '',
+    toneInstruction,
+    mustAlwaysSection,
+    mustNeverSection,
+  ].filter(Boolean).join('');
+
+  // ── § 2  STEP CONTEXT ─────────────────────────────────────────────────────────
+  const multiPageInstructions = step.targetUrl
+    ? `\nMULTI-PAGE STEP: This step requires navigating to a specific page.\n1. If current URL does not match "${step.targetUrl}" → call execute_page_action with type "navigate" and url "${step.targetUrl}" immediately.\n2. After navigation you will receive a NAVIGATION COMPLETE signal — then resume this step.\n3. Only execute fill/click actions after confirming you are on the correct page.\n`
+    : '';
+
+  const stepContext = [
+    flowGoal ? `\nFLOW GOAL: ${flowGoal}` : '',
+    multiPageInstructions,
+    `\nSTEP: "${step.title}"\nGoal: ${step.description || step.title}`,
+    step.aiPrompt ? `\nInstructions: ${step.aiPrompt}` : '',
+    actionHint,
+    isLastStep ? '\nFINAL STEP: use celebrate_milestone when done (not complete_step).' : '',
+  ].filter(Boolean).join('');
+
+  // ── § 3  PER-TURN DYNAMIC CONTEXT ────────────────────────────────────────────
   const userProfile = (() => {
     if (!userMetadata || Object.keys(userMetadata).length === 0) return '';
     const PLAN_HINTS: Record<string, string> = {
@@ -117,12 +166,48 @@ export function buildSystemPrompt(opts: {
     for (const [k, v] of Object.entries(userMetadata)) {
       if (!known.has(k)) lines.push(`- ${k}: ${v}`);
     }
-    return `USER PROFILE:\n${lines.join('\n')}\nAdapt guidance tone, depth, and upgrade mentions to this profile.`;
+    return `\nUSER PROFILE:\n${lines.join('\n')}\nAdapt guidance tone, depth, and upgrade mentions to this profile.`;
   })();
 
-  const historySection = userHistoryFormatted ? `\n${userHistoryFormatted}\n` : '';
-  const liveContextSection = liveContext ? `\n${liveContext}\n` : '';
+  const historySection    = userHistoryFormatted ? `\n${userHistoryFormatted}` : '';
+  const liveContextSection = liveContext ? `\n${liveContext}` : '';
 
+  // Token-budget trimming: cap variable sections to prevent context stuffing
+  const budgetKey: keyof typeof TOKEN_BUDGET =
+    (isInit || isVerify) ? 'init_verify' : kbSection ? 'kb_qa' : 'default';
+  const TOKEN_BUDGET_CHARS = TOKEN_BUDGET[budgetKey] * 4; // ~4 chars per token
+
+  const variableSize = domSummary.length + kbSection.length + mcpSection.length + historySection.length;
+  let trimmedKbSection  = kbSection;
+  let trimmedDomSummary = domSummary;
+  if (variableSize > TOKEN_BUDGET_CHARS) {
+    const overflow = variableSize - TOKEN_BUDGET_CHARS;
+    if (kbSection.length >= overflow) {
+      trimmedKbSection = truncateAtSentence(kbSection, kbSection.length - overflow);
+    } else {
+      trimmedKbSection = '';
+      const domOverflow = overflow - kbSection.length;
+      if (domSummary.length > domOverflow) {
+        trimmedDomSummary = domSummary.slice(0, domSummary.length - domOverflow);
+      }
+    }
+  }
+
+  const collectedDataStr = JSON.stringify(collectedData).slice(0, 500);
+
+  const dynamicContext = [
+    userProfile,
+    memorySection ?? '',
+    historySection,
+    liveContextSection,
+    trimmedDomSummary,
+    interfaceMapSection,
+    trimmedKbSection,
+    mcpSection,
+    `\nCollected so far: ${collectedDataStr}`,
+  ].filter(Boolean).join('');
+
+  // ── § 4  TURN INSTRUCTIONS ────────────────────────────────────────────────────
   const verifyInstructions = isVerify
     ? `\nVERIFICATION TURN: The widget just executed a page action and is now reporting the updated DOM.\nExamine LIVE PAGE ELEMENTS to check if the action succeeded (fields have values, button was clicked, etc.).\n- If success → call complete_step immediately.\n- If failed → call execute_page_action again with the corrected selector or a slightly adjusted approach.\n- Do not ask questions during verification.`
     : '';
@@ -141,57 +226,13 @@ export function buildSystemPrompt(opts: {
     ? '\nLANGUAGE: Respond in Hinglish — natural Hindi+English mix in Roman script. Example: "Yahan click karein, phir apna naam enter karein."'
     : '';
 
-  // Dynamic token budget: init/verify turns need less context, KB Q&A needs more
-  const budgetKey: keyof typeof TOKEN_BUDGET = (isInit || isVerify) ? 'init_verify' : kbSection ? 'kb_qa' : 'default';
-  const TOKEN_BUDGET_CHARS = TOKEN_BUDGET[budgetKey] * 4; // ~4 chars per token
-
-  const variableSize = domSummary.length + kbSection.length + mcpSection.length + historySection.length;
-  let trimmedKbSection = kbSection;
-  let trimmedDomSummary = domSummary;
-  if (variableSize > TOKEN_BUDGET_CHARS) {
-    const overflow = variableSize - TOKEN_BUDGET_CHARS;
-    if (kbSection.length >= overflow) {
-      trimmedKbSection = truncateAtSentence(kbSection, kbSection.length - overflow);
-    } else {
-      trimmedKbSection = '';
-      const domOverflow = overflow - kbSection.length;
-      if (domSummary.length > domOverflow) {
-        trimmedDomSummary = domSummary.slice(0, domSummary.length - domOverflow);
-      }
-    }
-  }
-
-  const collectedDataStr = JSON.stringify(collectedData).slice(0, 500);
-
-  const agentName = playbook?.agentName || 'Ahaget';
-  const toneMap: Record<string, string> = {
-    friendly: 'Be warm, encouraging, and approachable.',
-    formal:   'Be professional and precise. Avoid colloquialisms.',
-    concise:  'Be extremely brief. Use short sentences only.',
-  };
-  const toneInstruction = playbook?.tone && toneMap[playbook.tone] ? `\nTONE: ${toneMap[playbook.tone]}` : '';
-  const mustAlwaysSection = playbook?.mustAlwaysDo?.length ? `\nMUST ALWAYS:\n${playbook.mustAlwaysDo.map((r) => `- ${r}`).join('\n')}` : '';
-  const mustNeverSection = playbook?.mustNeverDo?.length ? `\nMUST NEVER:\n${playbook.mustNeverDo.map((r) => `- ${r}`).join('\n')}` : '';
-
-  const multiPageInstructions = step.targetUrl
-    ? `\nMULTI-PAGE STEP: This step requires navigating to a specific page.\n1. If current URL does not match "${step.targetUrl}" → call execute_page_action with type "navigate" and url "${step.targetUrl}" immediately. Do not ask the user first.\n2. After navigation you will receive a NAVIGATION COMPLETE signal — then resume this step.\n3. Only execute fill/click actions after confirming you are on the correct page.\n`
-    : '';
-
-  return `You are ${agentName}, an AI onboarding guide inside "${orgName}". You ALWAYS call exactly one tool — never respond with plain text.
-${userProfile}${liveContextSection}${historySection}${memorySection ?? ''}
-${flowGoal ? `FLOW GOAL: ${flowGoal}\n` : ''}${multiPageInstructions}STEP: "${step.title}"
-Goal: ${step.description || step.title}
-${step.aiPrompt ? `Instructions: ${step.aiPrompt}` : ''}
-${actionHint}${trimmedDomSummary}${interfaceMapSection}${trimmedKbSection}${mcpSection}
-Collected so far: ${collectedDataStr}
-${isLastStep ? 'FINAL STEP: use celebrate_milestone when done (not complete_step).' : ''}
-${verifyInstructions}${initInstructions}${generalInstructions}
-
-ABSOLUTE RULES:
-- Only use selectors that appear verbatim in LIVE PAGE ELEMENTS.
-- Never confirm, summarise, or ask "are you ready?".
-- Never call complete_step speculatively — only when the user has provably finished.
-- Keep all user-facing text under 25 words.
-- If the user asks a factual question and the KNOWLEDGE BASE section above is empty or contains no relevant answer, respond via ask_clarification with exactly: "I don't have that in my knowledge base. Please reach out to support."
-${customInstructions ?? ''}${toneInstruction}${mustAlwaysSection}${mustNeverSection}${langInstruction}`.trim();
+  return [
+    invariantHeader,
+    stepContext,
+    dynamicContext,
+    verifyInstructions,
+    initInstructions,
+    generalInstructions,
+    langInstruction,
+  ].filter(Boolean).join('\n').trim();
 }

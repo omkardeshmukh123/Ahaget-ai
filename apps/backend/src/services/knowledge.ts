@@ -1,6 +1,7 @@
-// ─── Knowledge Base Service — hybrid BM25 + vector search with RRF ───────────
+// ─── Knowledge Base Service — pgvector primary, BM25+RRF re-rank ──────────────
 
 import OpenAI from 'openai';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../utils/prisma';
 
 let _openai: OpenAI | null = null;
@@ -17,20 +18,15 @@ export async function embedText(text: string): Promise<number[]> {
   return res.data[0].embedding;
 }
 
-// ─── Cosine similarity ────────────────────────────────────────────────────────
-function cosineSimilarity(a: number[], b: number[]): number {
-  let dot = 0, magA = 0, magB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    magA += a[i] * a[i];
-    magB += b[i] * b[i];
-  }
-  if (magA === 0 || magB === 0) return 0;
-  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+// ─── Write embedding_vec after every article create/update ────────────────────
+export async function upsertEmbeddingVec(articleId: string, embedding: number[]): Promise<void> {
+  const vec = `[${embedding.join(',')}]`;
+  await prisma.$executeRaw`
+    UPDATE knowledge_base_articles SET embedding_vec = ${vec}::vector WHERE id = ${articleId}
+  `;
 }
 
 // ─── BM25 scorer ─────────────────────────────────────────────────────────────
-// k1=1.2, b=0.75 — standard defaults
 const BM25_K1 = 1.2;
 const BM25_B  = 0.75;
 
@@ -69,7 +65,6 @@ function buildIdf(queryTerms: string[], corpus: string[][]): Map<string, number>
   const idf = new Map<string, number>();
   for (const term of queryTerms) {
     const docsWithTerm = corpus.filter((doc) => doc.includes(term)).length;
-    // smoothed IDF
     idf.set(term, Math.log((N - docsWithTerm + 0.5) / (docsWithTerm + 0.5) + 1));
   }
   return idf;
@@ -87,13 +82,11 @@ function rrfCombine(
   for (const id of allIds) {
     const vRank = vectorRanks.get(id) ?? Infinity;
     const bRank = bm25Ranks.get(id) ?? Infinity;
-    const score = 1 / (RRF_K + vRank) + 1 / (RRF_K + bRank);
-    scores.set(id, score);
+    scores.set(id, 1 / (RRF_K + vRank) + 1 / (RRF_K + bRank));
   }
   return scores;
 }
 
-// ─── Rank map from sorted array ───────────────────────────────────────────────
 function toRankMap(sortedIds: string[]): Map<string, number> {
   const m = new Map<string, number>();
   sortedIds.forEach((id, i) => m.set(id, i + 1));
@@ -106,12 +99,18 @@ export interface KBResult {
   score: number;
 }
 
+// ─── pgvector row shape ───────────────────────────────────────────────────────
+type PgVecRow = {
+  id: string;
+  title: string;
+  content: string;
+  page_url_pattern: string | null;
+  vector_score: number;
+};
+
 /**
- * Hybrid BM25 + vector search with Reciprocal Rank Fusion.
- * Falls back to pure vector if only one article exists.
- *
- * pageUrl — if supplied, only articles whose pageUrlPattern matches
- * (or have no pattern) are included. This is the page-level scoping.
+ * Hybrid search: pgvector for vector recall → BM25 re-rank → RRF combine.
+ * Falls back to legacy in-memory cosine when embedding_vec column has no data.
  */
 export async function searchKnowledgeBase(
   orgId: string,
@@ -120,28 +119,93 @@ export async function searchKnowledgeBase(
   minVectorScore = 0.25,
   pageUrl?: string,
 ): Promise<KBResult[]> {
+  const queryEmbedding = await embedText(query.slice(0, 500));
+  const vectorStr = `[${queryEmbedding.join(',')}]`;
+
+  // ── pgvector: ordered by cosine distance, HNSW index used automatically ─────
+  const pgRows = await prisma.$queryRaw<PgVecRow[]>(
+    Prisma.sql`
+      SELECT id, title, content, page_url_pattern,
+             (1 - (embedding_vec <=> ${vectorStr}::vector))::float8 AS vector_score
+      FROM knowledge_base_articles
+      WHERE organization_id = ${orgId}
+        AND embedding_vec IS NOT NULL
+      ORDER BY embedding_vec <=> ${vectorStr}::vector
+      LIMIT ${topK * 4}
+    `,
+  );
+
+  // ── Fall back to in-memory cosine when column has no data yet ────────────────
+  if (pgRows.length === 0) {
+    return legacySearch(orgId, queryEmbedding, query, topK, minVectorScore, pageUrl);
+  }
+
+  // ── Page-level scoping + min-score filter ────────────────────────────────────
+  const articles = pgRows.filter(
+    (a) =>
+      a.vector_score >= minVectorScore &&
+      (!a.page_url_pattern ||
+        !pageUrl ||
+        pageUrl.toLowerCase().includes(a.page_url_pattern.toLowerCase())),
+  );
+
+  if (articles.length === 0) return [];
+  if (articles.length === 1) {
+    return [{ title: articles[0].title, content: articles[0].content, score: articles[0].vector_score }];
+  }
+
+  // ── BM25 re-rank on the pgvector candidates ───────────────────────────────────
+  const queryTerms = tokenize(query);
+  const corpus = articles.map((a) => tokenize(`${a.title} ${a.content}`));
+  const avgDocLen = corpus.reduce((s, d) => s + d.length, 0) / corpus.length;
+  const idf = buildIdf(queryTerms, corpus);
+
+  const bm25Scored = articles.map((a, i) => ({
+    id: a.id,
+    bm25Score: bm25Score(queryTerms, corpus[i], avgDocLen, idf),
+  }));
+
+  const vectorRanks = toRankMap(articles.map((a) => a.id));
+  const bm25Sorted  = [...bm25Scored]
+    .filter((a) => a.bm25Score > 0)
+    .sort((a, b) => b.bm25Score - a.bm25Score);
+  const bm25Ranks = toRankMap(bm25Sorted.map((a) => a.id));
+
+  const rrfScores = rrfCombine(vectorRanks, bm25Ranks);
+  const articleMap = new Map(articles.map((a) => [a.id, a]));
+
+  return [...rrfScores.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, topK)
+    .map(([id, score]) => {
+      const a = articleMap.get(id)!;
+      return { title: a.title, content: a.content, score };
+    });
+}
+
+// ─── Legacy in-memory search (fallback when embedding_vec is not populated) ───
+async function legacySearch(
+  orgId: string,
+  queryEmbedding: number[],
+  query: string,
+  topK: number,
+  minVectorScore: number,
+  pageUrl?: string,
+): Promise<KBResult[]> {
   const allArticles = await prisma.knowledgeBaseArticle.findMany({
     where: { organizationId: orgId },
     select: { id: true, title: true, content: true, embedding: true, pageUrlPattern: true },
     take: 500,
   });
 
-  // ── Page-level scoping ──────────────────────────────────────────────────────
-  // If pageUrl supplied: include articles with no pattern (universal) OR whose
-  // pattern is a substring of the current page URL (simple, zero-config match).
   const articles = pageUrl
     ? allArticles.filter((a) => {
-        if (!a.pageUrlPattern) return true; // no restriction → always include
+        if (!a.pageUrlPattern) return true;
         return pageUrl.toLowerCase().includes(a.pageUrlPattern.toLowerCase());
       })
     : allArticles;
 
   if (articles.length === 0) return [];
-
-  // ── Vector search ─────────────────────────────────────────────────────────
-  // Fix #7: pre-truncate query to 500 chars before embedding — avoids
-  // sending runaway user messages directly into the embedding API.
-  const queryEmbedding = await embedText(query.slice(0, 500));
 
   const vectorScored = articles.map((a) => ({
     id: a.id,
@@ -150,22 +214,16 @@ export async function searchKnowledgeBase(
     vectorScore: cosineSimilarity(queryEmbedding, a.embedding as number[]),
   }));
 
-  // Filter out articles with no semantic overlap
   const vectorFiltered = vectorScored.filter((a) => a.vectorScore >= minVectorScore);
   if (vectorFiltered.length === 0) return [];
 
   const vectorSorted = [...vectorFiltered].sort((a, b) => b.vectorScore - a.vectorScore);
-  const vectorRanks = toRankMap(vectorSorted.map((a) => a.id));
+  const vectorRanks  = toRankMap(vectorSorted.map((a) => a.id));
 
   if (articles.length === 1) {
-    return vectorSorted.slice(0, topK).map((a) => ({
-      title: a.title,
-      content: a.content,
-      score: a.vectorScore,
-    }));
+    return vectorSorted.slice(0, topK).map((a) => ({ title: a.title, content: a.content, score: a.vectorScore }));
   }
 
-  // ── BM25 search ───────────────────────────────────────────────────────────
   const queryTerms = tokenize(query);
   const corpus = articles.map((a) => tokenize(`${a.title} ${a.content}`));
   const avgDocLen = corpus.reduce((s, d) => s + d.length, 0) / corpus.length;
@@ -181,10 +239,9 @@ export async function searchKnowledgeBase(
     .sort((a, b) => b.bm25Score - a.bm25Score);
   const bm25Ranks = toRankMap(bm25Sorted.map((a) => a.id));
 
-  // ── RRF combine ───────────────────────────────────────────────────────────
   const rrfScores = rrfCombine(vectorRanks, bm25Ranks);
-
   const articleMap = new Map(vectorScored.map((a) => [a.id, a]));
+
   return [...rrfScores.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, topK)
@@ -192,4 +249,16 @@ export async function searchKnowledgeBase(
       const a = articleMap.get(id)!;
       return { title: a.title, content: a.content, score };
     });
+}
+
+// ─── In-memory cosine (used only by legacySearch) ────────────────────────────
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0, magA = 0, magB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
+  }
+  if (magA === 0 || magB === 0) return 0;
+  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
 }
