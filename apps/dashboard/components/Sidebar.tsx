@@ -8,9 +8,10 @@ const SECTIONS = [
   {
     label: 'AGENT',
     items: [
-      { href: '/flows',    label: 'Agent Flows', icon: <FlowIcon /> },
-      { href: '/triggers', label: 'Triggers',    icon: <TriggerIcon /> },
-      { href: '/playbook', label: 'Playbook',    icon: <PlaybookIcon /> },
+      { href: '/flows',       label: 'Agent Flows',  icon: <FlowIcon /> },
+      { href: '/triggers',    label: 'Triggers',     icon: <TriggerIcon /> },
+      { href: '/playbook',    label: 'Playbook',     icon: <PlaybookIcon /> },
+      { href: '/experiments', label: 'Experiments',  icon: <BeakerIcon /> },
     ],
   },
   {
@@ -203,6 +204,9 @@ function ConnectIcon() {
 }
 function BrushIcon() {
   return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 114.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1 1 2.48 1.02 3.5 1.02 2.85 0 3.5-2.02 3.5-3.04a3 3 0 00-2-2.02z"/></svg>;
+}
+function BeakerIcon() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6"/><path d="M10 3v7L5.7 17.1A1 1 0 006.6 19h10.8a1 1 0 00.9-1.9L14 10V3"/></svg>;
 }
 function GearIcon() {
   return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>;
