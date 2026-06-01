@@ -53,7 +53,7 @@ import { runEvalRegressionCheck } from './queues/workers/evalRegression';
 
 // ─── Startup env validation ───────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
-const OPTIONAL_ENV = ['OPENROUTER_API_KEY', 'OPENAI_API_KEY'];
+const OPTIONAL_ENV = ['OPENROUTER_API_KEY', 'OPENAI_API_KEY', 'ENCRYPTION_KEY'];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length > 0) {
   console.error(`[startup] Missing required env vars: ${missing.join(', ')}`);
@@ -65,6 +65,10 @@ if (missingOptional.length > 0) {
 }
 if (!process.env.ADMIN_SECRET) {
   console.warn('[startup] ADMIN_SECRET not set — admin routes will return 503');
+}
+const encKey = process.env.ENCRYPTION_KEY;
+if (!encKey || encKey.length !== 64) {
+  console.warn('[startup] ENCRYPTION_KEY not set or invalid — MCP authValues stored unencrypted. Set a 64-char hex key to enable at-rest encryption.');
 }
 
 const app = express();

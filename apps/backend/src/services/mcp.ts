@@ -12,6 +12,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../utils/prisma';
 import { logger } from '../utils/logger';
 import { assertPublicUrl } from '../utils/ipGuard';
+import { decrypt } from '../utils/encrypt';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,10 +106,11 @@ export async function loadRestContext(orgId: string): Promise<RestConnectorConte
     select: { method: true, urlPattern: true, readOnly: true },
   });
 
+  const rawAuthValue = connector?.authValue ?? null;
   const ctx: RestConnectorContext = {
-    authType:  connector?.authType  ?? 'none',
-    authValue: connector?.authValue ?? null,
-    readOnly:  connector?.readOnly  ?? false,
+    authType:  connector?.authType ?? 'none',
+    authValue: rawAuthValue ? decrypt(rawAuthValue) : null,
+    readOnly:  connector?.readOnly ?? false,
     endpoints,
   };
 
@@ -144,8 +146,9 @@ export function matchesRestEndpoint(
 
 // ─── Auth headers ─────────────────────────────────────────────────────────────
 function authHeaders(authType: string, authValue: string | null): Record<string, string> {
-  if (authType === 'bearer' && authValue) return { Authorization: `Bearer ${authValue}` };
-  if (authType === 'api_key' && authValue)  return { 'X-API-Key': authValue };
+  const clearValue = authValue ? decrypt(authValue) : null;
+  if (authType === 'bearer' && clearValue) return { Authorization: `Bearer ${clearValue}` };
+  if (authType === 'api_key' && clearValue)  return { 'X-API-Key': clearValue };
   return {};
 }
 

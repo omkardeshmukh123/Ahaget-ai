@@ -5,6 +5,7 @@ import { authenticateJWT } from '../middleware/auth';
 import { checkMcpConnectorLimit } from '../middleware/rateLimit';
 import { AuthenticatedRequest } from '../types';
 import { callMcpTool } from '../services/mcp';
+import { encryptIfEnabled, decrypt } from '../utils/encrypt';
 
 const router = Router();
 router.use(authenticateJWT);
@@ -123,7 +124,11 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   }
 
   const connector = await prisma.mcpConnector.create({
-    data: { organizationId: orgId, ...data },
+    data: {
+      organizationId: orgId,
+      ...data,
+      authValue: data.authValue ? encryptIfEnabled(data.authValue) : data.authValue,
+    },
     select: SAFE_SELECT,
   });
   res.status(201).json({ connector });
@@ -136,7 +141,12 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
   const result = await prisma.mcpConnector.updateMany({
     where: { id: req.params.id, organizationId: orgId },
-    data,
+    data: {
+      ...data,
+      ...(data.authValue !== undefined && {
+        authValue: data.authValue ? encryptIfEnabled(data.authValue) : data.authValue,
+      }),
+    },
   });
 
   if (result.count === 0) {
@@ -171,16 +181,18 @@ router.post('/:id/test', async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
+  const clearAuthValue = connector.authValue ? decrypt(connector.authValue) : null;
+
   if (connector.connectorType === 'rest') {
     // For REST connectors just do a HEAD/GET to the base URL
     try {
       const resp = await fetch(connector.serverUrl, {
         method: 'GET',
         signal: AbortSignal.timeout(4000),
-        headers: connector.authType === 'bearer' && connector.authValue
-          ? { Authorization: `Bearer ${connector.authValue}` }
-          : connector.authType === 'api_key' && connector.authValue
-          ? { 'X-API-Key': connector.authValue }
+        headers: connector.authType === 'bearer' && clearAuthValue
+          ? { Authorization: `Bearer ${clearAuthValue}` }
+          : connector.authType === 'api_key' && clearAuthValue
+          ? { 'X-API-Key': clearAuthValue }
           : {},
       });
       res.json({ ok: resp.ok, status: resp.status, tools: [], connectorType: 'rest' });
@@ -193,8 +205,8 @@ router.post('/:id/test', async (req: AuthenticatedRequest, res: Response) => {
   // MCP: call tools/list
   try {
     const authHeader: Record<string, string> = {};
-    if (connector.authType === 'bearer' && connector.authValue) authHeader['Authorization'] = `Bearer ${connector.authValue}`;
-    if (connector.authType === 'api_key' && connector.authValue) authHeader['X-API-Key'] = connector.authValue;
+    if (connector.authType === 'bearer' && clearAuthValue) authHeader['Authorization'] = `Bearer ${clearAuthValue}`;
+    if (connector.authType === 'api_key' && clearAuthValue) authHeader['X-API-Key'] = clearAuthValue;
 
     const rpcRes = await fetch(connector.serverUrl, {
       method: 'POST',
