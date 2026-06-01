@@ -42,11 +42,11 @@ async function consumeMagicToken(token: string): Promise<string | null> {
 }
 
 // --- Login brute-force guard -------------------------------------------------
-// 20 attempts per IP per 15-minute window.
+// 5 attempts per IP per 15-minute window.
 // Redis-backed when configured; falls back to per-process Map.
 const _loginFallback = new Map<string, { count: number; resetAt: number }>();
 const LOGIN_WINDOW_S = 15 * 60;
-const LOGIN_MAX_ATTEMPTS = 20;
+const LOGIN_MAX_ATTEMPTS = 5;
 
 async function checkLoginRateLimit(ip: string): Promise<boolean> {
   const key = `login:rl:${ip}`;
@@ -66,6 +66,45 @@ async function checkLoginRateLimit(ip: string): Promise<boolean> {
   return true;
 }
 
+// --- Magic-link rate limiters ------------------------------------------------
+// Send: 3 requests per IP per 15-minute window (prevents email spam).
+// Verify: 10 attempts per IP per 15-minute window (prevents token enumeration).
+const _magicSendFallback = new Map<string, { count: number; resetAt: number }>();
+const _magicVerifyFallback = new Map<string, { count: number; resetAt: number }>();
+const MAGIC_WINDOW_S = 15 * 60;
+const MAGIC_SEND_MAX = 3;
+const MAGIC_VERIFY_MAX = 10;
+
+async function checkMagicSendRateLimit(ip: string): Promise<boolean> {
+  const key = `magic:send:rl:${ip}`;
+  const count = await redisIncr(key, MAGIC_WINDOW_S);
+  if (count !== null) return count <= MAGIC_SEND_MAX;
+  const now = Date.now();
+  const entry = _magicSendFallback.get(key);
+  if (!entry || now >= entry.resetAt) {
+    _magicSendFallback.set(key, { count: 1, resetAt: now + MAGIC_WINDOW_S * 1000 });
+    return true;
+  }
+  if (entry.count >= MAGIC_SEND_MAX) return false;
+  entry.count++;
+  return true;
+}
+
+async function checkMagicVerifyRateLimit(ip: string): Promise<boolean> {
+  const key = `magic:verify:rl:${ip}`;
+  const count = await redisIncr(key, MAGIC_WINDOW_S);
+  if (count !== null) return count <= MAGIC_VERIFY_MAX;
+  const now = Date.now();
+  const entry = _magicVerifyFallback.get(key);
+  if (!entry || now >= entry.resetAt) {
+    _magicVerifyFallback.set(key, { count: 1, resetAt: now + MAGIC_WINDOW_S * 1000 });
+    return true;
+  }
+  if (entry.count >= MAGIC_VERIFY_MAX) return false;
+  entry.count++;
+  return true;
+}
+
 // --- Schema validation ------------------------------------------------------
 
 const RegisterSchema = z.object({
@@ -73,6 +112,7 @@ const RegisterSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   orgName: z.string().min(1, 'Organization name is required'),
+  refCode: z.string().optional(), // optional referral code
 });
 
 const LoginSchema = z.object({
@@ -108,9 +148,36 @@ router.post('/register', async (req: Request, res: Response) => {
   const passwordHash = await bcrypt.hash(body.password, 12);
   const apiKey = generateApiKey();
 
+  // Generate unique referral code for this new org
+  let newReferralCode: string | undefined;
+  let attempts = 0;
+  do {
+    newReferralCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+    const exists = await prisma.organization.findUnique({ where: { referralCode: newReferralCode } });
+    if (!exists) break;
+    attempts++;
+  } while (attempts < 10);
+
+  // Validate referring org if refCode supplied
+  let referringOrg: { id: string; referralCode: string } | null = null;
+  if (body.refCode) {
+    const found = await prisma.organization.findUnique({
+      where:  { referralCode: body.refCode },
+      select: { id: true, referralCode: true },
+    });
+    if (found?.referralCode) {
+      referringOrg = { id: found.id, referralCode: found.referralCode };
+    }
+  }
+
   const { user, organization } = await prisma.$transaction(async (tx) => {
     const organization = await tx.organization.create({
-      data: { name: body.orgName, apiKey },
+      data: {
+        name: body.orgName,
+        apiKey,
+        referralCode: newReferralCode,
+        referredByCode: referringOrg?.referralCode ?? null,
+      },
     });
     const user = await tx.user.create({
       data: {
@@ -121,6 +188,16 @@ router.post('/register', async (req: Request, res: Response) => {
         organizationId: organization.id,
       },
     });
+    if (referringOrg) {
+      await tx.referralConversion.create({
+        data: {
+          referringOrgId: referringOrg.id,
+          referredOrgId:  organization.id,
+          referralCode:   referringOrg.referralCode,
+          status:         'pending',
+        },
+      });
+    }
     return { user, organization };
   });
 
@@ -204,6 +281,12 @@ router.post('/login', async (req: Request, res: Response) => {
 
 // --- POST /api/v1/auth/magic-link/send --------------------------------------
 router.post('/magic-link/send', async (req: Request, res: Response) => {
+  const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? req.socket.remoteAddress ?? 'unknown';
+  if (!(await checkMagicSendRateLimit(ip))) {
+    res.status(429).json({ error: 'Too many magic link requests. Please try again later.' });
+    return;
+  }
+
   const { email } = MagicLinkSendSchema.parse(req.body);
 
   const user = await prisma.user.findUnique({ where: { email } });
@@ -224,6 +307,12 @@ router.post('/magic-link/send', async (req: Request, res: Response) => {
 
 // --- GET /api/v1/auth/magic-link/verify -------------------------------------
 router.get('/magic-link/verify', async (req: Request, res: Response) => {
+  const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? req.socket.remoteAddress ?? 'unknown';
+  if (!(await checkMagicVerifyRateLimit(ip))) {
+    res.status(429).json({ error: 'Too many verification attempts. Please try again later.' });
+    return;
+  }
+
   const tokenStr = req.query.token as string;
   if (!tokenStr) {
     res.status(400).json({ error: 'Token required' });
