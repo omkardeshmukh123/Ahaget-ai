@@ -848,3 +848,22 @@ model BrandingConfig {
 
   @@map("branding_configs")
 }
+
+// ─── McpPendingJob — async MCP tool call state (pivot1 Month 2) ──────────────
+// Stores conversation context while BullMQ worker executes the MCP call.
+// Status: pending → complete | error
+model McpPendingJob {
+  id         String   @id @default(uuid())
+  orgId      String   @map("org_id")
+  sessionId  String?  @map("session_id")
+  status     String   @default("pending") // pending | complete | error
+  mcpResult  Json?    @map("mcp_result")
+  context    Json                          // systemPrompt, messages, toolsForStep, model, call
+  error      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([orgId, status])
+  @@index([createdAt])
+  @@map("mcp_pending_jobs")
+}
