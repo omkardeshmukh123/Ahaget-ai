@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../utils/prisma';
 import { generateApiKey } from '../utils/apiKey';
-import { authenticateJWT } from '../middleware/auth';
+import { authenticateJWT, invalidateApiKeyCache } from '../middleware/auth';
 import { verifyToken } from '../utils/jwt';
 import { AuthenticatedRequest } from '../types';
 
@@ -188,12 +188,20 @@ router.post('/rotate-key', authenticateJWT, async (req: AuthenticatedRequest, re
     return;
   }
 
+  const current = await prisma.organization.findUniqueOrThrow({
+    where: { id: organizationId },
+    select: { apiKey: true },
+  });
+
   const newKey = generateApiKey();
   const org = await prisma.organization.update({
     where: { id: organizationId },
     data: { apiKey: newKey },
     select: { apiKey: true },
   });
+
+  // Evict old key from cache so it stops working immediately
+  await invalidateApiKeyCache(current.apiKey);
 
   res.json({ apiKey: org.apiKey });
 });

@@ -2,8 +2,12 @@ import { Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt';
 import { prisma } from '../utils/prisma';
 import { AuthenticatedRequest } from '../types';
+import { getRedis } from '../utils/redis';
 
-// Used by the JS widget — validates X-API-Key header
+const API_KEY_CACHE_TTL = 60; // seconds
+const cacheKey = (k: string) => `org:apikey:${k}`;
+
+// Used by the JS widget â€” validates X-API-Key header
 export async function authenticateApiKey(
   req: AuthenticatedRequest,
   res: Response,
@@ -16,6 +20,21 @@ export async function authenticateApiKey(
     return;
   }
 
+  // Check Redis cache first to avoid a DB round-trip on every widget request
+  const redis = getRedis();
+  if (redis) {
+    try {
+      const cached = await redis.get<string>(cacheKey(apiKey));
+      if (cached) {
+        req.organization = JSON.parse(cached);
+        next();
+        return;
+      }
+    } catch {
+      // Cache miss or error â€” fall through to DB
+    }
+  }
+
   const org = await prisma.organization.findUnique({ where: { apiKey } });
 
   if (!org) {
@@ -23,11 +42,31 @@ export async function authenticateApiKey(
     return;
   }
 
+  // Populate cache for subsequent requests
+  if (redis) {
+    try {
+      await redis.set(cacheKey(apiKey), JSON.stringify(org), { ex: API_KEY_CACHE_TTL });
+    } catch {
+      // non-fatal
+    }
+  }
+
   req.organization = org;
   next();
 }
 
-// Used by the admin dashboard — validates Authorization: Bearer <JWT>
+/** Call after rotating an org's API key so the old key is evicted immediately. */
+export async function invalidateApiKeyCache(oldApiKey: string): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  try {
+    await redis.del(cacheKey(oldApiKey));
+  } catch {
+    // non-fatal
+  }
+}
+
+// Used by the admin dashboard ï¿½ validates Authorization: Bearer <JWT>
 export function authenticateJWT(
   req: AuthenticatedRequest,
   res: Response,
