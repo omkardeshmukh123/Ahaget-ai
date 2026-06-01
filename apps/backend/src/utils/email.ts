@@ -165,6 +165,60 @@ export async function sendWelcomeEmail(params: {
   });
 }
 
+export async function sendInviteEmail(params: {
+  to: string;
+  inviterName: string;
+  orgName: string;
+  inviteUrl: string;
+}) {
+  if (!resend) {
+    console.warn('[email] RESEND_API_KEY not set — skipping invite email');
+    console.info(`[email] Invite link (dev): ${params.inviteUrl}`);
+    return;
+  }
+
+  await resend.emails.send({
+    from: FROM,
+    to: params.to,
+    subject: `${params.inviterName} invited you to join ${params.orgName} on Ahaget`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+        <tr>
+          <td style="background:#6366f1;padding:28px 40px;">
+            <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">Ahaget</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:36px 40px;">
+            <p style="margin:0 0 8px;color:#1e293b;font-size:16px;font-weight:600;">You've been invited!</p>
+            <p style="margin:0 0 28px;color:#475569;font-size:15px;line-height:1.6;">
+              <strong>${params.inviterName}</strong> has invited you to join
+              <strong>${params.orgName}</strong> on Ahaget.
+              Click the button below to accept the invitation and set up your account.
+              This link expires in 7 days.
+            </p>
+            <a href="${params.inviteUrl}" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+              Accept invitation →
+            </a>
+            <p style="margin:24px 0 0;color:#94a3b8;font-size:12px;">
+              If you didn't expect this invitation, you can safely ignore this email.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  });
+}
+
 export async function sendContactEmail(params: {
   name: string;
   email: string;

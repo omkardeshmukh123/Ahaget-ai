@@ -58,6 +58,7 @@ model Organization {
   brandingConfig        BrandingConfig?
   contextSources        ContextSource[]
   mcpCallLogs           McpCallLog[]
+  teamInvites           TeamInvite[]
 
   @@map("organizations")
 }
@@ -77,6 +78,23 @@ model User {
 
   @@index([organizationId])
   @@map("users")
+}
+
+// ─── TeamInvite — pending invitations to join an organization ──────────────
+model TeamInvite {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  email          String
+  token          String    @unique
+  role           String    @default("member")
+  expiresAt      DateTime  @map("expires_at")
+  acceptedAt     DateTime? @map("accepted_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("team_invites")
 }
 
 // ─── EndUser (the actual user of the customer's SaaS product) ──────────────

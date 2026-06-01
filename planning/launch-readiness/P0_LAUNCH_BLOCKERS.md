@@ -18,7 +18,7 @@ Ahaget is "launch ready" when:
 - [ ] Prompt injection guardrail in agent context
 - [ ] Untracked Prisma migrations committed
 - [ ] Graceful shutdown handler installed
-- [ ] Team invite flow functional
+- [x] Team invite flow functional
 - [ ] Stub features hidden from sidebar
 
 ---
@@ -348,7 +348,7 @@ Dashboard:
 
 **Acceptance Criteria:**
 - Owner invites teammate@company.com → they receive email → click → set password → see dashboard
-**Status:** [ ] Not Started
+**Status:** [x] Done
 
 ---
 
@@ -387,7 +387,7 @@ Remove these items from Sidebar.tsx (or add `comingSoon: true` flag that shows a
 - [x] SSRF protection on webhooks
 - [x] Prompt injection guardrail
 - [x] Graceful shutdown
-- [ ] Team invite flow
+- [x] Team invite flow
 - [x] Stubs hidden from sidebar
 
 **Estimated total effort:** 25–30 hours of focused engineering work.

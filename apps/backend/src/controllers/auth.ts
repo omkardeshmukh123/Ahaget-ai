@@ -5,7 +5,9 @@ import crypto from 'crypto';
 import { prisma } from '../utils/prisma';
 import { signToken } from '../utils/jwt';
 import { generateApiKey } from '../utils/apiKey';
-import { sendWelcomeEmail, sendMagicLinkEmail } from '../utils/email';
+import { sendWelcomeEmail, sendMagicLinkEmail, sendInviteEmail } from '../utils/email';
+import { authenticateJWT } from '../middleware/auth';
+import { AuthenticatedRequest } from '../types';
 import { redisSet, redisGet, redisDel, redisIncr, isRedisConfigured } from '../utils/redis';
 
 const router = Router();
@@ -80,6 +82,17 @@ const LoginSchema = z.object({
 
 const MagicLinkSendSchema = z.object({
   email: z.string().email(),
+});
+
+const InviteSchema = z.object({
+  email: z.string().email(),
+  role: z.enum(['member', 'admin']).optional().default('member'),
+});
+
+const AcceptInviteSchema = z.object({
+  token: z.string().min(1),
+  name: z.string().min(1, 'Name is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 // --- POST /api/v1/auth/register ---------------------------------------------
@@ -253,6 +266,195 @@ router.get('/magic-link/verify', async (req: Request, res: Response) => {
       onboardingStep: user.organization.onboardingStep,
     },
   });
+});
+
+const INVITE_TTL_DAYS = 7;
+
+// --- POST /api/v1/auth/invite -----------------------------------------------
+router.post('/invite', authenticateJWT, async (req: AuthenticatedRequest, res) => {
+  const { userId, organizationId, role: callerRole } = req.user!;
+  if (callerRole !== 'owner' && callerRole !== 'admin') {
+    res.status(403).json({ error: 'Only owners and admins can invite team members' });
+    return;
+  }
+
+  const body = InviteSchema.parse(req.body);
+
+  const existing = await prisma.user.findUnique({ where: { email: body.email } });
+  if (existing && existing.organizationId === organizationId) {
+    res.status(409).json({ error: 'This email is already a member of your workspace' });
+    return;
+  }
+
+  // Revoke any existing pending invite for this email+org
+  await prisma.teamInvite.deleteMany({
+    where: { organizationId, email: body.email, acceptedAt: null },
+  });
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
+
+  await prisma.teamInvite.create({
+    data: { organizationId, email: body.email, token, role: body.role, expiresAt },
+  });
+
+  const inviter = await prisma.user.findUnique({ where: { id: userId } });
+  const org = await prisma.organization.findUnique({ where: { id: organizationId } });
+  const DASHBOARD_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+  const inviteUrl = `${DASHBOARD_URL}/auth/accept-invite/${token}`;
+
+  sendInviteEmail({
+    to: body.email,
+    inviterName: inviter?.name ?? inviter?.email ?? 'A teammate',
+    orgName: org?.name ?? 'your team',
+    inviteUrl,
+  }).catch((err) => console.error('[email] invite email failed:', err));
+
+  res.json({ sent: true });
+});
+
+// --- GET /api/v1/auth/invite/:token -----------------------------------------
+router.get('/invite/:token', async (req, res) => {
+  const invite = await prisma.teamInvite.findUnique({
+    where: { token: req.params.token },
+    include: { organization: { select: { name: true } } },
+  });
+
+  if (!invite || invite.acceptedAt || invite.expiresAt < new Date()) {
+    res.status(404).json({ error: 'Invalid or expired invitation' });
+    return;
+  }
+
+  res.json({ email: invite.email, orgName: invite.organization.name, role: invite.role });
+});
+
+// --- POST /api/v1/auth/accept-invite ----------------------------------------
+router.post('/accept-invite', async (req, res) => {
+  const body = AcceptInviteSchema.parse(req.body);
+
+  const invite = await prisma.teamInvite.findUnique({
+    where: { token: body.token },
+    include: { organization: true },
+  });
+
+  if (!invite || invite.acceptedAt || invite.expiresAt < new Date()) {
+    res.status(400).json({ error: 'Invalid or expired invitation' });
+    return;
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email: invite.email } });
+  if (existing) {
+    res.status(409).json({ error: 'An account with this email already exists. Please log in.' });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(body.password, 12);
+
+  const user = await prisma.$transaction(async (tx) => {
+    const newUser = await tx.user.create({
+      data: {
+        email: invite.email,
+        name: body.name,
+        passwordHash,
+        role: invite.role,
+        organizationId: invite.organizationId,
+      },
+    });
+    await tx.teamInvite.update({
+      where: { id: invite.id },
+      data: { acceptedAt: new Date() },
+    });
+    return newUser;
+  });
+
+  const jwtToken = signToken({
+    userId: user.id,
+    organizationId: user.organizationId,
+    role: user.role,
+  });
+
+  res.status(201).json({
+    token: jwtToken,
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    organization: {
+      id: invite.organization.id,
+      name: invite.organization.name,
+      apiKey: invite.organization.apiKey,
+      planType: invite.organization.planType,
+      onboardingComplete: invite.organization.onboardingComplete,
+      onboardingStep: invite.organization.onboardingStep,
+    },
+  });
+});
+
+// --- GET /api/v1/auth/team --------------------------------------------------
+router.get('/team', authenticateJWT, async (req: AuthenticatedRequest, res) => {
+  const { organizationId } = req.user!;
+
+  const [members, pendingInvites] = await Promise.all([
+    prisma.user.findMany({
+      where: { organizationId },
+      select: { id: true, email: true, name: true, role: true, createdAt: true, lastLoginAt: true },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.teamInvite.findMany({
+      where: { organizationId, acceptedAt: null, expiresAt: { gt: new Date() } },
+      select: { id: true, email: true, role: true, createdAt: true, expiresAt: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
+
+  res.json({ members, pendingInvites });
+});
+
+// --- DELETE /api/v1/auth/team/:userId ----------------------------------------
+router.delete('/team/:userId', authenticateJWT, async (req: AuthenticatedRequest, res) => {
+  const { userId: callerId, organizationId, role: callerRole } = req.user!;
+
+  if (callerRole !== 'owner' && callerRole !== 'admin') {
+    res.status(403).json({ error: 'Only owners and admins can remove team members' });
+    return;
+  }
+
+  const { userId } = req.params;
+
+  if (userId === callerId) {
+    res.status(400).json({ error: 'You cannot remove yourself' });
+    return;
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target || target.organizationId !== organizationId) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+
+  if (target.role === 'owner' && callerRole !== 'owner') {
+    res.status(403).json({ error: 'Only the owner can remove another owner' });
+    return;
+  }
+
+  await prisma.user.delete({ where: { id: userId } });
+  res.json({ removed: true });
+});
+
+// --- DELETE /api/v1/auth/invite/:inviteId ------------------------------------
+router.delete('/invite/:inviteId', authenticateJWT, async (req: AuthenticatedRequest, res) => {
+  const { organizationId, role: callerRole } = req.user!;
+
+  if (callerRole !== 'owner' && callerRole !== 'admin') {
+    res.status(403).json({ error: 'Only owners and admins can revoke invitations' });
+    return;
+  }
+
+  const invite = await prisma.teamInvite.findUnique({ where: { id: req.params.inviteId } });
+  if (!invite || invite.organizationId !== organizationId) {
+    res.status(404).json({ error: 'Invitation not found' });
+    return;
+  }
+
+  await prisma.teamInvite.delete({ where: { id: req.params.inviteId } });
+  res.json({ revoked: true });
 });
 
 export default router;

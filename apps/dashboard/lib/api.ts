@@ -81,6 +81,30 @@ export const api = {
       ),
   },
 
+  team: {
+    list: () => apiFetch<{ members: TeamMember[]; pendingInvites: PendingInvite[] }>('/api/v1/auth/team'),
+    invite: (email: string, role: 'member' | 'admin' = 'member') =>
+      apiFetch<{ sent: boolean }>('/api/v1/auth/invite', {
+        method: 'POST',
+        body: JSON.stringify({ email, role }),
+      }),
+    getInvite: (token: string) =>
+      apiFetch<{ email: string; orgName: string; role: string }>(
+        `/api/v1/auth/invite/${encodeURIComponent(token)}`,
+        { auth: false },
+      ),
+    acceptInvite: (token: string, name: string, password: string) =>
+      apiFetch<{ token: string; user: User; organization: Org }>('/api/v1/auth/accept-invite', {
+        method: 'POST',
+        body: JSON.stringify({ token, name, password }),
+        auth: false,
+      }),
+    removeUser: (userId: string) =>
+      apiFetch<{ removed: boolean }>(`/api/v1/auth/team/${userId}`, { method: 'DELETE' }),
+    revokeInvite: (inviteId: string) =>
+      apiFetch<{ revoked: boolean }>(`/api/v1/auth/invite/${inviteId}`, { method: 'DELETE' }),
+  },
+
   conversations: {
     list: (params?: { limit?: number; offset?: number }) => {
       const q = new URLSearchParams({ limit: String(params?.limit ?? 20), offset: String(params?.offset ?? 0) });
@@ -647,6 +671,23 @@ export interface User {
   email: string;
   name: string | null;
   role: string;
+}
+
+export interface TeamMember {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+export interface PendingInvite {
+  id: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  expiresAt: string;
 }
 
 export interface Org {

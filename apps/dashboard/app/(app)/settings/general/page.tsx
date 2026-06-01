@@ -1,12 +1,12 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { api } from '@/lib/api';
+import { api, TeamMember, PendingInvite } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 
 type Tab = 'general' | 'hosts' | 'members' | 'advanced';
 
 export default function SettingsGeneralPage() {
-  const { org } = useAuthStore();
+  const { org, user } = useAuthStore();
   const [tab, setTab] = useState<Tab>('general');
   const [name, setName] = useState(org?.name ?? '');
   const [description, setDescription] = useState('');
@@ -14,12 +14,71 @@ export default function SettingsGeneralPage() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
 
+  // Team tab state
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'member' | 'admin'>('member');
+  const [inviteSending, setInviteSending] = useState(false);
+
   useEffect(() => {
     api.config.get().then((r) => {
       setDescription(r.customInstructions ?? '');
       setName(r.name ?? '');
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (tab !== 'members') return;
+    setTeamLoading(true);
+    api.team.list()
+      .then((r) => { setMembers(r.members); setPendingInvites(r.pendingInvites); })
+      .catch(() => {})
+      .finally(() => setTeamLoading(false));
+  }, [tab]);
+
+  const handleInvite = async () => {
+    if (!inviteEmail) return;
+    setInviteSending(true);
+    try {
+      await api.team.invite(inviteEmail, inviteRole);
+      showToast(`Invitation sent to ${inviteEmail}`);
+      setInviteEmail('');
+      setShowInviteModal(false);
+      // refresh pending invites
+      api.team.list().then((r) => { setMembers(r.members); setPendingInvites(r.pendingInvites); }).catch(() => {});
+    } catch (e: unknown) {
+      showToast((e as Error).message ?? 'Failed to send invitation');
+    } finally {
+      setInviteSending(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string, email: string) => {
+    if (!confirm(`Remove ${email} from the workspace?`)) return;
+    try {
+      await api.team.removeUser(userId);
+      setMembers((prev) => prev.filter((m) => m.id !== userId));
+      showToast('Member removed');
+    } catch (e: unknown) {
+      showToast((e as Error).message ?? 'Failed to remove member');
+    }
+  };
+
+  const handleRevokeInvite = async (inviteId: string, email: string) => {
+    if (!confirm(`Revoke invitation for ${email}?`)) return;
+    try {
+      await api.team.revokeInvite(inviteId);
+      setPendingInvites((prev) => prev.filter((i) => i.id !== inviteId));
+      showToast('Invitation revoked');
+    } catch (e: unknown) {
+      showToast((e as Error).message ?? 'Failed to revoke invitation');
+    }
+  };
+
+  const isOwnerOrAdmin = user?.role === 'owner' || user?.role === 'admin';
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -162,23 +221,141 @@ export default function SettingsGeneralPage() {
       )}
 
       {tab === 'members' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-semibold text-slate-700">Team members</p>
-            <button className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">+ Invite member</button>
-          </div>
-          <div className="divide-y divide-slate-100">
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-sm font-bold">
-                  {org?.name?.[0]?.toUpperCase() ?? '?'}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-800">{org?.name}</p>
-                  <p className="text-xs text-slate-400">Owner</p>
-                </div>
+        <div className="space-y-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold text-slate-700">Team members</p>
+              {isOwnerOrAdmin && (
+                <button
+                  id="btn-invite-member"
+                  onClick={() => setShowInviteModal(true)}
+                  className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold"
+                >
+                  + Invite member
+                </button>
+              )}
+            </div>
+
+            {teamLoading ? (
+              <p className="text-sm text-slate-400 py-4 text-center">Loading…</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {members.map((m) => (
+                  <div key={m.id} className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-sm font-bold select-none">
+                        {(m.name ?? m.email)[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{m.name ?? m.email}</p>
+                        {m.name && <p className="text-xs text-slate-400">{m.email}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                        m.role === 'owner' ? 'bg-indigo-50 text-indigo-700' :
+                        m.role === 'admin' ? 'bg-amber-50 text-amber-700' :
+                        'bg-slate-100 text-slate-500'
+                      }`}>{m.role}</span>
+                      {isOwnerOrAdmin && m.id !== user?.id && m.role !== 'owner' && (
+                        <button
+                          onClick={() => handleRemoveMember(m.id, m.email)}
+                          className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">Owner</span>
+            )}
+          </div>
+
+          {pendingInvites.length > 0 && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-5">
+              <p className="text-sm font-semibold text-slate-700 mb-3">Pending invitations</p>
+              <div className="divide-y divide-slate-100">
+                {pendingInvites.map((inv) => (
+                  <div key={inv.id} className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-sm font-bold select-none">
+                        {inv.email[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-600">{inv.email}</p>
+                        <p className="text-xs text-slate-400">
+                          Expires {new Date(inv.expiresAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-yellow-50 text-yellow-700 px-2.5 py-1 rounded-full font-medium">Pending</span>
+                      {isOwnerOrAdmin && (
+                        <button
+                          onClick={() => handleRevokeInvite(inv.id, inv.email)}
+                          className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                        >
+                          Revoke
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Invite modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <h2 className="text-lg font-bold text-slate-900 mb-1">Invite a teammate</h2>
+            <p className="text-sm text-slate-500 mb-5">They'll receive an email with a link to set up their account.</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email address</label>
+                <input
+                  id="input-invite-email"
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
+                  placeholder="teammate@company.com"
+                  autoFocus
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Role</label>
+                <select
+                  id="select-invite-role"
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as 'member' | 'admin')}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 bg-white"
+                >
+                  <option value="member">Member — view & use dashboard</option>
+                  <option value="admin">Admin — can also manage settings & invite</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                id="btn-send-invite"
+                onClick={handleInvite}
+                disabled={inviteSending || !inviteEmail}
+                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
+              >
+                {inviteSending ? 'Sending…' : 'Send invitation'}
+              </button>
+              <button
+                onClick={() => { setShowInviteModal(false); setInviteEmail(''); }}
+                className="px-5 py-2.5 border border-slate-200 text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
