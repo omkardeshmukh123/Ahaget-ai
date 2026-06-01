@@ -1,7 +1,7 @@
 // --- Users routes (JWT-protected, dashboard only) ----------------------------
 //
-// GET /api/v1/users                    — paginated list of all end users
-// GET /api/v1/users/:userId/history    — full session history for one user
+// GET /api/v1/users                    ï¿½ paginated list of all end users
+// GET /api/v1/users/:userId/history    ï¿½ full session history for one user
 
 import { Router, Response } from 'express';
 import { prisma } from '../utils/prisma';
@@ -126,6 +126,40 @@ router.get('/:userId/history', async (req: AuthenticatedRequest, res: Response) 
     totalSessions: sessions.length,
     completedSessions: sessions.filter((s) => s.status === 'completed').length,
   });
+});
+
+// --- DELETE /api/v1/users/:userId (GDPR Article 17 â€” right to erasure) -------
+// Permanently deletes an end-user and all their data: sessions, messages,
+// step progress, escalation tickets, proactive messages, and memory entries.
+// Cascades are defined at the DB level (onDelete: Cascade on all EndUser FKs).
+router.delete('/:userId', async (req: AuthenticatedRequest, res: Response) => {
+  const { organizationId } = req.user!;
+
+  const endUser = await prisma.endUser.findFirst({
+    where: { id: req.params.userId, organizationId },
+    select: { id: true, externalId: true },
+  });
+
+  if (!endUser) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+
+  await prisma.$transaction([
+    // Audit the deletion before it happens
+    prisma.auditLog.create({
+      data: {
+        organizationId,
+        endUserId: endUser.id,
+        actionType: 'gdpr.delete_user',
+        payload: { externalId: endUser.externalId, requestedBy: req.user!.userId },
+      },
+    }),
+    // Hard delete â€” all child rows cascade
+    prisma.endUser.delete({ where: { id: endUser.id } }),
+  ]);
+
+  res.status(204).send();
 });
 
 export default router;
