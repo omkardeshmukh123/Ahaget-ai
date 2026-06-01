@@ -869,6 +869,99 @@ export function injectStyles(branding: WidgetBranding) {
       line-height: 1.4;
     }
 
+    /* ── Execution steps card (collapsible + live timer) ──────────────────── */
+    .oai-exec-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      align-self: stretch;
+      animation: oai-msg-in 0.22s ease both;
+      margin: 4px 0;
+    }
+    .oai-exec-header {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      width: 100%;
+      padding: 10px 12px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.12s;
+      font-family: inherit;
+    }
+    .oai-exec-header:hover { background: #f8fafc; }
+    .oai-exec-chevron {
+      display: flex;
+      align-items: center;
+      color: #64748b;
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
+    }
+    .oai-exec-chevron svg { width: 13px; height: 13px; }
+    .oai-exec-chevron.oai-exec-open { transform: rotate(0deg); }
+    .oai-exec-chevron:not(.oai-exec-open) { transform: rotate(-90deg); }
+    .oai-exec-header-label {
+      flex: 1;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .oai-exec-timer {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #94a3b8;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    .oai-exec-timer svg { width: 12px; height: 12px; }
+    .oai-exec-list {
+      padding: 2px 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .oai-exec-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .oai-exec-step:last-child { border-bottom: none; }
+    .oai-exec-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+    }
+    .oai-exec-icon svg { width: 18px; height: 18px; }
+    .oai-exec-pending svg  { stroke: #cbd5e1; }
+    .oai-exec-doing svg    { stroke: ${primaryColor}; }
+    .oai-exec-done svg     { stroke: #22c55e; }
+    .oai-exec-label {
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.4;
+      flex: 1;
+    }
+    .oai-exec-step-done .oai-exec-label {
+      color: #94a3b8;
+      text-decoration: line-through;
+    }
+    @keyframes oai-exec-spin {
+      to { stroke-dashoffset: -56; }
+    }
+    .oai-exec-spin {
+      animation: oai-exec-spin 0.9s linear infinite;
+    }
+
+
     /* ── Proactive contextual suggestion card (Tandem-style) ──────────────── */
     .oai-suggest-card {
       position: fixed;

@@ -270,30 +270,141 @@ export function updatePlanPhase(phaseId: string, status: 'active' | 'done') {
   }
 }
 
-// -- Steps card (numbered list response) ---------------------------------------
+// -- Execution steps card (collapsible, live-ticking, with elapsed timer) -------
+// Matches the Tandem "Show N steps ⏱ 4s" card that appears when the agent
+// starts executing a multi-step task on the page.
+export interface ExecStep {
+  id: string;
+  label: string;
+  status: 'pending' | 'doing' | 'done';
+}
+
+let _execCardTimer: ReturnType<typeof setInterval> | null = null;
+
 export function addStepsCard(messagesEl: HTMLElement, steps: StepsResponse): HTMLDivElement {
+  // Convert simple StepsResponse into ExecStep array
+  const execSteps: ExecStep[] = steps.items.map((label, i) => ({
+    id: `exec-${Date.now()}-${i}`,
+    label,
+    status: 'pending',
+  }));
+  return addExecStepsCard(messagesEl, steps.title, execSteps);
+}
+
+export function addExecStepsCard(
+  messagesEl: HTMLElement,
+  title: string,
+  steps: ExecStep[]
+): HTMLDivElement {
+  // Stop any previous timer
+  if (_execCardTimer) { clearInterval(_execCardTimer); _execCardTimer = null; }
+
   const card = document.createElement('div');
-  card.className = 'oai-msg-ai';
+  card.className = 'oai-exec-card';
 
-  const title = document.createElement('div');
-  title.style.cssText = 'font-weight:600;margin-bottom:8px;font-size:13px;';
-  title.textContent = steps.title;
-  card.appendChild(title);
+  // ── Collapsed header row ─────────────────────────────────────────────────
+  const headerBtn = document.createElement('button');
+  headerBtn.className = 'oai-exec-header';
 
-  const ol = document.createElement('ol');
-  ol.style.cssText = 'margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;';
-  steps.items.forEach((item) => {
-    const li = document.createElement('li');
-    li.style.cssText = 'font-size:12px;color:#475569;line-height:1.45;';
-    li.textContent = item;
-    ol.appendChild(li);
+  const chevron = document.createElement('span');
+  chevron.className = 'oai-exec-chevron oai-exec-open';
+  chevron.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>`;
+
+  const headerLabel = document.createElement('span');
+  headerLabel.className = 'oai-exec-header-label';
+  headerLabel.textContent = `${title} · ${steps.length} steps`;
+
+  const timerEl = document.createElement('span');
+  timerEl.className = 'oai-exec-timer';
+  timerEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="oai-exec-secs">0s</span>`;
+
+  headerBtn.appendChild(chevron);
+  headerBtn.appendChild(headerLabel);
+  headerBtn.appendChild(timerEl);
+  card.appendChild(headerBtn);
+
+  // ── Steps list ───────────────────────────────────────────────────────────
+  const list = document.createElement('div');
+  list.className = 'oai-exec-list';
+
+  const stepEls: HTMLDivElement[] = steps.map((step) => {
+    const row = document.createElement('div');
+    row.className = 'oai-exec-step';
+    row.id = `oai-exec-step-${step.id}`;
+
+    const icon = document.createElement('span');
+    icon.className = 'oai-exec-icon oai-exec-pending';
+    icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/></svg>`;
+
+    const lbl = document.createElement('span');
+    lbl.className = 'oai-exec-label';
+    lbl.textContent = step.label;
+
+    row.appendChild(icon);
+    row.appendChild(lbl);
+    list.appendChild(row);
+    return row;
   });
-  card.appendChild(ol);
 
+  card.appendChild(list);
   messagesEl.appendChild(card);
   messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  // ── Collapse/expand toggle ────────────────────────────────────────────────
+  let open = true;
+  headerBtn.addEventListener('click', () => {
+    open = !open;
+    list.style.display = open ? '' : 'none';
+    chevron.classList.toggle('oai-exec-open', open);
+  });
+
+  // ── Elapsed timer ─────────────────────────────────────────────────────────
+  const startMs = Date.now();
+  const secsEl = card.querySelector<HTMLElement>('.oai-exec-secs');
+  _execCardTimer = setInterval(() => {
+    const elapsed = Math.round((Date.now() - startMs) / 1000);
+    if (secsEl) secsEl.textContent = `${elapsed}s`;
+  }, 1000);
+
   return card;
 }
+
+/** Tick a step to done (✓) or doing (spinner) by its index in the most recent exec card */
+export function tickExecStep(
+  cardEl: HTMLDivElement,
+  stepIndex: number,
+  status: 'doing' | 'done'
+) {
+  const steps = cardEl.querySelectorAll<HTMLDivElement>('.oai-exec-step');
+  const row = steps[stepIndex];
+  if (!row) return;
+  const icon = row.querySelector<HTMLElement>('.oai-exec-icon');
+  if (!icon) return;
+
+  icon.className = `oai-exec-icon oai-exec-${status}`;
+
+  if (status === 'done') {
+    icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-5"/></svg>`;
+    row.classList.add('oai-exec-step-done');
+    // Update header label with done count
+    const headerLabel = cardEl.querySelector<HTMLElement>('.oai-exec-header-label');
+    if (headerLabel) {
+      const total = steps.length;
+      const done  = cardEl.querySelectorAll('.oai-exec-step-done').length;
+      if (done === total) {
+        // All done — stop timer
+        if (_execCardTimer) { clearInterval(_execCardTimer); _execCardTimer = null; }
+        headerLabel.textContent = `Done · ${total} steps`;
+      } else {
+        headerLabel.textContent = `${done} of ${total} done`;
+      }
+    }
+  } else {
+    // doing — show spinning ring
+    icon.innerHTML = `<svg class="oai-exec-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-dasharray="28 56" stroke-dashoffset="0"/></svg>`;
+  }
+}
+
 
 // -- Numbered choice card (Tandem-style intake) ---------------------------------
 // Renders a paginated card with numbered options, a write-in row, and Skip.

@@ -16,6 +16,8 @@ import {
   addChips, addChoiceCard, addActionToast, addCelebration, addStepPill,
   renderStepProgress, createStreamingBubble,
   renderPlanChecklist, updatePlanPhase, PlanPhase,
+  addProactiveSuggestionCard,
+  addExecStepsCard, tickExecStep, ExecStep,
 } from '../views/ui';
 
 export class AhagetWidget {
@@ -40,6 +42,10 @@ export class AhagetWidget {
   private planActive = false;
   private planPhases: PlanPhase[] = [];
   private planCurrentPhaseIdx = 0;
+
+  // ─── Exec steps card state ────────────────────────────────────────────────
+  private execCard: HTMLDivElement | null = null;
+  private execStepIdx = 0;
 
   // DOM refs
   private messagesEl!: HTMLElement;
@@ -175,62 +181,73 @@ export class AhagetWidget {
     // on the FAB bubble to draw attention even if the panel hasn't opened yet.
     fetchPendingProactiveMessage(apiOpts, userId).then((msg) => {
       if (!msg) return;
-      this.showProactiveBadge(msg.id, msg.bodySnippet ?? msg.subject ?? 'Your AI employee has a message for you', apiOpts);
+      this.showProactiveSuggestionCard(
+        msg.id,
+        msg.bodySnippet ?? msg.subject ?? 'Your AI employee has a message for you',
+        apiOpts
+      );
     }).catch(() => {/* silent */});
   }
 
-  /** Render a pulsing notification badge on the FAB + a dismissable preview tooltip */
-  private showProactiveBadge(
+  /**
+   * Show a rich dark proactive suggestion card (Tandem-style).
+   * Reads the current page's semantic content to personalise the headline and
+   * body, then wires "Start now" to open the panel and fire the suggestion
+   * as a goal message so the agent immediately acts on it.
+   */
+  private showProactiveSuggestionCard(
     messageId: string,
     preview: string,
     apiOpts: { apiKey: string; apiUrl: string }
   ): void {
-    // Mark as opened immediately (user sees the badge)
     markProactiveMessage(apiOpts, messageId, 'open');
 
-    const fab = document.getElementById('oai-fab');
-    if (!fab) return;
+    // Defer until DOM is fully settled (page may still be rendering on load)
+    setTimeout(() => {
+      const agentName = this.copilot.getAgentName();
+      const initial   = agentName.charAt(0).toUpperCase();
 
-    // Pulsing red dot
-    const dot = document.createElement('span');
-    dot.id = 'oai-proactive-dot';
-    dot.style.cssText = `
-      position: absolute; top: -4px; right: -4px;
-      width: 12px; height: 12px; border-radius: 50%;
-      background: #ef4444; border: 2px solid white;
-      animation: oai-pulse 1.6s ease-in-out infinite;
-      z-index: 9999;
-    `;
-    fab.style.position = 'relative';
-    fab.appendChild(dot);
+      // Extract a short action phrase from the live DOM
+      const pageClue = (() => {
+        const h1 = document.querySelector('h1')?.textContent?.trim();
+        if (h1 && h1.length < 60) return h1;
+        const h2 = document.querySelector('h2')?.textContent?.trim();
+        if (h2 && h2.length < 60) return h2;
+        return document.title?.split(/[-|–]/)[0]?.trim() ?? 'this page';
+      })();
 
-    // Tooltip preview
-    const tooltip = document.createElement('div');
-    tooltip.id = 'oai-proactive-tooltip';
-    tooltip.style.cssText = `
-      position: fixed; bottom: 80px; right: 20px;
-      background: #1e293b; color: #f1f5f9;
-      padding: 10px 14px; border-radius: 10px;
-      font-size: 13px; max-width: 260px; line-height: 1.5;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-      z-index: 9998; cursor: pointer;
-      border: 1px solid rgba(255,255,255,0.08);
-    `;
-    tooltip.textContent = `💬 ${preview.length > 80 ? preview.slice(0, 80) + '…' : preview}`;
-    document.body.appendChild(tooltip);
+      // Use the backend preview if rich enough, otherwise generate from page context
+      const isRichPreview = preview && preview.length > 30;
+      const headline = isRichPreview
+        ? preview.split('.')[0].replace(/^[\W]+/, '').trim()
+        : `Take the next step on ${pageClue}`;
+      const body = isRichPreview
+        ? preview
+        : `I noticed you're working on **${pageClue}**. I can guide you through the next action automatically — no manual steps needed.`;
 
-    // Click tooltip → open panel + mark clicked
-    tooltip.addEventListener('click', () => {
-      markProactiveMessage(apiOpts, messageId, 'click');
-      tooltip.remove();
-      dot.remove();
-      this.openPanel();
-    });
-
-    // Auto-dismiss tooltip after 8s (badge stays)
-    setTimeout(() => tooltip.remove(), 8000);
+      addProactiveSuggestionCard({
+        agentName,
+        agentInitial: initial,
+        gradFrom: this.config.gradFrom ?? this.config.primaryColor,
+        gradTo:   this.config.gradTo   ?? this.config.primaryColor,
+        headline,
+        body,
+        ctaLabel: 'Start now',
+        onStart: () => {
+          markProactiveMessage(apiOpts, messageId, 'click');
+          this.openPanel();
+          // Give the panel 400ms to animate in, then fire the suggestion as a goal
+          setTimeout(() => {
+            this.inputEl.value = headline;
+            this.submitMessage();
+          }, 400);
+        },
+        onDismiss: () => {
+          // Nothing extra — card removes itself
+        },
+      });
+    }, 1500); // 1.5s: enough for SPA route to finish rendering
   }
-
 
   // ─── Progress bar ────────────────────────────────────────────────────────
 
@@ -703,8 +720,15 @@ export class AhagetWidget {
 
       case 'execute_page_action': {
         this.copilot.executePageAction(action);
+        // Tick the current exec step to 'doing', then 'done' after the action settles
+        if (this.execCard) {
+          tickExecStep(this.execCard, this.execStepIdx, 'doing');
+          setTimeout(() => {
+            if (this.execCard) tickExecStep(this.execCard, this.execStepIdx, 'done');
+            this.execStepIdx++;
+          }, 1400);
+        }
         addActionToast(this.messagesEl, action.message);
-        // If agent flagged verification, check the DOM after the action settles
         if (action.shouldVerify) {
           this.copilot.scheduleVerify();
         }
@@ -782,11 +806,18 @@ export class AhagetWidget {
 
       case 'chat': {
         const steps = tryParseSteps(action.content);
-        const msgEl = steps
-          ? addStepsCard(this.messagesEl, steps)
-          : addMessage(this.messagesEl, action.content, 'assistant');
-        if (messageId) {
-          addFeedbackButtons(msgEl, (v) => this.copilot.sendFeedback(messageId, v));
+        if (steps) {
+          // Build exec card with all steps as pending, reset counter
+          const execSteps: ExecStep[] = steps.items.map((label, i) => ({
+            id: `exec-${Date.now()}-${i}`, label, status: 'pending',
+          }));
+          this.execCard = addExecStepsCard(this.messagesEl, steps.title, execSteps);
+          this.execStepIdx = 0;
+        } else {
+          const msgEl = addMessage(this.messagesEl, action.content, 'assistant');
+          if (messageId) {
+            addFeedbackButtons(msgEl, (v) => this.copilot.sendFeedback(messageId, v));
+          }
         }
         break;
       }
