@@ -130,32 +130,78 @@ export async function enforceMessageLimit(
   next();
 }
 
-// Called by analytics routes to get current usage for the dashboard
-export async function getMonthlyUsage(orgId: string): Promise<number> {
-  // Count from DB � accurate even after server restarts
-  const start = new Date();
-  start.setDate(1);
-  start.setHours(0, 0, 0, 0);
+// --- Monthly session-message counter (Redis-backed, DB fallback) -------------
+export async function getSessionMsgCount(orgId: string): Promise<number> {
+  const redis = getRedis();
+  if (redis) {
+    const key = monthKey(orgId);
+    const val = await redis.get<number>(key);
+    if (val !== null) return Number(val);
+  }
+  return getSessionMsgCountFromDb(orgId);
+}
 
+export async function incrementSessionMsgCount(orgId: string): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  const key = monthKey(orgId);
+  const count = await redis.incr(key);
+  if (count === 1) await redis.expire(key, secondsUntilEndOfMonth());
+}
+
+async function getSessionMsgCountFromDb(orgId: string): Promise<number> {
+  const now = new Date();
+  const month = new Date(now.getFullYear(), now.getMonth(), 1);
+  type UsageRow = { message_count: bigint };
+  const rows = await prisma.$queryRaw<UsageRow[]>`
+    SELECT message_count FROM org_monthly_usage
+    WHERE  organization_id = ${orgId} AND month = ${month} LIMIT 1`;
+  if (rows.length > 0) return Number(rows[0].message_count);
+  const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
+  return prisma.sessionMessage.count({
+    where: { session: { organizationId: orgId }, role: 'assistant', createdAt: { gte: start } },
+  });
+}
+
+// Called by analytics routes for the dashboard. Reads from the mat view
+// (refreshed every 5 min) so it never triggers a full table scan.
+export async function getMonthlyUsage(orgId: string): Promise<number> {
+  const now = new Date();
+  const month = new Date(now.getFullYear(), now.getMonth(), 1);
+  type UsageRow = { message_count: bigint };
+  const rows = await prisma.$queryRaw<UsageRow[]>`
+    SELECT message_count FROM org_monthly_usage
+    WHERE  organization_id = ${orgId} AND month = ${month} LIMIT 1`;
+  if (rows.length > 0) return Number(rows[0].message_count);
+  const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
   return prisma.message.count({
-    where: {
-      role: 'assistant',          // one per AI response
-      conversation: { organizationId: orgId },
-      createdAt: { gte: start },
-    },
+    where: { role: 'assistant', conversation: { organizationId: orgId }, createdAt: { gte: start } },
   });
 }
 
 // --- MTU (Monthly Tracked Users) ---------------------------------------------
-// Count unique end users seen this calendar month.
+// Reads from org_monthly_mtu mat view; falls back to live COUNT.
 export async function getMtuUsage(orgId: string): Promise<number> {
-  const start = new Date();
-  start.setDate(1);
-  start.setHours(0, 0, 0, 0);
-
+  const now = new Date();
+  const month = new Date(now.getFullYear(), now.getMonth(), 1);
+  type MtuRow = { unique_users: bigint };
+  const rows = await prisma.$queryRaw<MtuRow[]>`
+    SELECT unique_users FROM org_monthly_mtu
+    WHERE  organization_id = ${orgId} AND month = ${month} LIMIT 1`;
+  if (rows.length > 0) return Number(rows[0].unique_users);
+  const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
   return prisma.endUser.count({
     where: { organizationId: orgId, lastSeenAt: { gte: start } },
   });
+}
+
+// Refreshes both materialized views concurrently (non-blocking reads during refresh).
+// Called from the 5-minute cron in index.ts.
+export async function refreshUsageMatViews(): Promise<void> {
+  await Promise.all([
+    prisma.$executeRawUnsafe('REFRESH MATERIALIZED VIEW CONCURRENTLY org_monthly_usage'),
+    prisma.$executeRawUnsafe('REFRESH MATERIALIZED VIEW CONCURRENTLY org_monthly_mtu'),
+  ]);
 }
 
 // Enforce MTU limit � call this before creating or touching an end user record.

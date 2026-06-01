@@ -17,6 +17,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@prisma/client": "^5.10.0",
+    "@prisma/extension-read-replicas": "^0.5.0",
     "@sentry/node": "^8.55.2",
     "@types/multer": "^2.1.0",
     "@upstash/redis": "^1.28.0",

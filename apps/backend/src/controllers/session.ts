@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../utils/prisma';
 import { authenticateApiKey } from '../middleware/auth';
-import { getMtuUsage, getRedis, enforceOrgRateLimit } from '../middleware/rateLimit';
+import { getMtuUsage, getRedis, enforceOrgRateLimit, getSessionMsgCount, incrementSessionMsgCount } from '../middleware/rateLimit';
 import { PLANS } from '../utils/plans';
 import { runAgentSafe, runAgentStream, runAgentGoal, runAgentPlan, GoalTurn, extractAndSaveMemory } from '../services/agent';
 import { loadRestContext, matchesRestEndpoint } from '../services/mcp';
@@ -506,6 +506,7 @@ async function applyActionSideEffects(opts: {
       },
     });
     assistantMessageId = assistantMsg.id;
+    incrementSessionMsgCount(orgId).catch(() => {});
 
     // -- Audit log � fire-and-forget, never block the response --------------
     const auditPayload: Record<string, unknown> = { message: agentContent };
@@ -874,11 +875,8 @@ router.post('/act', async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  // -- Monthly message limit ----------------------------------------------------
-  const _monthStart = new Date(); _monthStart.setDate(1); _monthStart.setHours(0, 0, 0, 0);
-  const _msgUsed = await prisma.sessionMessage.count({
-    where: { session: { organizationId: req.organization!.id }, role: 'assistant', createdAt: { gte: _monthStart } },
-  });
+  // -- Monthly message limit (Redis counter, mat-view fallback) -----------------
+  const _msgUsed = await getSessionMsgCount(req.organization!.id);
   if (_msgUsed >= req.organization!.monthlyMessageLimit) {
     res.status(429).json({ error: 'Monthly message limit reached', limit: req.organization!.monthlyMessageLimit, used: _msgUsed });
     return;
@@ -1025,11 +1023,8 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  // -- Monthly message limit -------------------------------------------------
-  const _sMonthStart = new Date(); _sMonthStart.setDate(1); _sMonthStart.setHours(0, 0, 0, 0);
-  const _sMsgUsed = await prisma.sessionMessage.count({
-    where: { session: { organizationId: req.organization!.id }, role: 'assistant', createdAt: { gte: _sMonthStart } },
-  });
+  // -- Monthly message limit (Redis counter, mat-view fallback) -----------------
+  const _sMsgUsed = await getSessionMsgCount(req.organization!.id);
   if (_sMsgUsed >= req.organization!.monthlyMessageLimit) {
     res.status(429).json({ error: 'Monthly message limit reached', limit: req.organization!.monthlyMessageLimit, used: _sMsgUsed });
     return;
@@ -1292,7 +1287,8 @@ router.post('/act/goal', async (req: AuthenticatedRequest, res: Response) => {
       { sessionId, stepId: null, role: 'user',      content: goal },
       { sessionId, stepId: null, role: 'assistant', content: agentContent, actionType: localizedGoalAction.type },
     ],
-  }).catch(() => {}); // non-blocking
+  }).catch(() => {});
+  incrementSessionMsgCount(req.organization!.id).catch(() => {});
 
   // Persist to audit log for traceability
   prisma.auditLog.create({

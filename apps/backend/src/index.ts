@@ -50,6 +50,7 @@ import { runKbRefresh } from './jobs/kbRefresh';
 import { bootQueues, isQueueEnabled } from './queues';
 import { runEvalRegressionCheck } from './queues/workers/evalRegression';
 import { runUsageLimitAlert } from './queues/workers/usageLimitAlert';
+import { refreshUsageMatViews } from './middleware/rateLimit';
 
 // ─── Startup env validation ───────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
@@ -283,6 +284,15 @@ httpServer.listen(PORT, () => {
           runUsageLimitAlert().catch((e) => console.error('[usage-limit-alert] cron error:', e));
         }, USAGE_ALERT_INTERVAL_MS);
       }, 20 * 60 * 1000); // 20 min after startup
+
+      // ── Materialized view refresh — every 5 minutes ────────────────────────
+      const MAT_VIEW_INTERVAL_MS = 5 * 60 * 1000;
+      setTimeout(() => {
+        refreshUsageMatViews().catch((e) => console.error('[mat-view] refresh error:', e));
+        setInterval(() => {
+          refreshUsageMatViews().catch((e) => console.error('[mat-view] refresh error:', e));
+        }, MAT_VIEW_INTERVAL_MS);
+      }, 2 * 60 * 1000); // 2 min after startup (let DB settle first)
     }
   }
 });
