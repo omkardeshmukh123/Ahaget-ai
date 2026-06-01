@@ -65,6 +65,11 @@ export default function DashboardPage() {
     </div>
   );
 
+  // New orgs have nothing to show — send them to the activation flow instead
+  if (overview && overview.totalConversations === 0 && (users?.total ?? 0) === 0) {
+    return <NewOrgWelcome />;
+  }
+
   // Fix #1: use exact totalMessages from backend instead of lossy client-side computation
   const totalMessages = overview?.totalMessages ?? 0;
 
@@ -358,6 +363,79 @@ export default function DashboardPage() {
           <Link href="/insights" style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600, flexShrink: 0 }}>View all →</Link>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── New-org welcome screen ─────────────────────────────────────────────────
+   Shown when an org has zero conversations + zero users (widget not yet wired).
+   Activation is the #1 metric — this replaces a dashboard of empty zeros.    */
+function NewOrgWelcome() {
+  const steps = [
+    {
+      n: 1,
+      label: 'Install the widget snippet',
+      sub: 'Copy your unique script tag and paste it before </body> in your app.',
+      href: '/settings/widget',
+      cta: 'Get snippet →',
+    },
+    {
+      n: 2,
+      label: 'Build your first agent flow',
+      sub: 'Define the steps your AI employee follows when a user asks for help.',
+      href: '/flows',
+      cta: 'Create flow →',
+    },
+    {
+      n: 3,
+      label: 'Test in the live preview',
+      sub: 'See exactly how Ahaget appears inside your product before going live.',
+      href: '/in-page-assistant',
+      cta: 'Open preview →',
+    },
+  ];
+
+  return (
+    <div style={{ maxWidth: 560, margin: '60px auto 0', textAlign: 'center' }}>
+      <div style={{
+        width: 56, height: 56, borderRadius: 16, margin: '0 auto 20px',
+        background: 'linear-gradient(135deg, #8A2BE2, #A050F0)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={1.8}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+      <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--on-surface)', letterSpacing: '-0.03em', marginBottom: 8 }}>
+        Welcome! Let&apos;s get your first customer session.
+      </h1>
+      <p style={{ fontSize: 13.5, color: 'var(--muted)', marginBottom: 36, lineHeight: 1.6 }}>
+        Your dashboard is empty because no users have seen the widget yet.
+        Three steps to your first live AI session:
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'left' }}>
+        {steps.map(({ n, label, sub, href, cta }) => (
+          <div key={n} style={{
+            display: 'flex', alignItems: 'flex-start', gap: 16,
+            background: 'var(--surface-low)', borderRadius: 14,
+            padding: '18px 20px', border: '1px solid rgba(138,43,226,0.12)',
+          }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+              background: 'linear-gradient(135deg, #8A2BE2, #A050F0)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 13, fontWeight: 800, color: '#fff',
+            }}>{n}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--on-surface)', marginBottom: 3 }}>{label}</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>{sub}</p>
+              <Link href={href} style={{
+                fontSize: 12.5, fontWeight: 700, color: 'var(--primary)',
+                textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+              }}>{cta}</Link>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

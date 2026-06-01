@@ -1,5 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { api } from '@/lib/api';
+
+const WIDGET_URL = process.env.NEXT_PUBLIC_WIDGET_URL ?? 'https://cdn.ahaget.ai/widget.js';
 
 /* ─── Mock SaaS conversation messages ──────────────────────────────────────── */
 const DEMO_MESSAGES = [
@@ -281,7 +284,12 @@ export default function InPageAssistantPage() {
   const [preset, setPreset] = useState(0);
   const [agentName, setAgentName] = useState('Acme Assistant');
   const [agentSub, setAgentSub]   = useState('Your AI guide · always on');
+  const [apiKey, setApiKey] = useState<string | null>(null);
   const { primary, from, to } = PRESETS[preset];
+
+  useEffect(() => {
+    api.onboarding.getSnippet().then((r) => setApiKey(r.apiKey)).catch(() => {});
+  }, []);
 
   return (
     <>
@@ -383,7 +391,7 @@ export default function InPageAssistantPage() {
               <span style={{ color: '#7dd3fc' }}>{`<script`}</span>
               <span style={{ color: '#fde68a' }}>{` src`}</span>
               <span style={{ color: '#94a3b8' }}>{`=`}</span>
-              <span style={{ color: '#86efac' }}>{`"https://cdn.ahaget.ai/widget.js"`}</span>
+              <span style={{ color: '#86efac' }}>{`"${WIDGET_URL}"`}</span>
               <span style={{ color: '#7dd3fc' }}>{`>`}</span>
               <span style={{ color: '#7dd3fc' }}>{`</script>`}</span>{'\n'}
               <span style={{ color: '#7dd3fc' }}>{`<script>`}</span>{'\n'}
@@ -391,7 +399,7 @@ export default function InPageAssistantPage() {
               <span style={{ color: '#94a3b8' }}>{`('init', {`}</span>{'\n'}
               {'    '}<span style={{ color: '#fde68a' }}>apiKey</span>
               <span style={{ color: '#94a3b8' }}>{`: `}</span>
-              <span style={{ color: '#86efac' }}>{`'YOUR_API_KEY'`}</span>
+              <span style={{ color: '#86efac' }}>{`'${apiKey ?? 'YOUR_API_KEY'}'`}</span>
               <span style={{ color: '#94a3b8' }}>{`,`}</span>{'\n'}
               {'    '}<span style={{ color: '#fde68a' }}>userId</span>
               <span style={{ color: '#94a3b8' }}>{`: `}</span>

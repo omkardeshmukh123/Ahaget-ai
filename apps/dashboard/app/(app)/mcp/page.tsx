@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, McpConnector, McpCallLog, RestApiEndpoint, ContextSource } from '@/lib/api';
 
+const WIDGET_URL = process.env.NEXT_PUBLIC_WIDGET_URL ?? 'https://cdn.ahaget.ai/widget.js';
+
 // ─── Small helpers ────────────────────────────────────────────────────────────
 const s = (obj: React.CSSProperties): React.CSSProperties => obj;
 const inp = s({ width:'100%', padding:'8px 12px', background:'var(--surface)', border:'1px solid rgba(99,102,241,0.2)', borderRadius:8, color:'var(--on-surface)', fontSize:13, outline:'none', boxSizing:'border-box', fontFamily:'inherit' });
@@ -791,7 +793,7 @@ export default function McpPage() {
       <details style={{ marginBottom:24 }}>
         <summary style={{ fontSize:12, fontWeight:700, color:'#6366f1', cursor:'pointer', marginBottom:8 }}>▸ Pass user context via script tag (no extra JS needed)</summary>
         <pre style={{ background:'rgba(0,0,0,0.3)', borderRadius:10, padding:14, fontSize:11, color:'#a5b4fc', overflowX:'auto', border:'1px solid rgba(99,102,241,0.2)' }}>{`<script
-  src="https://widget.ahaget.ai/widget.js"
+  src="${WIDGET_URL}"
   data-ahaget-key="ak_live_..."
   data-ahaget-user-id="{{ user.id }}"
   data-ahaget-plan="{{ user.plan }}"

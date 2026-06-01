@@ -2,12 +2,14 @@
 import { useEffect, useState } from 'react';
 import { api, OrgConfig, AlertConfig, HealEntry } from '@/lib/api';
 
+const WIDGET_URL = process.env.NEXT_PUBLIC_WIDGET_URL ?? 'https://cdn.ahaget.ai/widget.js';
+
 function buildSnippet(apiKey: string): string {
   const open = String.fromCharCode(60);
   const close = String.fromCharCode(62);
   const slash = String.fromCharCode(47);
   return [
-    `${open}script src="https://cdn.ahaget.ai/widget.js"`,
+    `${open}script src="${WIDGET_URL}"`,
     `  data-key="${apiKey}"${close}${open}${slash}script${close}`,
   ].join('\n');
 }
@@ -18,7 +20,7 @@ function buildFullSnippet(apiKey: string): string {
   const slash = String.fromCharCode(47);
   return [
     `${open}!-- Ahaget Widget --${close}`,
-    `${open}script src="https://cdn.ahaget.ai/widget.js"${close}${open}${slash}script${close}`,
+    `${open}script src="${WIDGET_URL}"${close}${open}${slash}script${close}`,
     `${open}script${close}`,
     `  Ahaget('init', {`,
     `    apiKey: '${apiKey}',`,
