@@ -60,8 +60,6 @@ if (!process.env.ADMIN_SECRET) {
 const app = express();
 const PORT = process.env.PORT ?? 4000;
 
-// ─── Health check (Render) ────────────────────────────────────────────────────
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 // ─── Stripe webhook — MUST be before express.json() ─────────────────────────
 app.post(
