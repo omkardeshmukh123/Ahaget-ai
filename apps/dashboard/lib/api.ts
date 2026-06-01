@@ -643,6 +643,24 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
+
+  webhooks: {
+    list: () => apiFetch<Webhook[]>('/api/v1/webhooks'),
+    create: (data: { eventType: string; url: string }) =>
+      apiFetch<Webhook & { secret: string }>('/api/v1/webhooks', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    toggle: (id: string, enabled: boolean) =>
+      apiFetch<Webhook>(`/api/v1/webhooks/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled }),
+      }),
+    delete: (id: string) =>
+      apiFetch<void>(`/api/v1/webhooks/${id}`, { method: 'DELETE' }),
+    test: (id: string) =>
+      apiFetch<{ ok: boolean; status?: number; error?: string }>(`/api/v1/webhooks/${id}/test`, { method: 'POST' }),
+  },
 };
 
 
@@ -662,6 +680,14 @@ export interface PlaybookConfig {
   escalationWebhook: string | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface Webhook {
+  id: string;
+  eventType: string;
+  url: string;
+  enabled: boolean;
+  createdAt: string;
 }
 
 export interface BrandingConfig {

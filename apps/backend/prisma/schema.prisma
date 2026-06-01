@@ -67,6 +67,7 @@ model Organization {
   teamInvites           TeamInvite[]
   referralsMade         ReferralConversion[] @relation("ReferralsMade")
   referralsReceived     ReferralConversion[] @relation("ReferralsReceived")
+  webhooks              Webhook[]
 
   @@map("organizations")
 }
@@ -892,6 +893,25 @@ model McpPendingJob {
   @@index([orgId, status])
   @@index([createdAt])
   @@map("mcp_pending_jobs")
+}
+
+// ─── Webhook (outbound event delivery) ───────────────────────────────────────
+// eventType: onboarding_completed | step_completed | user_escalated | milestone_reached
+// secret is used for HMAC-SHA256 signature (X-Ahaget-Signature header)
+model Webhook {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  eventType      String    @map("event_type")
+  url            String
+  secret         String
+  enabled        Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, eventType])
+  @@map("webhooks")
 }
 
 // ─── ReferralConversion (word-of-mouth program) ───────────────────────────────

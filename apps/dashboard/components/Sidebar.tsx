@@ -30,9 +30,10 @@ const SECTIONS = [
   {
     label: 'INTEGRATIONS',
     items: [
-      { href: '/interface', label: 'Interface Map', icon: <ScanIcon /> },
-      { href: '/knowledge', label: 'Knowledge',     icon: <BookIcon /> },
-      { href: '/mcp',       label: 'MCP',           icon: <ConnectIcon /> },
+      { href: '/interface',         label: 'Interface Map', icon: <ScanIcon /> },
+      { href: '/knowledge',         label: 'Knowledge',     icon: <BookIcon /> },
+      { href: '/mcp',               label: 'MCP',           icon: <ConnectIcon /> },
+      { href: '/settings/webhooks', label: 'Webhooks',      icon: <WebhookIcon /> },
     ],
   },
   {
@@ -223,6 +224,13 @@ function AlertTriangleIcon() {
       <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
       <line x1="12" y1="9" x2="12" y2="13"/>
       <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  );
+}
+function WebhookIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 000-6 3 3 0 00-3 3c0 .24.04.47.09.7L8.04 9.81A3 3 0 005 9a3 3 0 000 6 3 3 0 003.04-2.81l7.12 4.16c-.05.21-.08.43-.08.65a3 3 0 003 3 3 3 0 000-6z"/>
     </svg>
   );
 }

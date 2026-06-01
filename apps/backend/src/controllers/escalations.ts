@@ -1,13 +1,14 @@
 // --- Escalations routes (JWT-protected, dashboard only) ----------------------
 //
-// GET    /api/v1/escalations          — list tickets (filter by status)
-// GET    /api/v1/escalations/:id      — single ticket with full context
-// PATCH  /api/v1/escalations/:id      — update status / notes
+// GET    /api/v1/escalations          ï¿½ list tickets (filter by status)
+// GET    /api/v1/escalations/:id      ï¿½ single ticket with full context
+// PATCH  /api/v1/escalations/:id      ï¿½ update status / notes
 
 import { Router, Response } from 'express';
 import { prisma } from '../utils/prisma';
 import { authenticateJWT } from '../middleware/auth';
 import { requireFeature } from '../middleware/planGate';
+import { dispatchWebhook } from '../services/webhook';
 import { AuthenticatedRequest } from '../types';
 
 const router = Router();
@@ -132,6 +133,14 @@ router.post('/manual', async (req: AuthenticatedRequest, res: Response) => {
       agentMessage: lastAssistant?.content ?? '',
       context: { recentMessages },
     },
+  });
+
+  dispatchWebhook(organizationId, 'user_escalated', {
+    ticketId: ticket.id,
+    sessionId,
+    endUserId: session.endUser.id,
+    trigger: 'manual',
+    reason: notes ?? 'Manual handoff from session replay',
   });
 
   res.status(201).json({

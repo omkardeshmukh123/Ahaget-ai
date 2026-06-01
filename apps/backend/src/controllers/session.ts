@@ -14,6 +14,7 @@ import { fetchSessionContext } from '../services/contextSources';
 import { logger } from '../utils/logger';
 import { assertPublicUrl } from '../utils/ipGuard';
 import { createEscalationTicket, notifyTeam } from '../services/escalation';
+import { dispatchWebhook } from '../services/webhook';
 import { AuthenticatedRequest } from '../types';
 
 const router = Router();
@@ -582,10 +583,25 @@ async function applyActionSideEffects(opts: {
       },
     });
 
+    // step_completed webhook
+    dispatchWebhook(orgId, 'step_completed', {
+      sessionId: session.id,
+      endUserId: session.endUserId,
+      stepId: currentStep.id,
+      stepName: (currentStep as { id: string; order: number; aiPrompt: string; title?: string }).title ?? '',
+      completedAt: new Date().toISOString(),
+    });
+
     if (action.type === 'celebrate_milestone') {
       await prisma.userOnboardingSession.update({
         where: { id: session.id },
         data: { firstValueAt: new Date(), lastActiveAt: new Date() },
+      });
+      dispatchWebhook(orgId, 'milestone_reached', {
+        sessionId: session.id,
+        endUserId: session.endUserId,
+        milestoneStepId: currentStep.id,
+        reachedAt: new Date().toISOString(),
       });
     } else if (nextStep) {
       await prisma.userOnboardingSession.update({
@@ -605,6 +621,12 @@ async function applyActionSideEffects(opts: {
           completedAt: new Date(),
           lastActiveAt: new Date(),
         },
+      });
+      dispatchWebhook(orgId, 'onboarding_completed', {
+        sessionId: session.id,
+        endUserId: session.endUserId,
+        flowId: session.flowId,
+        completedAt: new Date().toISOString(),
       });
     }
 
@@ -628,6 +650,13 @@ async function applyActionSideEffects(opts: {
       agentMessage: action.message,
       context,
     }).then(async (ticket) => {
+      dispatchWebhook(orgId, 'user_escalated', {
+        ticketId: ticket.id,
+        sessionId: session.id,
+        endUserId: session.endUserId,
+        trigger: action.trigger,
+        reason: action.reason,
+      });
       await notifyTeam({
         orgId,
         orgName: session.flow.name,
@@ -1430,6 +1459,15 @@ router.post('/event', async (req: AuthenticatedRequest, res: Response) => {
     update: { status: 'completed', completedAt: new Date() },
   });
 
+  const orgId = req.organization!.id;
+  dispatchWebhook(orgId, 'step_completed', {
+    sessionId: session.id,
+    endUserId: session.endUserId,
+    stepId: currentStep.id,
+    stepName: (currentStep as { id: string; isMilestone: boolean; completionEvent?: string; title?: string }).title ?? '',
+    completedAt: new Date().toISOString(),
+  });
+
   if (nextStep) {
     await prisma.userOnboardingSession.update({
       where: { id: session.id },
@@ -1440,6 +1478,12 @@ router.post('/event', async (req: AuthenticatedRequest, res: Response) => {
       where: { id: session.id },
       data: { status: 'completed', completedAt: new Date(), lastActiveAt: new Date() },
     });
+    dispatchWebhook(orgId, 'onboarding_completed', {
+      sessionId: session.id,
+      endUserId: session.endUserId,
+      flowId: session.flowId,
+      completedAt: new Date().toISOString(),
+    });
   }
 
   const isMilestone = currentStep.isMilestone;
@@ -1448,8 +1492,13 @@ router.post('/event', async (req: AuthenticatedRequest, res: Response) => {
       where: { id: session.id },
       data: { firstValueAt: new Date() },
     });
+    dispatchWebhook(orgId, 'milestone_reached', {
+      sessionId: session.id,
+      endUserId: session.endUserId,
+      milestoneStepId: currentStep.id,
+      reachedAt: new Date().toISOString(),
+    });
   }
-
 
   res.json({ advanced: true, nextStep: nextStep ?? null, milestone: isMilestone });
 });
