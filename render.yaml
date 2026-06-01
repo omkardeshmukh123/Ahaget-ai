@@ -46,8 +46,24 @@ services:
       - key: STRIPE_PRICE_SCALE
         sync: false
 
+      # OpenRouter — primary AI agent (https://openrouter.ai)
+      - key: OPENROUTER_API_KEY
+        sync: false
+
       # Sarvam AI — Indian language support (https://www.sarvam.ai)
       - key: SARVAM_API_KEY
+        sync: false
+
+      # MCP credential encryption — 64 hex chars
+      - key: ENCRYPTION_KEY
+        generateValue: true
+
+      # Annual Stripe price IDs (optional)
+      - key: STRIPE_PRICE_STARTER_ANNUAL
+        sync: false
+      - key: STRIPE_PRICE_GROWTH_ANNUAL
+        sync: false
+      - key: STRIPE_PRICE_SCALE_ANNUAL
         sync: false
 
   # ─── Landing Page ─────────────────────────────────────────────────────────────
@@ -82,11 +98,19 @@ services:
         value: 0.0.0.0
       - key: NEXT_PUBLIC_API_URL
         sync: false
+      - key: NEXT_PUBLIC_WIDGET_URL
+        sync: false
       - key: NEXT_PUBLIC_STRIPE_PRICE_STARTER
         sync: false
       - key: NEXT_PUBLIC_STRIPE_PRICE_GROWTH
         sync: false
       - key: NEXT_PUBLIC_STRIPE_PRICE_SCALE
+        sync: false
+      - key: NEXT_PUBLIC_STRIPE_PRICE_STARTER_ANNUAL
+        sync: false
+      - key: NEXT_PUBLIC_STRIPE_PRICE_GROWTH_ANNUAL
+        sync: false
+      - key: NEXT_PUBLIC_STRIPE_PRICE_SCALE_ANNUAL
         sync: false
 
 databases:

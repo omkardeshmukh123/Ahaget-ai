@@ -4,6 +4,12 @@
   "outputDirectory": ".next",
   "env": {
     "NEXT_PUBLIC_API_URL": "@ahaget_api_url",
-    "NEXT_PUBLIC_WIDGET_URL": "@ahaget_widget_url"
+    "NEXT_PUBLIC_WIDGET_URL": "@ahaget_widget_url",
+    "NEXT_PUBLIC_STRIPE_PRICE_STARTER": "@ahaget_stripe_price_starter",
+    "NEXT_PUBLIC_STRIPE_PRICE_GROWTH": "@ahaget_stripe_price_growth",
+    "NEXT_PUBLIC_STRIPE_PRICE_SCALE": "@ahaget_stripe_price_scale",
+    "NEXT_PUBLIC_STRIPE_PRICE_STARTER_ANNUAL": "@ahaget_stripe_price_starter_annual",
+    "NEXT_PUBLIC_STRIPE_PRICE_GROWTH_ANNUAL": "@ahaget_stripe_price_growth_annual",
+    "NEXT_PUBLIC_STRIPE_PRICE_SCALE_ANNUAL": "@ahaget_stripe_price_scale_annual"
   }
 }
