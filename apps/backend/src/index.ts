@@ -33,14 +33,12 @@ import proactiveRoutes from './controllers/proactive';
 import expansionRoutes from './controllers/expansion';
 import interfaceMapRoutes from './controllers/interfaceMap';
 import messagesRoutes from './controllers/messages';
-import {
-  followupRoutes,
-  churnRoutes,
-  autooptimizeRoutes,
-  benchmarksRoutes,
-  optimizeRoutes,
-  experimentsRoutes,
-} from './controllers/stubs';
+import { followupRoutes, benchmarksRoutes } from './controllers/stubs';
+import churnRoutes        from './controllers/churn';
+import experimentsRoutes  from './controllers/experiments';
+import autooptimizeRoutes from './controllers/autooptimize';
+import optimizeRoutes     from './controllers/optimize';
+import referralRoutes     from './controllers/referral';
 import { prisma } from './utils/prisma';
 import { errorHandler } from './middleware/errorHandler';
 import { requestId } from './middleware/requestId';
@@ -50,6 +48,7 @@ import { runProactiveMessaging } from './services/proactive';
 import { runKbRefresh } from './jobs/kbRefresh';
 import { bootQueues, isQueueEnabled } from './queues';
 import { runEvalRegressionCheck } from './queues/workers/evalRegression';
+import { runUsageLimitAlert } from './queues/workers/usageLimitAlert';
 
 // ─── Startup env validation ───────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
@@ -132,6 +131,7 @@ app.use('/api/v1/expansion', expansionRoutes);
 app.use('/api/v1/interface-map', interfaceMapRoutes);
 app.use('/api/v1/messages', messagesRoutes);
 app.use('/api/v1/followup', followupRoutes);
+app.use('/api/v1/referral', referralRoutes);
 app.use('/api/v1/churn', churnRoutes);
 app.use('/api/v1/autooptimize', autooptimizeRoutes);
 app.use('/api/v1/benchmarks', benchmarksRoutes);
@@ -272,6 +272,15 @@ httpServer.listen(PORT, () => {
           runEvalRegressionCheck().catch((e) => console.error('[eval-regression] error:', e));
         }, EVAL_INTERVAL_MS);
       }, 15 * 60 * 1000); // 15 min after startup
+
+      // ── Usage limit alert — daily at 8am ───────────────────────────────────
+      const USAGE_ALERT_INTERVAL_MS = 24 * 60 * 60 * 1000;
+      setTimeout(() => {
+        runUsageLimitAlert().catch((e) => console.error('[usage-limit-alert] cron error:', e));
+        setInterval(() => {
+          runUsageLimitAlert().catch((e) => console.error('[usage-limit-alert] cron error:', e));
+        }, USAGE_ALERT_INTERVAL_MS);
+      }, 20 * 60 * 1000); // 20 min after startup
     }
   }
 });

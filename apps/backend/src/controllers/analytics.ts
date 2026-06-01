@@ -889,4 +889,11 @@ router.get('/eval', authenticateJWT, async (req: AuthenticatedRequest, res: Resp
   });
 });
 
+// ─── GET /api/v1/analytics/has-first-session ─────────────────────────────────
+router.get('/has-first-session', authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
+  const { organizationId } = req.user!;
+  const count = await prisma.userOnboardingSession.count({ where: { organizationId } });
+  res.json({ detected: count > 0, count });
+});
+
 export default router;
