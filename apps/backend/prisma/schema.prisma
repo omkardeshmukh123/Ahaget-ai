@@ -30,6 +30,12 @@ model Organization {
   attribution          String?  // ai_search | google | linkedin | word_of_mouth | other
   onboardingStep       String   @default("workspace") @map("onboarding_step") // workspace | attribution | description | install | snippet | done
   onboardingComplete   Boolean  @default(false) @map("onboarding_complete")
+  // Usage limit alert deduplication (reset each billing month)
+  limitAlert80SentAt   DateTime? @map("limit_alert_80_sent_at")
+  limitAlert100SentAt  DateTime? @map("limit_alert_100_sent_at")
+  // Referral program
+  referralCode         String?   @unique @map("referral_code")
+  referredByCode       String?   @map("referred_by_code")  // referral code used at signup
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
@@ -59,6 +65,8 @@ model Organization {
   contextSources        ContextSource[]
   mcpCallLogs           McpCallLog[]
   teamInvites           TeamInvite[]
+  referralsMade         ReferralConversion[] @relation("ReferralsMade")
+  referralsReceived     ReferralConversion[] @relation("ReferralsReceived")
 
   @@map("organizations")
 }
@@ -884,4 +892,25 @@ model McpPendingJob {
   @@index([orgId, status])
   @@index([createdAt])
   @@map("mcp_pending_jobs")
+}
+
+// ─── ReferralConversion (word-of-mouth program) ───────────────────────────────
+// Created when a referred org signs up and makes their first payment.
+// status: pending | credited
+model ReferralConversion {
+  id              String    @id @default(uuid())
+  referringOrgId  String    @map("referring_org_id")
+  referredOrgId   String    @map("referred_org_id")
+  referralCode    String    @map("referral_code")
+  creditUsd       Float?    @map("credit_usd")
+  creditedAt      DateTime? @map("credited_at")
+  status          String    @default("pending") // pending | credited
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  referringOrg Organization @relation("ReferralsMade",     fields: [referringOrgId], references: [id], onDelete: Cascade)
+  referredOrg  Organization @relation("ReferralsReceived", fields: [referredOrgId],  references: [id], onDelete: Cascade)
+
+  @@index([referringOrgId])
+  @@index([referredOrgId])
+  @@map("referral_conversions")
 }
