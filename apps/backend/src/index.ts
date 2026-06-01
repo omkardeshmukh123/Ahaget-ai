@@ -33,6 +33,14 @@ import proactiveRoutes from './controllers/proactive';
 import expansionRoutes from './controllers/expansion';
 import interfaceMapRoutes from './controllers/interfaceMap';
 import messagesRoutes from './controllers/messages';
+import {
+  followupRoutes,
+  churnRoutes,
+  autooptimizeRoutes,
+  benchmarksRoutes,
+  optimizeRoutes,
+  experimentsRoutes,
+} from './controllers/stubs';
 import { prisma } from './utils/prisma';
 import { errorHandler } from './middleware/errorHandler';
 import { requestId } from './middleware/requestId';
@@ -40,6 +48,8 @@ import { attachWebSocketServer } from './utils/websocket';
 import { checkFlowAlerts } from './services/alerting';
 import { runProactiveMessaging } from './services/proactive';
 import { runKbRefresh } from './jobs/kbRefresh';
+import { bootQueues, isQueueEnabled } from './queues';
+import { runEvalRegressionCheck } from './queues/workers/evalRegression';
 
 // ─── Startup env validation ───────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
@@ -79,8 +89,8 @@ app.use(cors({
       'http://localhost:3000',
       'http://localhost:5173',
     ].filter(Boolean);
-    if (allowed.includes(origin!)) return cb(null, true);
-    cb(null, true); // widget endpoints are API-key protected — CORS is defence-in-depth
+    if (allowed.includes(origin!) || origin.endsWith('.ahaget.ai')) return cb(null, true);
+    cb(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: false,
 }));
@@ -117,6 +127,12 @@ app.use('/api/v1/proactive', proactiveRoutes);
 app.use('/api/v1/expansion', expansionRoutes);
 app.use('/api/v1/interface-map', interfaceMapRoutes);
 app.use('/api/v1/messages', messagesRoutes);
+app.use('/api/v1/followup', followupRoutes);
+app.use('/api/v1/churn', churnRoutes);
+app.use('/api/v1/autooptimize', autooptimizeRoutes);
+app.use('/api/v1/benchmarks', benchmarksRoutes);
+app.use('/api/v1/optimize', optimizeRoutes);
+app.use('/api/v1/experiments', experimentsRoutes);
 
 app.get('/health', async (_req, res) => {
   try {
@@ -145,97 +161,98 @@ httpServer.listen(PORT, () => {
   }
 
   if (CRON_ENABLED) {
-    // ── Flow alert scheduler ───────────────────────────────────────────────
-    // Run once 2 minutes after startup, then every hour.
-    const ALERT_INTERVAL_MS = 60 * 60 * 1000; // 1 h
-    setTimeout(() => {
-      checkFlowAlerts().catch((e) => console.error('[alerting] uncaught error:', e));
-      setInterval(() => {
+    // ── BullMQ: boot workers + schedule recurring jobs when REDIS_URL is set ─
+    // When REDIS_URL is absent, fall through to the setTimeout fallback below.
+    bootQueues().catch((e) => console.error('[queue] boot error:', e));
+
+    if (!isQueueEnabled()) {
+      // ── setTimeout fallback — used when REDIS_URL is not configured ──────────
+      // Run once 2 minutes after startup, then every hour.
+      const ALERT_INTERVAL_MS = 60 * 60 * 1000; // 1 h
+      setTimeout(() => {
         checkFlowAlerts().catch((e) => console.error('[alerting] uncaught error:', e));
-      }, ALERT_INTERVAL_MS);
-    }, 2 * 60 * 1000);
+        setInterval(() => {
+          checkFlowAlerts().catch((e) => console.error('[alerting] uncaught error:', e));
+        }, ALERT_INTERVAL_MS);
+      }, 2 * 60 * 1000);
 
-    // ── Daily trigger evaluator ─────────────────────────────────────────────
-    // Evaluates inactivity + feature_unused triggers for all orgs once per day.
-    const DAILY_MS = 24 * 60 * 60 * 1000;
-    const runDailyTriggers = async () => {
-      console.log('[triggers] Running daily server-side trigger evaluation...');
-      try {
-        const rules = await prisma.triggerRule.findMany({
-          where: { isActive: true, triggerType: { in: ['inactivity', 'feature_unused', 'page_never_visited'] } },
-          include: { flow: { select: { id: true, name: true, flowType: true, organizationId: true } } },
-        });
-        console.log(`[triggers] Evaluating ${rules.length} server-side rules`);
-        // Per-rule evaluation is handled on-demand via /evaluate at widget init.
-        // This cron is a hook for future push notifications (Phase 3).
-      } catch (e) {
-        console.error('[triggers] daily evaluation error:', e);
-      }
-    };
-    setTimeout(() => {
-      runDailyTriggers();
-      setInterval(runDailyTriggers, DAILY_MS);
-    }, 5 * 60 * 1000); // 5 min after startup
-
-    // ── Proactive messaging cron ────────────────────────────────────────────
-    // Runs daily at startup + 24h interval.
-    const PROACTIVE_INTERVAL_MS = 24 * 60 * 60 * 1000;
-    setTimeout(() => {
-      runProactiveMessaging().catch((e) => console.error('[proactive] cron error:', e));
-      setInterval(() => {
-        runProactiveMessaging().catch((e) => console.error('[proactive] cron error:', e));
-      }, PROACTIVE_INTERVAL_MS);
-    }, 10 * 60 * 1000); // 10 min after startup
-
-    // ── KB auto-refresh cron ────────────────────────────────────────────────
-    // Re-crawls URL sources older than 24 h. Runs every 6 h; first run 60 s after boot.
-    const KB_CRON_MS = 6 * 60 * 60 * 1000;
-    setTimeout(() => {
-      runKbRefresh().catch((e) => console.error('[kb-refresh] startup run error:', e));
-      setInterval(() => {
-        runKbRefresh().catch((e) => console.error('[kb-refresh] cron error:', e));
-      }, KB_CRON_MS);
-    }, 60_000);
-
-    // ── Session abandonment sweeper ─────────────────────────────────────────
-    // Marks sessions inactive for >30 min as abandoned. Runs every 5 minutes.
-    const ABANDON_THRESHOLD_MS = 30 * 60 * 1000; // 30 min
-    const ABANDON_INTERVAL_MS  = 5 * 60 * 1000;  // 5 min
-
-    const sweepAbandonedSessions = async () => {
-      const cutoff = new Date(Date.now() - ABANDON_THRESHOLD_MS);
-      try {
-        const stale = await prisma.userOnboardingSession.findMany({
-          where: { status: 'active', lastActiveAt: { lt: cutoff } },
-          select: { id: true, currentStepId: true },
-          take: 200,
-        });
-        if (stale.length === 0) return;
-
-        const sessionIds = stale.map((s) => s.id);
-
-        await prisma.userOnboardingSession.updateMany({
-          where: { id: { in: sessionIds } },
-          data: { status: 'abandoned' },
-        });
-
-        for (const s of stale) {
-          if (!s.currentStepId) continue;
-          await prisma.userStepProgress.updateMany({
-            where: { sessionId: s.id, stepId: s.currentStepId, status: 'in_progress' },
-            data: { outcome: 'dropped', dropReason: 'idle_timeout' },
+      // ── Daily trigger evaluator ─────────────────────────────────────────────
+      const DAILY_MS = 24 * 60 * 60 * 1000;
+      const runDailyTriggers = async () => {
+        console.log('[triggers] Running daily server-side trigger evaluation...');
+        try {
+          const rules = await prisma.triggerRule.findMany({
+            where: { isActive: true, triggerType: { in: ['inactivity', 'feature_unused', 'page_never_visited'] } },
+            include: { flow: { select: { id: true, name: true, flowType: true, organizationId: true } } },
           });
+          console.log(`[triggers] Evaluating ${rules.length} server-side rules`);
+        } catch (e) {
+          console.error('[triggers] daily evaluation error:', e);
         }
+      };
+      setTimeout(() => {
+        runDailyTriggers();
+        setInterval(runDailyTriggers, DAILY_MS);
+      }, 5 * 60 * 1000);
 
-        console.log(`[sweeper] Marked ${stale.length} sessions abandoned`);
-      } catch (e) {
-        console.error('[sweeper] abandonment sweep error:', e);
-      }
-    };
+      // ── Proactive messaging cron ────────────────────────────────────────────
+      const PROACTIVE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+      setTimeout(() => {
+        runProactiveMessaging().catch((e) => console.error('[proactive] cron error:', e));
+        setInterval(() => {
+          runProactiveMessaging().catch((e) => console.error('[proactive] cron error:', e));
+        }, PROACTIVE_INTERVAL_MS);
+      }, 10 * 60 * 1000);
 
-    setInterval(() => {
-      sweepAbandonedSessions();
-    }, ABANDON_INTERVAL_MS);
+      // ── KB auto-refresh cron ────────────────────────────────────────────────
+      const KB_CRON_MS = 6 * 60 * 60 * 1000;
+      setTimeout(() => {
+        runKbRefresh().catch((e) => console.error('[kb-refresh] startup run error:', e));
+        setInterval(() => {
+          runKbRefresh().catch((e) => console.error('[kb-refresh] cron error:', e));
+        }, KB_CRON_MS);
+      }, 60_000);
+
+      // ── Session abandonment sweeper ─────────────────────────────────────────
+      const ABANDON_THRESHOLD_MS = 30 * 60 * 1000;
+      const ABANDON_INTERVAL_MS  = 5 * 60 * 1000;
+      const sweepAbandonedSessions = async () => {
+        const cutoff = new Date(Date.now() - ABANDON_THRESHOLD_MS);
+        try {
+          const stale = await prisma.userOnboardingSession.findMany({
+            where: { status: 'active', lastActiveAt: { lt: cutoff } },
+            select: { id: true, currentStepId: true },
+            take: 200,
+          });
+          if (stale.length === 0) return;
+          const sessionIds = stale.map((s) => s.id);
+          await prisma.userOnboardingSession.updateMany({
+            where: { id: { in: sessionIds } },
+            data: { status: 'abandoned' },
+          });
+          for (const s of stale) {
+            if (!s.currentStepId) continue;
+            await prisma.userStepProgress.updateMany({
+              where: { sessionId: s.id, stepId: s.currentStepId, status: 'in_progress' },
+              data: { outcome: 'dropped', dropReason: 'idle_timeout' },
+            });
+          }
+          console.log(`[sweeper] Marked ${stale.length} sessions abandoned`);
+        } catch (e) {
+          console.error('[sweeper] abandonment sweep error:', e);
+        }
+      };
+      setInterval(sweepAbandonedSessions, ABANDON_INTERVAL_MS);
+
+      // ── Eval regression check — weekly, Sunday midnight ────────────────────
+      const EVAL_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+      setTimeout(() => {
+        runEvalRegressionCheck().catch((e) => console.error('[eval-regression] error:', e));
+        setInterval(() => {
+          runEvalRegressionCheck().catch((e) => console.error('[eval-regression] error:', e));
+        }, EVAL_INTERVAL_MS);
+      }, 15 * 60 * 1000); // 15 min after startup
+    }
   }
 });
 
