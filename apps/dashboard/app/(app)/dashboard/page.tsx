@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { api, OverviewStats, TimelinePoint, EndUserSummary, Insight, OnboardingStatus, AgentHealth } from '@/lib/api';
+import { api, OverviewStats, TimelinePoint, EndUserSummary, Insight, OnboardingStatus, AgentHealth, AgentEvalMetrics } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 
 export default function DashboardPage() {
@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const [topInsight, setTopInsight] = useState<Insight | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
   const [agentHealth, setAgentHealth] = useState<AgentHealth | null>(null);
+  const [evalMetrics, setEvalMetrics] = useState<AgentEvalMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
@@ -50,6 +51,7 @@ export default function DashboardPage() {
 
     // Fix #8: agent health is optional (Starter+ plan gate) — fetch after main data
     api.analytics.health().then(setAgentHealth).catch(() => {});
+    api.analytics.eval().then(setEvalMetrics).catch(() => {});
   };
 
   useEffect(() => { loadData(); }, []);
@@ -336,6 +338,56 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Agent quality metrics — 7-day eval KPIs */}
+      {evalMetrics && evalMetrics.totalTurns > 0 && (
+        <div style={{ marginTop: 20, padding: '16px 20px', borderRadius: 12, background: 'var(--surface-low)', border: '1px solid rgba(138,43,226,0.10)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {evalMetrics.firstTurnCompletionAlert && (
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--error)', boxShadow: '0 0 5px var(--error)', flexShrink: 0, display: 'inline-block' }} />
+              )}
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Agent Quality · 7d · {evalMetrics.totalTurns} turns
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+            {[
+              {
+                label: '1st-turn completion',
+                value: evalMetrics.firstTurnCompletionRate !== null ? `${evalMetrics.firstTurnCompletionRate}%` : '—',
+                alert: evalMetrics.firstTurnCompletionAlert,
+                target: '>50%',
+              },
+              {
+                label: 'p95 latency',
+                value: evalMetrics.p95LatencyMs !== null ? `${(evalMetrics.p95LatencyMs / 1000).toFixed(1)}s` : '—',
+                alert: evalMetrics.p95LatencyMs !== null && evalMetrics.p95LatencyMs > 2000,
+                target: '<2s',
+              },
+              {
+                label: 'Selector success',
+                value: evalMetrics.selectorSuccessRate !== null ? `${evalMetrics.selectorSuccessRate}%` : '—',
+                alert: evalMetrics.selectorSuccessRate !== null && evalMetrics.selectorSuccessRate < 90,
+                target: '>90%',
+              },
+              {
+                label: 'KB hit rate',
+                value: evalMetrics.kbHitRate !== null ? `${evalMetrics.kbHitRate}%` : '—',
+                alert: false,
+                target: null,
+              },
+            ].map(({ label, value, alert, target }) => (
+              <div key={label} style={{ background: 'var(--surface)', borderRadius: 10, padding: '12px 14px' }}>
+                <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{label}</p>
+                <p style={{ fontSize: 20, fontWeight: 800, color: alert ? 'var(--error)' : 'var(--on-surface)', letterSpacing: '-0.03em' }}>{value}</p>
+                {target && <p style={{ fontSize: 10, color: alert ? 'var(--error)' : 'var(--muted)', marginTop: 2 }}>target {target}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Top insight card */}
       {topInsight && (

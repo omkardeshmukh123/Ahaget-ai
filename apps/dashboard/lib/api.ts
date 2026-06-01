@@ -95,6 +95,7 @@ export const api = {
     triggers: () => apiFetch<TriggerStat[]>('/api/v1/analytics/triggers'),
     intents: (days = 30, page?: string) => apiFetch<IntentsResponse>(`/api/v1/analytics/intents?days=${days}${page ? `&page=${encodeURIComponent(page)}` : ''}`),
     health: () => apiFetch<AgentHealth>('/api/v1/analytics/health'),
+    eval: () => apiFetch<AgentEvalMetrics>('/api/v1/analytics/eval'),
     chokePoints: (days = 30) =>
       apiFetch<ChokePointsResponse>(`/api/v1/analytics/choke-points?days=${days}`),
   },
@@ -1332,6 +1333,17 @@ export interface AgentHealth {
   avgResponseMs: number | null;
   windowHours: number;
   sessions: AgentHealthSession[];
+}
+
+export interface AgentEvalMetrics {
+  window: '7d';
+  totalTurns: number;
+  firstTurnCompletionRate: number | null;
+  firstTurnCompletionAlert: boolean;
+  p95LatencyMs: number | null;
+  avgLatencyMs: number | null;
+  selectorSuccessRate: number | null;
+  kbHitRate: number | null;
 }
 
 export interface Insight {

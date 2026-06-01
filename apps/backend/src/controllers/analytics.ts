@@ -828,4 +828,65 @@ router.get('/choke-points', authenticateJWT, async (req: AuthenticatedRequest, r
   }
 });
 
+// ─── GET /api/v1/analytics/eval ──────────────────────────────────────────────
+// The 3 pivot1 KPIs over the last 7 days:
+//   firstTurnCompletionRate — % of init turns where agent completed a step on turn 1
+//   p95LatencyMs            — 95th-percentile agent latency
+//   selectorSuccessRate     — % of selector-using turns where selector was valid
+router.get('/eval', authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
+  const { organizationId } = req.user!;
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const [rows, p95Result] = await Promise.all([
+    prisma.agentEvalLog.findMany({
+      where: { organizationId, createdAt: { gte: since } },
+      select: {
+        latencyMs: true,
+        isInit: true,
+        stepCompletedOnTurn: true,
+        selectorValid: true,
+        kbHit: true,
+      },
+    }),
+    prisma.$queryRaw<[{ p95: number | null }]>`
+      SELECT percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95
+      FROM agent_eval_logs
+      WHERE organization_id = ${organizationId}
+        AND created_at >= ${since}
+    `,
+  ]);
+
+  const totalTurns = rows.length;
+
+  const initTurns = rows.filter((r) => r.isInit);
+  const firstTurnCompletionRate = initTurns.length > 0
+    ? Math.round((initTurns.filter((r) => r.stepCompletedOnTurn).length / initTurns.length) * 100)
+    : null;
+
+  const selectorRows = rows.filter((r) => r.selectorValid !== null);
+  const selectorSuccessRate = selectorRows.length > 0
+    ? Math.round((selectorRows.filter((r) => r.selectorValid === true).length / selectorRows.length) * 100)
+    : null;
+
+  const kbRows = rows.filter((r) => r.kbHit !== null);
+  const kbHitRate = kbRows.length > 0
+    ? Math.round((kbRows.filter((r) => r.kbHit === true).length / kbRows.length) * 100)
+    : null;
+
+  const avgLatencyMs = totalTurns > 0
+    ? Math.round(rows.reduce((s, r) => s + r.latencyMs, 0) / totalTurns)
+    : null;
+
+  res.json({
+    window: '7d',
+    totalTurns,
+    firstTurnCompletionRate,
+    firstTurnCompletionAlert: firstTurnCompletionRate !== null && firstTurnCompletionRate < 60,
+    p95LatencyMs: p95Result[0]?.p95 != null ? Math.round(Number(p95Result[0].p95)) : null,
+    avgLatencyMs,
+    selectorSuccessRate,
+    kbHitRate,
+  });
+});
+
 export default router;
