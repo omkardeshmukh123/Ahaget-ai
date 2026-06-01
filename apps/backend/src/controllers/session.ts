@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../utils/prisma';
 import { authenticateApiKey } from '../middleware/auth';
-import { getMtuUsage, getRedis } from '../middleware/rateLimit';
+import { getMtuUsage, getRedis, enforceOrgRateLimit } from '../middleware/rateLimit';
 import { PLANS } from '../utils/plans';
 import { runAgentSafe, runAgentStream, runAgentGoal, runAgentPlan, GoalTurn, extractAndSaveMemory } from '../services/agent';
 import { loadRestContext, matchesRestEndpoint } from '../services/mcp';
@@ -19,6 +19,7 @@ import { AuthenticatedRequest } from '../types';
 
 const router = Router();
 router.use(authenticateApiKey);
+router.use(enforceOrgRateLimit);
 
 async function localizeAction(
   action: import('../services/agent').AgentAction,

@@ -5,6 +5,66 @@ import { Response, NextFunction } from 'express';
 import { prisma } from '../utils/prisma';
 import { PLANS } from '../utils/plans';
 import { AuthenticatedRequest } from '../types';
+import { redisIncr } from '../utils/redis';
+
+// Per-org per-minute API rate limits by plan tier (requests per minute)
+const ORG_RATE_LIMITS: Record<string, number> = {
+  free:    10,
+  starter: 30,
+  growth:  60,
+  scale:  100,
+};
+
+const _rlFallback = new Map<string, { count: number; resetAt: number }>();
+const ORG_RL_WINDOW_S = 60;
+
+export async function enforceOrgRateLimit(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const org = req.organization;
+  if (!org) { next(); return; }
+
+  const plan = PLANS[org.planType] ?? PLANS.free;
+  const limit = ORG_RATE_LIMITS[org.planType] ?? ORG_RATE_LIMITS.free;
+  const key = `org:rl:${org.id}`;
+
+  const redisCount = await redisIncr(key, ORG_RL_WINDOW_S);
+  if (redisCount !== null) {
+    if (redisCount > limit) {
+      res.status(429).json({
+        error: 'Rate limit exceeded',
+        limit,
+        plan: plan.name,
+        retryAfterSeconds: ORG_RL_WINDOW_S,
+      });
+      return;
+    }
+    next();
+    return;
+  }
+
+  // In-memory fallback
+  const now = Date.now();
+  const entry = _rlFallback.get(key);
+  if (!entry || now >= entry.resetAt) {
+    _rlFallback.set(key, { count: 1, resetAt: now + ORG_RL_WINDOW_S * 1000 });
+    next();
+    return;
+  }
+  entry.count++;
+  if (entry.count > limit) {
+    res.status(429).json({
+      error: 'Rate limit exceeded',
+      limit,
+      plan: plan.name,
+      retryAfterSeconds: Math.ceil((entry.resetAt - now) / 1000),
+    });
+    return;
+  }
+  next();
+}
 
 // --- Redis client (optional) ------------------------------------------------
 let _redis: import('@upstash/redis').Redis | null = null;
