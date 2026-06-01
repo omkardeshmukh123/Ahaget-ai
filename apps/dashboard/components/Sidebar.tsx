@@ -8,11 +8,9 @@ const SECTIONS = [
   {
     label: 'AGENT',
     items: [
-      { href: '/in-page-assistant', label: 'In-Page Assistant', icon: <SparkleIcon /> },
-      { href: '/flows',             label: 'Agent Flows',       icon: <FlowIcon /> },
-      { href: '/triggers',          label: 'Triggers',          icon: <TriggerIcon /> },
-      { href: '/playbook',          label: 'Playbook',          icon: <PlaybookIcon /> },
-      { href: '/lifecycle',         label: 'Lifecycle Engine',  icon: <LifecycleIcon /> },
+      { href: '/flows',    label: 'Agent Flows', icon: <FlowIcon /> },
+      { href: '/triggers', label: 'Triggers',    icon: <TriggerIcon /> },
+      { href: '/playbook', label: 'Playbook',    icon: <PlaybookIcon /> },
     ],
   },
   {
@@ -22,7 +20,6 @@ const SECTIONS = [
       { href: '/conversations', label: 'Conversations', icon: <ChatIcon /> },
       { href: '/sessions',      label: 'Sessions',      icon: <SessionIcon /> },
       { href: '/escalations',   label: 'Escalations',   icon: <EscalationIcon /> },
-      { href: '/questions',     label: 'Questions',     icon: <QuestionIcon /> },
       { href: '/insights',      label: 'Insights',      icon: <InsightIcon /> },
       { href: '/insights/choke-points', label: 'Choke Points', icon: <AlertTriangleIcon /> },
       { href: '/users',         label: 'Users',         icon: <UsersIcon /> },
