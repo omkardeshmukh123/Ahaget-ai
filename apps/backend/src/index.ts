@@ -149,6 +149,22 @@ app.use(errorHandler);
 const httpServer = http.createServer(app);
 attachWebSocketServer(httpServer);
 
+const shutdown = async (signal: string) => {
+  console.log(`[server] ${signal} — graceful shutdown started`);
+  httpServer.close(async () => {
+    console.log('[server] HTTP server closed');
+    await prisma.$disconnect();
+    console.log('[server] DB disconnected');
+    process.exit(0);
+  });
+  setTimeout(() => {
+    console.error('[server] Forced shutdown after 30s');
+    process.exit(1);
+  }, 30_000);
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
+
 httpServer.listen(PORT, () => {
   console.log(`[server] HTTP → http://localhost:${PORT}`);
   console.log(`[server] WS   → ws://localhost:${PORT}/ws`);
