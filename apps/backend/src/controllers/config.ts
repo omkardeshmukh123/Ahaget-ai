@@ -4,6 +4,7 @@ import { prisma } from '../utils/prisma';
 import { generateApiKey } from '../utils/apiKey';
 import { authenticateJWT, invalidateApiKeyCache } from '../middleware/auth';
 import { verifyToken } from '../utils/jwt';
+import { PLANS } from '../utils/plans';
 import { AuthenticatedRequest } from '../types';
 
 const router = Router();
@@ -161,8 +162,12 @@ router.get('/branding', async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  const row = await prisma.brandingConfig.findUnique({ where: { organizationId: orgId } });
-  res.json(row ?? BRANDING_DEFAULTS);
+  const [row, org] = await Promise.all([
+    prisma.brandingConfig.findUnique({ where: { organizationId: orgId } }),
+    prisma.organization.findUnique({ where: { id: orgId }, select: { planType: true } }),
+  ]);
+  const plan = PLANS[org?.planType ?? 'free'] ?? PLANS.free;
+  res.json({ ...(row ?? BRANDING_DEFAULTS), whiteLabel: plan.gates.whiteLabel });
 });
 
 // --- PUT /api/v1/config/branding ---------------------------------------------

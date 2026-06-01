@@ -69,6 +69,7 @@ export interface RemoteBranding {
   gradTo: string;
   position: 'bottom-right' | 'bottom-left';
   idleThreshold: number;
+  whiteLabel?: boolean;
 }
 
 /**

@@ -98,6 +98,11 @@ export class AhagetWidget {
     const root = createRoot();
     this.panelEl = createSidePanel(root);
 
+    if (remote?.whiteLabel) {
+      const footer = document.getElementById('oai-footer');
+      if (footer) footer.style.display = 'none';
+    }
+
     this.messagesEl = document.getElementById('oai-messages')!;
     this.inputEl    = document.getElementById('oai-input') as HTMLTextAreaElement;
     this.sendBtn    = document.getElementById('oai-send') as HTMLButtonElement;
