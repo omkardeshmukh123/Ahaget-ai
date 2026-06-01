@@ -6,6 +6,7 @@ import { PLANS, planFromPriceId } from '../utils/plans';
 import { authenticateJWT } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types';
 import { getMonthlyUsage, getMtuUsage } from '../middleware/rateLimit';
+import { sendPaymentFailedEmail } from '../utils/email';
 
 const router = Router();
 
@@ -54,10 +55,11 @@ router.get('/status', authenticateJWT, async (req: AuthenticatedRequest, res: Re
       key,
       name: p.name,
       price: p.price,
+      annualMonthlyPrice: p.annualMonthlyPrice,
       limit: p.monthlyMessageLimit,
       agentLimit: p.agentLimit,
       mtuLimit: p.mtuLimit,
-      features: p.gates,       // Plan.gates is the PlanFeatures object (was: p.features — TS2339)
+      features: p.gates,       // Plan.gates is the PlanFeatures object (was: p.features ï¿½ TS2339)
       featureList: p.featureList,
       current: key === org.planType,
     })),
@@ -74,8 +76,10 @@ router.post('/checkout', authenticateJWT, async (req: AuthenticatedRequest, res:
   const { organizationId } = req.user!;
   const { priceId } = CheckoutSchema.parse(req.body);
 
-  // Validate priceId is one of our known plans
-  const planEntry = Object.entries(PLANS).find(([, p]) => p.priceId === priceId);
+  // Validate priceId is one of our known plans (monthly or annual)
+  const planEntry = Object.entries(PLANS).find(
+    ([, p]) => p.priceId === priceId || p.annualPriceId === priceId
+  );
   if (!planEntry) {
     res.status(400).json({ error: 'Invalid price ID' });
     return;
@@ -188,7 +192,7 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
           where: { id: session.client_reference_id },
           data: { stripeCustomerId: session.customer as string },
         });
-        // Eagerly sync plan — don't rely solely on subscription.created event delivery
+        // Eagerly sync plan ï¿½ don't rely solely on subscription.created event delivery
         if (session.subscription) {
           const sub = await stripe.subscriptions.retrieve(session.subscription as string);
           const priceId = sub.items.data[0]?.price.id ?? '';
@@ -213,6 +217,31 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
     case 'customer.subscription.updated':
       await syncSubscription(event.data.object as import('stripe').Stripe.Subscription);
       break;
+
+    case 'invoice.payment_failed': {
+      const invoice = event.data.object as import('stripe').Stripe.Invoice;
+      const customerId = invoice.customer as string;
+      const org = await prisma.organization.findFirst({
+        where: { stripeCustomerId: customerId },
+        include: { users: { where: { role: 'owner' }, select: { email: true, name: true }, take: 1 } },
+      });
+      if (org) {
+        await prisma.organization.update({
+          where: { id: org.id },
+          data: { subscriptionStatus: 'past_due' },
+        });
+        const ownerEmail = org.users[0]?.email;
+        if (ownerEmail) {
+          sendPaymentFailedEmail({
+            to: ownerEmail,
+            orgName: org.name,
+            attemptCount: invoice.attempt_count ?? 1,
+            invoiceUrl: invoice.hosted_invoice_url ?? null,
+          }).catch((err) => console.error('[email] payment failed email error:', err));
+        }
+      }
+      break;
+    }
 
     case 'customer.subscription.deleted': {
       const sub = event.data.object as import('stripe').Stripe.Subscription;

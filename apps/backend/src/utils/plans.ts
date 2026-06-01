@@ -22,6 +22,8 @@ export interface Plan {
   mtuLimit: number;
   mcpConnectorLimit: number;
   priceId: string | null;
+  annualPriceId: string | null;   // Stripe annual price ID (billed yearly)
+  annualMonthlyPrice: number;     // effective monthly cost when billed annually
   price: number;
   inrPrice: number;
   featureList: string[];
@@ -71,6 +73,8 @@ export const PLANS: Record<string, Plan> = {
     mtuLimit: 100,
     mcpConnectorLimit: 3,
     priceId: null,
+    annualPriceId: null,
+    annualMonthlyPrice: 0,
     price: 0,
     inrPrice: 0,
     featureList: [
@@ -92,6 +96,8 @@ export const PLANS: Record<string, Plan> = {
     mtuLimit: 1_000,
     mcpConnectorLimit: 0,
     priceId: process.env.STRIPE_PRICE_STARTER ?? null,
+    annualPriceId: process.env.STRIPE_PRICE_STARTER_ANNUAL ?? null,
+    annualMonthlyPrice: 79,
     price: 99,
     inrPrice: 7_999,
     featureList: [
@@ -114,6 +120,8 @@ export const PLANS: Record<string, Plan> = {
     mtuLimit: 10_000,
     mcpConnectorLimit: 0,
     priceId: process.env.STRIPE_PRICE_GROWTH ?? null,
+    annualPriceId: process.env.STRIPE_PRICE_GROWTH_ANNUAL ?? null,
+    annualMonthlyPrice: 249,
     price: 299,
     inrPrice: 24_999,
     featureList: [
@@ -135,6 +143,8 @@ export const PLANS: Record<string, Plan> = {
     mtuLimit: 0,
     mcpConnectorLimit: 0,
     priceId: process.env.STRIPE_PRICE_SCALE ?? null,
+    annualPriceId: process.env.STRIPE_PRICE_SCALE_ANNUAL ?? null,
+    annualMonthlyPrice: 799,
     price: 999,
     inrPrice: 79_999,
     featureList: [
