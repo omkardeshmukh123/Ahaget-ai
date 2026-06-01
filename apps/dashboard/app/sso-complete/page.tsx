@@ -1,13 +1,15 @@
 'use client';
 import { useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 
 function SsoCompleteInner() {
   const router = useRouter();
-  const params = useSearchParams();
 
   useEffect(() => {
+    // Token arrives via hash fragment (#token=...) so it never appears in server logs
+    const hash = window.location.hash.slice(1);
+    const params = new URLSearchParams(hash);
     const token = params.get('token');
     if (token) {
       localStorage.setItem('token', token);
@@ -15,7 +17,7 @@ function SsoCompleteInner() {
     } else {
       router.replace('/login?error=sso_no_token');
     }
-  }, [params, router]);
+  }, [router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-900">

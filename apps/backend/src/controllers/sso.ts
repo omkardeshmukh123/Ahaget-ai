@@ -61,8 +61,19 @@ router.post('/admin-portal', authenticateJWT, async (req: AuthenticatedRequest, 
   if (!workosOrgId) {
     const wosOrg = await wos.organizations.createOrganization({ name: org.name });
     workosOrgId = wosOrg.id;
-    await prisma.organization.update({ where: { id: org.id }, data: { ssoWorkosOrgId: workosOrgId } });
   }
+
+  // Derive the admin's email domain and store it for SSO routing
+  const adminUser = await prisma.user.findUnique({
+    where: { id: req.user!.userId },
+    select: { email: true },
+  });
+  const ssoDomain = adminUser?.email?.split('@')[1] ?? null;
+
+  await prisma.organization.update({
+    where: { id: org.id },
+    data: { ssoWorkosOrgId: workosOrgId, ...(ssoDomain && { ssoDomain }) },
+  });
 
   const returnUrl = `${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/settings/sso`;
   const { link } = await wos.adminPortal.generateLink({ organization: workosOrgId, intent: 'sso', returnUrl });
@@ -86,8 +97,12 @@ router.get('/authorize', async (req: Request, res: Response) => {
   const email = req.query.email as string | undefined;
   if (!email) { res.status(400).json({ error: 'email required' }); return; }
 
+  const domain = email.split('@')[1];
+  if (!domain) { res.status(400).json({ error: 'invalid email' }); return; }
+
+  // Look up the org whose SSO domain matches the user's email domain
   const org = await prisma.organization.findFirst({
-    where: { ssoWorkosOrgId: { not: null } },
+    where: { ssoDomain: domain, ssoWorkosOrgId: { not: null } },
     select: { ssoWorkosOrgId: true },
   });
   if (!org?.ssoWorkosOrgId) {
@@ -103,7 +118,6 @@ router.get('/authorize', async (req: Request, res: Response) => {
     organization: org.ssoWorkosOrgId,
     redirectUri: redirectUri(),
     clientId,
-    state: email,
   });
   res.json({ url });
 });
@@ -155,7 +169,8 @@ router.get('/callback', async (req: Request, res: Response) => {
 
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   const token = signToken({ userId: user.id, organizationId: user.organizationId, role: user.role });
-  res.redirect(`${frontendUrl}/sso-complete?token=${token}`);
+  // Use hash fragment so the JWT never appears in server logs or Referer headers
+  res.redirect(`${frontendUrl}/sso-complete#token=${token}`);
 });
 
 export default router;

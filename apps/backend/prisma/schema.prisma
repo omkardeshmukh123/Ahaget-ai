@@ -33,8 +33,9 @@ model Organization {
   // Usage limit alert deduplication (reset each billing month)
   limitAlert80SentAt   DateTime? @map("limit_alert_80_sent_at")
   limitAlert100SentAt  DateTime? @map("limit_alert_100_sent_at")
-  // SSO — WorkOS organization ID (null = SSO not configured for this org)
+  // SSO — WorkOS organization ID and email domain for this org
   ssoWorkosOrgId       String?   @map("sso_workos_org_id")
+  ssoDomain            String?   @map("sso_domain")
   // Referral program
   referralCode         String?   @unique @map("referral_code")
   referredByCode       String?   @map("referred_by_code")  // referral code used at signup
