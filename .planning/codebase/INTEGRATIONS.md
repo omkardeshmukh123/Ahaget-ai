@@ -1,132 +1,170 @@
 # External Integrations
 
-**Analysis Date:** 2026-05-13
+**Analysis Date:** 2026-06-01
 
-## APIs & External Services
+## AI / LLM Services
 
-**AI / LLM:**
-- OpenAI - Primary AI engine for all agent interactions and embeddings
-  - SDK/Client: `openai ^4.47.0` (`apps/backend/src/services/agent.ts`, `apps/backend/src/services/knowledge.ts`)
-  - Models used: `gpt-4o` (agent tool calls), `text-embedding-3-small` (KB embeddings)
-  - Auth: `OPENAI_API_KEY` env var
-  - Lazy-initialized singleton: `let _openai: OpenAI | null = null; const openai = () => { ... }`
+**OpenRouter (primary LLM):**
+- Purpose: All chat completions used by the agent (onboarding, goal mode, plan mode, verify turns)
+- Client: `openai` SDK with custom `baseURL: https://openrouter.ai/api/v1`
+- Auth env var: `OPENROUTER_API_KEY`
+- Models routed: `openai/gpt-4o-mini` (default), `openai/gpt-4o` (high-confidence KB)
+- Singleton: `apps/backend/src/services/agent/_openai.ts`
 
-- Anthropic - SDK present but not actively called in reviewed code paths
-  - SDK/Client: `@anthropic-ai/sdk ^0.39.0`
-  - Auth: would use `ANTHROPIC_API_KEY`
+**OpenAI (embeddings only):**
+- Purpose: Generate `text-embedding-3-small` vectors for KB articles and queries
+- Client: `openai` SDK pointed at `api.openai.com`
+- Auth env var: `OPENAI_API_KEY`
+- Used in: `apps/backend/src/services/knowledge.ts`
 
-- Sarvam AI - Indian language translation, language detection, STT/TTS
-  - Client: direct `fetch` calls to `https://api.sarvam.ai` (`apps/backend/src/services/sarvam.ts`)
-  - Auth: `SARVAM_API_KEY` env var (header: `api-subscription-key`)
-  - Languages: en-IN, hi-IN (Hindi/Hinglish), bn-IN, ta-IN, te-IN, mr-IN, gu-IN, kn-IN, ml-IN, pa-IN
-  - Feature flag: `isSarvamEnabled()` checks `!!SARVAM_KEY`
-
-**Payments:**
-- Stripe - Billing and subscription management
-  - SDK/Client: `stripe ^14.21.0` (`apps/backend/src/lib/stripe.ts`)
-  - API version: `2023-10-16`
-  - Auth: `STRIPE_SECRET_KEY`
-  - Webhook endpoint: `POST /api/v1/billing/webhook` (raw body required, registered before `express.json()`)
-  - Price IDs: `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_GROWTH`, `STRIPE_PRICE_SCALE`
-  - Plans defined in: `apps/backend/src/lib/plans.ts`
-
-**Email:**
-- Resend - Transactional email delivery
-  - SDK/Client: `resend ^3.2.0` (`apps/backend/src/lib/email.ts`)
-  - Auth: `RESEND_API_KEY`
-  - From address: `Ahaget <hello@ahaget.ai>`
-  - Graceful degradation: if `RESEND_API_KEY` not set, logs magic link to console and skips send
-  - Used for: magic-link sign-in, escalation alerts to support team, proactive outreach emails
+**Sarvam AI (multilingual):**
+- Purpose: Indian language translation (Hindi, Hinglish, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam, Punjabi), STT, TTS
+- Transport: Direct REST to `https://api.sarvam.ai`
+- Auth env var: `SARVAM_API_KEY` (feature disabled when absent)
+- Used in: `apps/backend/src/services/sarvam.ts`
 
 ## Data Storage
 
-**Databases:**
-- PostgreSQL - Primary database
-  - Connection: `DATABASE_URL` env var
-  - Client: Prisma 5.10 (`apps/backend/src/lib/prisma.ts`)
-  - Schema: `apps/backend/prisma/schema.prisma` (26 models, 50+ migrations)
-  - Embeddings stored as `Json` column (float[] from `text-embedding-3-small`) in `KnowledgeBaseArticle`
+**Database:**
+- PostgreSQL (provider: Prisma)
+- Connection env var: `DATABASE_URL`
+- ORM/client: Prisma 5.10 (`@prisma/client`)
+- Extensions: `pgvector` for `embedding_vec` HNSW index on `knowledge_base_articles`
+- Migrations: `apps/backend/prisma/migrations/` (40+ migration directories)
+
+**Redis (dual purpose):**
+- Rate limiting: Upstash Redis HTTP API (`@upstash/redis`)
+  - Env vars: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
+  - Falls back to in-memory `Map` when absent (single-process only)
+- Job queue: ioredis-compatible Redis for BullMQ (`bullmq`)
+  - Env var: `REDIS_URL`
+  - Falls back to `setTimeout`-based crons when absent
+  - Client: `apps/backend/src/queues/connection.ts`
 
 **File Storage:**
-- Local memory only (multer `memoryStorage`) — uploaded KB files processed immediately and discarded. No persistent file storage (no S3/GCS).
+- None — KB file uploads are processed in-memory (multer) and stored as plain text in PostgreSQL
 
-**Caching:**
-- Upstash Redis (`@upstash/redis ^1.28.0`) - Configured but rate limiting currently uses in-memory `Map` fallback
-  - Auth: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
-  - See comment in `apps/backend/src/middleware/rateLimit.ts`: "swap the Map for Redis INCR + EXPIREAT"
-- In-process caches:
-  - MCP tool list: 5-minute TTL per connector (`apps/backend/src/services/mcp.ts`)
-  - MCP connector list: 60-second TTL (`apps/backend/src/services/mcp.ts`)
-  - Analytics choke-point results: 60-second TTL (`apps/backend/src/routes/analytics.ts`)
+## Payments
 
-## Authentication & Identity
+**Stripe:**
+- Purpose: Subscription billing (Free/Starter/Growth/Scale plans), customer portal, upgrade flows
+- SDK: `stripe@14.21`
+- Auth env var: `STRIPE_SECRET_KEY`
+- Webhook: `POST /api/v1/billing/webhook` (raw body, `STRIPE_WEBHOOK_SECRET` for verification)
+- Price ID env vars: `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_GROWTH`, `STRIPE_PRICE_SCALE`
+- Client singleton: `apps/backend/src/utils/stripe.ts`
+- Controller: `apps/backend/src/controllers/billing.ts`
 
-**Auth Provider:**
-- Custom (no third-party auth provider)
-  - Dashboard users: email/password + JWT (`apps/backend/src/lib/jwt.ts` — 7-day tokens)
-  - Magic link: email token via Resend → `GET /api/v1/auth/magic-link/verify`
-  - Widget clients: `org_<64-hex>` API key via `X-API-Key` header
-  - Token stored: `localStorage` key `oai_token` (dashboard)
+## Email
 
-## Monitoring & Observability
+**Resend:**
+- Purpose: Transactional email — magic links, welcome emails with API key + snippet, flow zero-completion alerts, proactive re-engagement emails
+- SDK: `resend@3.2`
+- Auth env var: `RESEND_API_KEY` (emails skipped when absent, dev logs the link to console)
+- From address: `Ahaget <hello@ahaget.ai>`
+- Email templates: `apps/backend/src/utils/email.ts` (inline HTML)
 
-**Error Tracking:**
-- None detected (no Sentry, Datadog, Rollbar integrations)
+## Error Tracking & Observability
 
-**Logs:**
-- Structured JSON logger (`apps/backend/src/lib/logger.ts`) writing to stdout
-- Format: `{ ts, level, event, ...fields }` — Railway captures stdout for log search
-- Morgan HTTP request logging (`combined` in production)
+**Sentry:**
+- Purpose: Server-side exception capture with `requestId` tagging
+- SDK: `@sentry/node@8.55`
+- Auth env var: `SENTRY_DSN` (disabled when absent)
+- Sample rate: 10% for traces
+- Init: `apps/backend/src/utils/sentry.ts`
+
+**Logging:**
+- Custom `logger` utility: `apps/backend/src/utils/logger.ts`
+- HTTP request logs: morgan (dev: `dev` format, production: `combined`)
+
+## MCP — Model Context Protocol
+
+**Outbound MCP connectors:**
+- Purpose: Agent calls external tools (databases, APIs, internal services) during onboarding flows using JSON-RPC 2.0 over HTTP
+- Configured per-org in `McpConnector` table
+- Tool list cached in-memory per connector (5-minute TTL)
+- Connector list cached per-org (60s TTL)
+- Async path: BullMQ `McpPendingJob` table stores context while worker executes
+- Client: `apps/backend/src/services/mcp.ts`
+
+**REST API connector:**
+- Purpose: Direct HTTP calls from agent (`call_api` tool) to org-defined REST endpoints
+- Pre-approved via `RestApiEndpoint` table
+- IP/URL guard: `apps/backend/src/utils/ipGuard.ts` (blocks private/internal ranges)
+- 10-second timeout on all `call_api` calls
+
+**Context Sources:**
+- Purpose: Pre-session data (account status, feature flags, usage) fetched at session start and injected into agent system prompt as LIVE CONTEXT
+- Sources can be MCP tool calls or REST GET requests
+- Fetched in parallel with 2-second hard timeout per source
+- Service: `apps/backend/src/services/contextSources.ts`
+
+## Customer-Configured Outbound Integrations
+
+Stored in `IntegrationConfig` table (per-org). Types:
+- **Segment** — event tracking
+- **Mixpanel** — event tracking
+- **HubSpot** — contact sync
+- **Webhook** — generic HTTP webhook
+
+**Escalation webhooks:**
+- Slack webhook URL (per-org in `PlaybookConfig.escalationWebhook`)
+- Controller: `apps/backend/src/services/escalation.ts`
+
+**Selector alert webhooks:**
+- Per-org in `Organization.selectorAlertWebhook`
+
+## Authentication
+
+**Dashboard users:**
+- JWT (`jsonwebtoken@9.0`), signed with `JWT_SECRET`, stored in `localStorage` as `oai_token`
+- Magic link flow: token generated server-side, emailed via Resend, verified at `GET /api/v1/auth/magic-link/verify`
+- Password: bcrypt hashed (`bcryptjs@2.4`)
+- JWT utility: `apps/backend/src/utils/jwt.ts`
+- Middleware: `apps/backend/src/middleware/auth.ts` (`authenticateJWT`)
+
+**Widget / end-user:**
+- API key authentication via `X-API-Key` header
+- Key stored in `Organization.apiKey` (UUID)
+- Middleware: `apps/backend/src/middleware/auth.ts` (`authenticateApiKey`)
+
+## WebSockets
+
+- Server: `ws@8.16`, attached to HTTP server at path `/ws`
+- Widget mode: authenticated via API key (`{ type: 'auth', apiKey }`)
+- Dashboard mode: authenticated via JWT (`{ type: 'subscribe', conversationId, token }`)
+- Server: `apps/backend/src/utils/websocket.ts`
+- Broadcasts: `broadcastToOrgWidgets(orgId, payload)` for live widget updates
 
 ## CI/CD & Deployment
 
-**Hosting:**
-- Railway (primary) — health check endpoint `GET /health` comments reference Railway
-- Widget output (`dist/widget/`) intended for CDN hosting
+**GitHub Actions:**
+- `.github/workflows/ci.yml` — backend tests (Postgres 15), dashboard type-check + lint, landing build
+- Triggered on: push to main/master/develop; PRs to main/master
 
-**CI Pipeline:**
-- Not detected (no `.github/workflows/` or `.circleci/` found)
+**Hosting (planned, as of 2026-06-01):**
+- Backend: Railway
+- Dashboard/Landing: Vercel
 
-## Webhooks & Callbacks
+**Widget CDN:**
+- Served from `https://cdn.ahaget.ai/widget.js` (referenced in welcome email snippet and docs)
 
-**Incoming:**
-- `POST /api/v1/billing/webhook` - Stripe subscription events (payment success, cancellation, plan change)
-  - Must be registered before `express.json()` middleware (uses `express.raw`)
-  - Handles: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
+## Environment Configuration Summary
 
-**Outgoing (org-configurable):**
-- Slack webhook: `FollowUpConfig.slackWebhookUrl` — escalation notifications to org's Slack channel
-- Custom webhook: `PlaybookConfig.escalationWebhook` — fires on AI escalation events
-- `IntegrationConfig` table supports: Segment, Mixpanel, HubSpot, generic webhook (outbound event forwarding)
-- `Organization.selectorAlertWebhook` — fires when broken CSS selectors are detected
+All secrets are environment variables. No secrets files committed.
+Key vars by category:
 
-## MCP (Model Context Protocol) Connectors
-
-- Per-org external tool servers (`McpConnector` table)
-- JSON-RPC 2.0 over HTTP (stateless, no SSE)
-- Auth types: `none | bearer | api_key`
-- Permission scoping: `allowedTools[]`, `readOnly` flag
-- Tool list cached 5 minutes; connector list cached 60 seconds
-- SSRF protection: `apps/backend/src/lib/ipGuard.ts` blocks private/loopback IPs for all outbound fetch calls
-
-## Environment Configuration
-
-**Required env vars:**
-- `DATABASE_URL` - PostgreSQL connection
-- `JWT_SECRET` - Dashboard token signing
-
-**Important optional env vars:**
-- `OPENAI_API_KEY` - AI agent features
-- `STRIPE_SECRET_KEY` - Billing
-- `RESEND_API_KEY` - Email
-- `SARVAM_API_KEY` - Multilingual support
-- `ADMIN_SECRET` - Admin route access
-- `FRONTEND_URL` - CORS + redirect URLs (defaults to `https://app.ahaget.ai`)
-- `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_GROWTH`, `STRIPE_PRICE_SCALE` - Plan price IDs (fatal in production if absent for paid plans)
-
-**Secrets location:**
-- `.env` file(s) — not committed
+| Category | Vars |
+|----------|------|
+| Required | `DATABASE_URL`, `JWT_SECRET` |
+| LLM | `OPENROUTER_API_KEY`, `OPENAI_API_KEY` |
+| Payments | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_*` |
+| Email | `RESEND_API_KEY` |
+| Redis | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `REDIS_URL` |
+| Monitoring | `SENTRY_DSN` |
+| Multilingual | `SARVAM_API_KEY` |
+| Infra | `ADMIN_SECRET`, `FRONTEND_URL`, `CRON_ENABLED`, `PORT` |
 
 ---
 
-*Integration audit: 2026-05-13*
+*Integration audit: 2026-06-01*

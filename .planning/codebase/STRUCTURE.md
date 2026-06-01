@@ -1,256 +1,275 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-05-13
+**Analysis Date:** 2026-06-01
 
 ## Directory Layout
 
 ```
-D:/Ahaget/                              # Monorepo root
+Ahaget/                           # Monorepo root
 ├── apps/
-│   ├── backend/                        # Express REST + WebSocket API (port 4000)
+│   ├── backend/                  # Express REST API + WebSocket server
 │   │   ├── prisma/
-│   │   │   ├── schema.prisma           # 26-model PostgreSQL schema
-│   │   │   ├── migrations/             # 30+ Prisma migration directories
-│   │   │   └── seed.ts                 # DB seed script
+│   │   │   ├── schema.prisma     # Prisma schema (source of truth for DB)
+│   │   │   ├── migrations/       # 40+ migration directories (timestamped)
+│   │   │   └── seed.ts           # DB seed script
 │   │   ├── src/
-│   │   │   ├── index.ts                # Entry point: Express setup, route mounting, crons
-│   │   │   ├── routes/                 # 23 route files — one per domain
-│   │   │   ├── services/               # Business logic and AI orchestration
-│   │   │   ├── middleware/             # Auth, planGate, rateLimit, errorHandler
-│   │   │   ├── lib/                    # Shared utilities (prisma, jwt, email, stripe, logger…)
-│   │   │   ├── jobs/                   # Background job functions (kbRefresh)
-│   │   │   ├── types/                  # Shared TypeScript types (AuthenticatedRequest)
-│   │   │   └── __tests__/              # Jest integration tests + test helpers
+│   │   │   ├── index.ts          # App entry point — Express setup, cron boot
+│   │   │   ├── controllers/      # Route handlers (one file per resource)
+│   │   │   ├── services/
+│   │   │   │   ├── agent/        # AI agent core
+│   │   │   │   ├── knowledge.ts  # KB hybrid search (pgvector + BM25 + RRF)
+│   │   │   │   ├── mcp.ts        # MCP connector client
+│   │   │   │   ├── contextSources.ts  # Live context injection
+│   │   │   │   ├── apicall.ts    # call_api tool executor
+│   │   │   │   ├── alerting.ts   # Flow zero-completion alerts
+│   │   │   │   ├── proactive.ts  # Proactive message sending
+│   │   │   │   ├── crawl.ts      # KB URL/sitemap crawler
+│   │   │   │   ├── escalation.ts # Human handoff tickets
+│   │   │   │   ├── intent.ts     # User intent detection
+│   │   │   │   ├── sarvam.ts     # Indian language ML layer
+│   │   │   │   └── userhistory.ts# User history formatting
+│   │   │   ├── queues/
+│   │   │   │   ├── index.ts      # BullMQ boot + job scheduling
+│   │   │   │   ├── connection.ts # REDIS_URL parser
+│   │   │   │   ├── jobTypes.ts   # Job name constants
+│   │   │   │   └── workers/      # One file per background job
+│   │   │   ├── middleware/
+│   │   │   │   ├── auth.ts       # authenticateApiKey, authenticateJWT
+│   │   │   │   ├── errorHandler.ts
+│   │   │   │   ├── planGate.ts   # requireFeature() plan gate
+│   │   │   │   ├── rateLimit.ts  # message/MTU/agent/MCP limits
+│   │   │   │   └── requestId.ts
+│   │   │   ├── utils/
+│   │   │   │   ├── prisma.ts     # Prisma client singleton
+│   │   │   │   ├── jwt.ts        # JWT sign/verify
+│   │   │   │   ├── email.ts      # Resend email templates
+│   │   │   │   ├── stripe.ts     # Stripe client singleton
+│   │   │   │   ├── redis.ts      # Upstash Redis helpers
+│   │   │   │   ├── sentry.ts     # Sentry init
+│   │   │   │   ├── logger.ts     # Structured logger + withRetry
+│   │   │   │   ├── websocket.ts  # WS server + org/conversation broadcast
+│   │   │   │   ├── plans.ts      # Plan limits, gates, Stripe price IDs
+│   │   │   │   ├── ipGuard.ts    # Block private IP ranges in call_api
+│   │   │   │   ├── apiKey.ts     # API key generation
+│   │   │   │   ├── streaming.ts  # SSE streaming helpers
+│   │   │   │   └── templates.ts  # Misc string templates
+│   │   │   ├── types/            # Shared TypeScript types (AuthenticatedRequest, etc.)
+│   │   │   ├── jobs/
+│   │   │   │   └── kbRefresh.ts  # KB refresh job logic (called by worker)
+│   │   │   └── __tests__/        # Jest unit + integration tests
 │   │   ├── tests/
-│   │   │   └── evals/                  # AI eval scenarios
-│   │   ├── jest.config.ts
+│   │   │   └── evals/            # AI eval harness (runner.ts, report.ts, scenarios/)
+│   │   ├── dist/                 # Compiled output (gitignored)
 │   │   ├── tsconfig.json
 │   │   └── package.json
 │   │
-│   ├── dashboard/                      # Next.js 14 admin dashboard (port 3000)
+│   ├── dashboard/                # Next.js 14 admin SPA
 │   │   ├── app/
-│   │   │   ├── layout.tsx              # Root HTML shell
-│   │   │   ├── page.tsx                # Redirects to /dashboard
-│   │   │   ├── globals.css             # Global CSS + CSS custom properties (design tokens)
-│   │   │   ├── (auth)/                 # Unauthenticated routes: login, register, magic-link
-│   │   │   ├── (onboarding)/           # Setup wizard: workspace, attribution, install, snippet
-│   │   │   └── (app)/                  # Protected app routes (requires JWT)
-│   │   │       ├── layout.tsx          # Auth guard + Sidebar shell
-│   │   │       ├── dashboard/          # Overview page with charts
-│   │   │       ├── flows/              # Agent flow builder and list
-│   │   │       ├── sessions/           # Session replay and detail views
-│   │   │       ├── conversations/      # Chat conversation list and detail
-│   │   │       ├── escalations/        # Human escalation ticket inbox
-│   │   │       ├── questions/          # User questions inbox
-│   │   │       ├── knowledge/          # Knowledge base article management
-│   │   │       ├── users/              # End-user list
-│   │   │       ├── insights/           # Analytics: choke-points
-│   │   │       ├── expansion/          # Upsell revenue analytics
-│   │   │       ├── lifecycle/          # User lifecycle view
-│   │   │       ├── triggers/           # Trigger rule management
-│   │   │       ├── playbook/           # Agent persona + guardrails config
-│   │   │       ├── interface/          # Interface map / DOM snapshot browser
-│   │   │       ├── in-page-assistant/  # Widget preview
-│   │   │       ├── mcp/                # MCP connector management
-│   │   │       ├── branding/           # Widget branding config
-│   │   │       └── settings/           # Nested settings: ai, audit, billing, general, integrations, knowledge, widget
-│   │   ├── components/
-│   │   │   ├── Sidebar.tsx             # Navigation sidebar (220px fixed)
-│   │   │   ├── MetricCard.tsx          # Reusable metric display card
-│   │   │   └── charts/                 # Recharts wrapper components
+│   │   │   ├── layout.tsx        # Root layout (metadata, globals.css)
+│   │   │   ├── page.tsx          # Root redirect (→ /dashboard or /login)
+│   │   │   ├── globals.css       # CSS variables (color tokens, dark theme)
+│   │   │   ├── (app)/            # Route group: authenticated app pages
+│   │   │   │   ├── layout.tsx    # App shell (Sidebar, auth guard)
+│   │   │   │   ├── dashboard/    # Overview + metrics
+│   │   │   │   ├── flows/        # Flow list + editor + [id]/
+│   │   │   │   ├── sessions/     # Session list + [id] replay
+│   │   │   │   ├── conversations/# Conversation list + [id]
+│   │   │   │   ├── knowledge/    # KB article management
+│   │   │   │   ├── users/        # End-user profiles
+│   │   │   │   ├── escalations/  # Escalation tickets
+│   │   │   │   ├── mcp/          # MCP connector config
+│   │   │   │   ├── interface/    # Interface map / DOM annotation
+│   │   │   │   ├── triggers/     # Trigger rule config
+│   │   │   │   ├── proactive/    # Proactive message history
+│   │   │   │   ├── expansion/    # Upsell attribution dashboard
+│   │   │   │   ├── branding/     # Widget branding config
+│   │   │   │   ├── playbook/     # Agent persona + guardrails
+│   │   │   │   ├── insights/     # Analytics + choke-points
+│   │   │   │   ├── failures/     # Failure inbox
+│   │   │   │   ├── lifecycle/    # Lifecycle flows
+│   │   │   │   ├── questions/    # Smart questions
+│   │   │   │   ├── in-page-assistant/ # In-page assistant config
+│   │   │   │   └── settings/     # Billing, AI, widget, integrations, audit
+│   │   │   ├── (auth)/           # Route group: unauthenticated
+│   │   │   │   ├── login/
+│   │   │   │   ├── register/
+│   │   │   │   └── magic-link/verify/
+│   │   │   └── (onboarding)/getting-started/  # Post-signup wizard
+│   │   │       ├── workspace/ → attribution/ → description/ → install/ → snippet/
+│   │   ├── components/           # Shared UI components
+│   │   │   ├── Sidebar.tsx
+│   │   │   ├── MetricCard.tsx
+│   │   │   ├── AhagetLogo.tsx
+│   │   │   ├── AhagetAssistantPanel.tsx
+│   │   │   └── charts/
 │   │   ├── lib/
-│   │   │   └── api.ts                  # Full typed API client (apiFetch wrapper + all api.* namespaces)
+│   │   │   ├── api.ts            # Typed fetch wrapper + all API call definitions
+│   │   │   └── auth.ts           # Auth helpers
 │   │   ├── store/
-│   │   │   └── auth.ts                 # Zustand auth store (token, user, org)
-│   │   ├── e2e/                        # Playwright E2E tests
-│   │   ├── tsconfig.json
+│   │   │   └── auth.ts           # Zustand auth store
+│   │   ├── e2e/                  # Playwright E2E tests
+│   │   ├── public/               # Static assets (logos, favicons)
 │   │   └── package.json
 │   │
-│   ├── widget/                         # Embeddable browser widget (IIFE bundle)
+│   ├── widget/                   # Vite embeddable bundle
 │   │   ├── src/
-│   │   │   ├── index.ts                # Entry: window.Ahaget() public API, inspector mode detection
-│   │   │   ├── widget.ts               # AhagetWidget class — side-panel orchestrator
-│   │   │   ├── copilot.ts              # CopilotManager — session lifecycle, streaming
-│   │   │   ├── api.ts                  # Fetch helpers: trackEvent, evaluateTriggers, proactive
-│   │   │   ├── ui.ts                   # DOM builder functions for side panel, messages, steps
-│   │   │   ├── styles.ts               # CSS injection utilities
-│   │   │   ├── config.ts               # WidgetConfig type + DEFAULT_CONFIG + script-tag attr reader
-│   │   │   ├── detector.ts             # DropOffDetector (idle + exit-intent detection)
-│   │   │   ├── scanner.ts              # DOM element scanner (live page element list for agent)
-│   │   │   ├── inspector.ts            # Inspector mode: interactive element selector
-│   │   │   ├── resolver.ts             # Selector self-healing (7 fallback strategies)
-│   │   │   ├── recapture.ts            # Selector re-verification after actions
-│   │   │   ├── highlighter.ts          # DOM highlight modes (spotlight, beacon, arrow, multi)
-│   │   │   ├── formFiller.ts           # Automated form fill execution
-│   │   │   ├── cursor.ts               # Animated cursor for visual navigation guidance
-│   │   │   └── checklist.ts            # Onboarding checklist UI component
-│   │   ├── vite.config.ts              # Production IIFE build → dist/widget/
-│   │   ├── vite.dev.config.ts          # Dev server config
-│   │   ├── tsconfig.json
+│   │   │   ├── index.ts          # Entry: Ahaget() global API + inspector mode
+│   │   │   ├── controllers/
+│   │   │   │   ├── widget.ts     # AhagetWidget class — side panel orchestrator
+│   │   │   │   └── checklist.ts  # Checklist controller
+│   │   │   ├── features/
+│   │   │   │   ├── copilot.ts    # CopilotManager — session + API calls
+│   │   │   │   ├── detector.ts   # Drop-off detection (idle, exit intent)
+│   │   │   │   ├── recapture.ts  # Recapture flow logic
+│   │   │   │   └── styles.ts     # Widget CSS definitions
+│   │   │   ├── models/
+│   │   │   │   ├── api.ts        # Widget API client (all fetch calls)
+│   │   │   │   └── config.ts     # WidgetConfig type + defaults + script tag reader
+│   │   │   ├── views/
+│   │   │   │   └── ui.ts         # DOM rendering (panel, messages, cards, chips)
+│   │   │   └── utils/
+│   │   │       ├── scanner.ts    # DOM element scanner (builds page context)
+│   │   │       ├── resolver.ts   # Self-healing CSS selector resolver
+│   │   │       ├── highlighter.ts# DOM highlight effects (spotlight, beacon, arrow, etc.)
+│   │   │       ├── cursor.ts     # Animated form fill (cursor simulation)
+│   │   │       └── inspector.ts  # DOM inspector mode
+│   │   ├── vite.dev.config.ts
 │   │   └── package.json
 │   │
-│   └── landing/                        # Next.js 14 marketing site (port 3001)
-│       ├── app/                        # Pages: docs, legal/privacy, legal/terms
-│       ├── components/                 # Marketing components
-│       ├── public/                     # Static assets
-│       └── package.json
+│   └── landing/                  # Next.js static marketing site
+│       ├── app/                  # App Router pages
+│       ├── public/
+│       └── out/                  # Static export output
 │
 ├── packages/
-│   └── shared/                         # Shared package (src/ exists but empty — not yet used)
+│   └── shared/src/               # Shared TypeScript types (currently empty)
 │
 ├── tests/
-│   └── load/                           # k6 load tests
-│       ├── k6.js                       # HTTP load test
-│       └── k6-websocket.js             # WebSocket load test
+│   └── load/                     # k6 load tests
+│       ├── k6.js                 # HTTP load test
+│       └── k6-websocket.js       # WS load test
 │
-├── dist/
-│   └── widget/                         # Built widget IIFE output (gitignored typically)
-│
-├── ahaget-website/                     # Older/alternate website (Next.js, not in workspaces)
-│
-├── .planning/
-│   └── codebase/                       # Codebase map documents (this directory)
-│
-├── docs/                               # Internal planning docs
-├── package.json                        # Root workspaces config
+├── docs/                         # Documentation
+├── logo/                         # Brand assets
+├── .github/workflows/ci.yml      # GitHub Actions CI
+├── .planning/codebase/           # GSD codebase maps (this directory)
+├── package.json                  # Workspace root
 └── package-lock.json
 ```
-
-## Directory Purposes
-
-**`apps/backend/src/routes/`:**
-- Purpose: HTTP route handlers — thin layer, delegates to services or Prisma directly
-- Contains: One `.ts` file per domain (e.g., `session.ts`, `flow.ts`, `analytics.ts`)
-- Auth applied at router level (top of file or per-route middleware)
-- Key files: `apps/backend/src/routes/session.ts` (AI agent entry), `apps/backend/src/routes/billing.ts` (Stripe), `apps/backend/src/routes/analytics.ts` (choke-points, overview)
-
-**`apps/backend/src/services/`:**
-- Purpose: Core business logic; AI agent, knowledge search, outreach, MCP
-- Key files: `apps/backend/src/services/agent.ts` (GPT-4o tool loop), `apps/backend/src/services/knowledge.ts` (BM25+vector search), `apps/backend/src/services/mcp.ts` (MCP client), `apps/backend/src/services/sarvam.ts` (multilingual)
-
-**`apps/backend/src/lib/`:**
-- Purpose: Singletons and utilities used across routes and services
-- Key files: `apps/backend/src/lib/prisma.ts` (Prisma singleton), `apps/backend/src/lib/plans.ts` (plan definitions + gates), `apps/backend/src/lib/email.ts` (Resend), `apps/backend/src/lib/stripe.ts` (Stripe client), `apps/backend/src/lib/ipGuard.ts` (SSRF protection), `apps/backend/src/lib/logger.ts` (structured logger)
-
-**`apps/backend/src/middleware/`:**
-- Purpose: Express middleware chain components
-- Key files: `apps/backend/src/middleware/auth.ts`, `apps/backend/src/middleware/planGate.ts`, `apps/backend/src/middleware/rateLimit.ts`, `apps/backend/src/middleware/errorHandler.ts`
-
-**`apps/dashboard/lib/api.ts`:**
-- Purpose: Single file containing ALL dashboard API calls — typed, organized into namespaces (`api.auth`, `api.flow`, `api.sessions`, `api.analytics`, etc.)
-- This is the only file the dashboard uses to call the backend
-
-**`apps/dashboard/store/`:**
-- Purpose: Zustand state stores
-- Currently only `auth.ts` — all other page state is local `useState`
-
-**`apps/widget/src/`:**
-- Purpose: All widget source — no subdirectories, flat structure, ~16 files
-- Each file is a focused module (scanner, resolver, highlighter, etc.)
 
 ## Key File Locations
 
 **Entry Points:**
-- `apps/backend/src/index.ts` - Backend server boot, all route mounting, cron jobs
-- `apps/dashboard/app/layout.tsx` - Dashboard root HTML
-- `apps/dashboard/app/(app)/layout.tsx` - Auth guard + sidebar shell for protected pages
-- `apps/widget/src/index.ts` - Widget public API (`window.Ahaget`)
+- `apps/backend/src/index.ts` — Express app + WS server + cron boot
+- `apps/widget/src/index.ts` — `window.Ahaget` global definition
+- `apps/dashboard/app/layout.tsx` — Next.js root layout
+- `apps/landing/app/` — Marketing pages
 
-**Configuration:**
-- `apps/backend/prisma/schema.prisma` - Database schema (26 models)
-- `apps/backend/src/lib/plans.ts` - Plan definitions and feature gates
-- `apps/backend/src/lib/prisma.ts` - Prisma client singleton
-- `apps/backend/src/lib/stripe.ts` - Stripe client
-- `apps/widget/src/config.ts` - Widget defaults and script-tag config reader
+**AI Agent:**
+- `apps/backend/src/services/agent/index.ts` — `runAgentSafe`, `runAgentStream`, `runAgentGoal`, `runAgentPlan`
+- `apps/backend/src/services/agent/tools.ts` — tool definitions + `parseToolCall` + `handleMcpCall`
+- `apps/backend/src/services/agent/context.ts` — system prompt builder
+- `apps/backend/src/services/agent/routing.ts` — model selection
+- `apps/backend/src/services/agent/memory.ts` — cross-session memory
+- `apps/backend/src/services/agent/types.ts` — `AgentAction`, `PageContext` types
+- `apps/backend/src/services/agent/_openai.ts` — OpenRouter client singleton
 
-**Core Logic:**
-- `apps/backend/src/services/agent.ts` - AI agent tool-calling loop
-- `apps/backend/src/services/knowledge.ts` - Hybrid BM25 + vector KB search
-- `apps/backend/src/lib/websocket.ts` - WebSocket server (dual-mode: widget + dashboard)
-- `apps/backend/src/middleware/auth.ts` - Auth middleware (both schemes)
-- `apps/backend/src/middleware/planGate.ts` - Feature gating by plan tier
-- `apps/dashboard/lib/api.ts` - Complete typed API client for dashboard
+**Database:**
+- `apps/backend/prisma/schema.prisma` — complete Prisma schema (single file, 870 lines)
+- `apps/backend/prisma/migrations/` — migration history
 
-**Testing:**
-- `apps/backend/src/__tests__/` - Jest integration tests (supertest, real DB)
-- `apps/backend/src/__tests__/testApp.ts` - Test Express app factory
-- `apps/backend/src/__tests__/helpers.ts` - `createTestOrg`, `createTestUser`, `cleanupOrg`
-- `apps/dashboard/e2e/` - Playwright E2E tests (3 spec files)
-- `tests/load/` - k6 load test scripts
+**API Client (Dashboard):**
+- `apps/dashboard/lib/api.ts` — all typed API calls (the only place to add new dashboard API calls)
+
+**Widget API Client:**
+- `apps/widget/src/models/api.ts` — all widget fetch calls
+
+**Plan / Feature Gates:**
+- `apps/backend/src/utils/plans.ts` — `PLANS` map, `PlanFeatures` interface, `planFromPriceId`
+- `apps/backend/src/middleware/planGate.ts` — `requireFeature()` middleware
 
 ## Naming Conventions
 
 **Files:**
-- Backend routes: `camelCase.ts` matching the domain (e.g., `interfaceMap.ts`, `proactive.ts`)
-- Backend services/lib: `camelCase.ts` matching the service name
-- Dashboard pages: `page.tsx` (Next.js App Router convention), `layout.tsx`
-- Widget modules: `camelCase.ts` matching the concern (e.g., `formFiller.ts`, `highlighter.ts`)
-- Tests: `<subject>.test.ts` (Jest), `<subject>.spec.ts` (Playwright)
+- Backend controllers: `camelCase.ts` (e.g., `contextSources.ts`, `interfaceMap.ts`)
+- Backend services: `camelCase.ts`
+- Backend workers: `camelCase.ts` (e.g., `evalRegression.ts`)
+- Dashboard pages: `page.tsx` (Next.js convention)
+- Dashboard components: `PascalCase.tsx`
 
 **Directories:**
-- Dashboard routes: kebab-case (e.g., `in-page-assistant`, `choke-points`)
-- Backend: no nesting — flat `routes/`, `services/`, `lib/`, `middleware/`
+- Backend: flat `controllers/`, `services/`, `utils/`, `middleware/` (no subdirs except `agent/`)
+- Dashboard: Next.js App Router convention with route groups in parentheses
+
+**TypeScript:**
+- Interfaces: `PascalCase` (e.g., `AgentAction`, `PageContext`, `PlanFeatures`)
+- Types union: `PascalCase` (e.g., `AgentAction`)
+- Env vars: `SCREAMING_SNAKE_CASE`
+- Prisma model names: `PascalCase` → table names: `snake_case` via `@@map`
 
 ## Where to Add New Code
 
-**New Backend Route:**
-- Add route file: `apps/backend/src/routes/<domain>.ts`
-- Register in: `apps/backend/src/index.ts` — add import + `app.use('/api/v1/<path>', <name>Routes)`
-- Add auth middleware at top of router: `router.use(authenticateJWT)` or `router.use(authenticateApiKey)`
-- Add plan gate if feature-gated: `router.use(requireFeature('featureKey'))` or per-route
+**New backend route:**
+1. Create `apps/backend/src/controllers/<resource>.ts` (use `Router`, apply auth middleware, export default)
+2. Import and mount in `apps/backend/src/index.ts` under `/api/v1/<resource>`
+3. Add corresponding types to `apps/dashboard/lib/api.ts`
 
-**New Backend Service:**
-- Add: `apps/backend/src/services/<name>.ts`
-- Import and call from route(s) that need it
+**New agent tool:**
+1. Add tool definition to `AGENT_TOOLS` array in `apps/backend/src/services/agent/tools.ts`
+2. Add case to `parseToolCall` in the same file
+3. Add type to `AgentAction` union in `apps/backend/src/services/agent/types.ts`
+4. Add type to widget's `AgentAction` union in `apps/widget/src/features/copilot.ts`
+5. Handle the new action in `apps/widget/src/controllers/widget.ts`
 
-**New Dashboard Page:**
-- Add: `apps/dashboard/app/(app)/<route-name>/page.tsx` (protected, requires auth)
-- Add navigation link in: `apps/dashboard/components/Sidebar.tsx`
-- Add API methods in: `apps/dashboard/lib/api.ts` in the appropriate namespace
+**New background job:**
+1. Create worker file `apps/backend/src/queues/workers/<name>.ts` (export `start<Name>Worker`)
+2. Add job name constant to `apps/backend/src/queues/jobTypes.ts`
+3. Register worker in `apps/backend/src/queues/index.ts` (`bootQueues`)
+4. Add cron schedule to `SCHEDULES` map in the same file
+5. Add setTimeout fallback in `apps/backend/src/index.ts` (for no-Redis dev)
 
-**New API Client Method (Dashboard):**
-- Add to: `apps/dashboard/lib/api.ts` inside the relevant `api.<namespace>` object
-- Follow the `apiFetch<ReturnType>(path, opts)` pattern
+**New dashboard page:**
+1. Create directory under `apps/dashboard/app/(app)/<page>/page.tsx`
+2. Mark `'use client'` at top
+3. Add sidebar link in `apps/dashboard/components/Sidebar.tsx`
+4. Add API call definition to `apps/dashboard/lib/api.ts`
 
-**New Widget Module:**
-- Add: `apps/widget/src/<module>.ts`
-- Import into: `apps/widget/src/widget.ts` or `apps/widget/src/copilot.ts` as needed
+**New database model:**
+1. Add model to `apps/backend/prisma/schema.prisma`
+2. Run `npx prisma migrate dev --name <name>` from `apps/backend/`
+3. Run `npx prisma generate`
 
-**New DB Model:**
-- Edit: `apps/backend/prisma/schema.prisma`
-- Run: `npm run db:migrate --workspace=apps/backend`
-- Add `organizationId` FK + `@@index([organizationId])` for every tenant-scoped model
-
-**New Plan Feature Gate:**
-- Add key to `PlanFeatures` interface in `apps/backend/src/lib/plans.ts`
-- Set the boolean for each plan tier in the `*_GATES` constants
-- Use `requireFeature('newKey')` middleware in the route
-
-**New Background Job:**
-- Add job function in `apps/backend/src/jobs/<name>.ts`
-- Schedule with `setTimeout`/`setInterval` in `apps/backend/src/index.ts` (see existing pattern)
+**New plan feature gate:**
+1. Add field to `PlanFeatures` interface in `apps/backend/src/utils/plans.ts`
+2. Set gate value per plan in the `*_GATES` constants
+3. Add `requireFeature('<field>')` middleware to protected routes
 
 ## Special Directories
 
-**`apps/backend/prisma/migrations/`:**
-- Purpose: Prisma auto-generated migration SQL files
-- Generated: Yes (by `prisma migrate dev`)
-- Committed: Yes (required for production deployment)
+**`apps/backend/dist/`:**
+- TypeScript compiled output
+- Generated, not committed
 
-**`dist/widget/`:**
-- Purpose: Production IIFE build of the widget
-- Generated: Yes (by `npm run build --workspace=apps/widget`)
-- Committed: Typically no (build artifact)
+**`apps/backend/prisma/migrations/`:**
+- All database migrations, committed to git
+- Named `YYYYMMDD[_HHMMSS]_<description>/`
+- Two untracked as of 2026-06-01: `20260601_add_mcp_pending_jobs/`, `20260601_add_user_memories_eval_logs_branding/`
+
+**`apps/dashboard/.next/`:**
+- Next.js build cache
+- Not committed
+
+**`apps/landing/out/`:**
+- Static export for landing page
+- Committed (deployed directly)
 
 **`.planning/codebase/`:**
-- Purpose: Codebase map documents consumed by GSD planning commands
-- Generated: Yes (by `/gsd-map-codebase`)
-- Committed: Yes
+- GSD codebase map documents (this file)
+- Committed; updated by `/gsd-map-codebase`
 
-**`apps/backend/src/__tests__/`:**
-- Purpose: Integration tests that hit a real test database
-- Note: `jest.config.ts` excludes `apps/backend/src/index.ts` from coverage (not unit-testable)
+**`apps/widget/src/utils/inspector.ts`:**
+- DOM inspector mode activated via `?ahaget_inspect=1`; completely separate boot path from normal widget
 
 ---
 
-*Structure analysis: 2026-05-13*
+*Structure analysis: 2026-06-01*

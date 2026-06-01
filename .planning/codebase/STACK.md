@@ -1,101 +1,158 @@
 # Technology Stack
 
-**Analysis Date:** 2026-05-13
+**Analysis Date:** 2026-06-01
 
 ## Languages
 
 **Primary:**
-- TypeScript 5.3 - All apps (backend, dashboard, widget, landing)
+- TypeScript 5.3 — all apps (backend, dashboard, widget, landing)
 
 **Secondary:**
-- JavaScript - k6 load tests (`tests/load/k6.js`, `tests/load/k6-websocket.js`)
+- JavaScript — k6 load test scripts (`tests/load/k6.js`, `tests/load/k6-websocket.js`)
 
 ## Runtime
 
 **Environment:**
-- Node.js 20.x (inferred from `@types/node: ^20.11.0` in all packages)
+- Node.js 20 (pinned in CI via `actions/setup-node@v4`; no `.nvmrc` present)
 
 **Package Manager:**
-- npm workspaces (root `package.json` with `"workspaces": ["apps/*", "packages/*"]`)
-- Lockfile: `package-lock.json` present at root
+- npm workspaces — root `package.json` defines workspaces `apps/*` and `packages/*`
+- Lockfile: `package-lock.json` at repo root
+
+## Applications in Monorepo
+
+| App | Framework | Port | Purpose |
+|-----|-----------|------|---------|
+| `apps/backend` | Express 4.18 | 4000 | REST API + WebSocket server |
+| `apps/dashboard` | Next.js 14.1 | 3000 | Admin SPA (App Router) |
+| `apps/landing` | Next.js 14.1 | 3001 | Marketing site (static export) |
+| `apps/widget` | Vite 5.1 | — | Embeddable JS bundle for customer apps |
+| `packages/shared` | — | — | Shared types (currently empty) |
 
 ## Frameworks
 
-**Core:**
-- Express 4.18 (`apps/backend`) - REST API server + WebSocket (ws 8.16)
-- Next.js 14.1 (`apps/dashboard`) - Dashboard SPA (App Router, client-only rendering pattern)
-- Next.js 14.1 (`apps/landing`) - Marketing/landing site
-- Vite 5.1 (`apps/widget`) - Browser widget bundled as IIFE via `vite-plugin-css-injected-by-js`
+**Backend:**
+- Express 4.18 — HTTP server
+- `express-async-errors` — async error propagation without try/catch wrappers
+- `ts-node-dev 2.0` — dev server with hot reload
+- `tsc` — production build (outputs to `apps/backend/dist/`)
 
-**Testing:**
-- Jest 29 + ts-jest 29 - Backend unit/integration tests (`apps/backend`)
-- Playwright 1.42 - Dashboard E2E tests (`apps/dashboard/e2e/`)
+**Dashboard / Landing:**
+- Next.js 14.1 (App Router, React 18.2)
+- Tailwind CSS 3.4 — utility-first styling
+- No UI component library; all components use inline styles / raw HTML
 
-**Build/Dev:**
-- ts-node-dev 2.0 - Backend hot-reload in dev
-- concurrently 8.2 - Root-level `npm run dev` boots all three apps in parallel
+**Widget:**
+- Vite 5.1 — bundler
+- `vite-plugin-css-injected-by-js` — CSS injected at runtime, no separate stylesheet
+- Output: single IIFE bundle (`dist/widget.js`), served from CDN at `cdn.ahaget.ai`
+
+## ORM / Database
+
+- Prisma 5.10 — ORM, migrations, and schema
+- Provider: PostgreSQL (version 15 used in CI)
+- pgvector extension for KB embeddings (`embedding_vec` column with HNSW index)
+- Client generated via `npx prisma generate`
 
 ## Key Dependencies
 
-**Critical:**
-- `@anthropic-ai/sdk ^0.39.0` - Anthropic Claude SDK (imported but `openai` is primary at runtime; Anthropic SDK present for potential dual-model usage)
-- `openai ^4.47.0` - OpenAI GPT-4o as primary AI engine; `gpt-4o` for agent calls, `text-embedding-3-small` for KB embeddings
-- `@prisma/client ^5.10.0` + `prisma ^5.10.0` - PostgreSQL ORM; schema at `apps/backend/prisma/schema.prisma`
-- `stripe ^14.21.0` - Billing; Stripe API version `2023-10-16`
-- `resend ^3.2.0` - Transactional email (magic links, escalation notifications, proactive outreach)
-- `ws ^8.16.0` - WebSocket server attached to Express HTTP server at `/ws`
+**Critical — AI / LLM:**
+- `openai@4.47` — used via OpenRouter (`baseURL: https://openrouter.ai/api/v1`) for chat completions AND directly against `api.openai.com` for embeddings
+- `@anthropic-ai/sdk@0.39` — declared in `package.json` but NOT actively used for inference (legacy; OpenRouter handles all LLM calls)
 
-**Infrastructure:**
-- `@upstash/redis ^1.28.0` - Redis client (configured but rate limiting currently falls back to in-memory `Map`; see `apps/backend/src/middleware/rateLimit.ts`)
-- `zod ^3.22.4` - Runtime validation (backend routes + dashboard forms via `@hookform/resolvers`)
-- `bcryptjs ^2.4.3` - Password hashing (low rounds in test env for speed)
-- `jsonwebtoken ^9.0.2` - Dashboard JWT auth (7-day expiry)
-- `helmet ^7.1.0` - HTTP security headers
-- `morgan ^1.10.0` - HTTP request logging (`combined` in production, `dev` otherwise)
-- `node-cron ^3.0.3` - Imported but cron scheduling is done with `setInterval`/`setTimeout` in `apps/backend/src/index.ts`
-- `multer ^2.1.1` - File upload for KB article ingest (in-memory, 5 MB limit)
-- `cheerio ^1.2.0` - HTML parsing for URL crawl (`apps/backend/src/services/crawl.ts`)
-- `node-html-markdown ^2.0.0` - HTML-to-markdown conversion during KB crawl
+**Critical — Infrastructure:**
+- `@prisma/client@5.10` — database access
+- `bullmq@5.77` — async job queue (requires `REDIS_URL`; falls back to setTimeout crons)
+- `ws@8.16` — WebSocket server at `/ws` (widget auth + dashboard live updates)
+- `zod@3.22` — runtime input validation (backend controllers + dashboard forms)
 
-**Frontend:**
-- `recharts ^2.12.0` - Charts on dashboard (used in `apps/dashboard/app/(app)/dashboard/page.tsx`)
-- `zustand ^4.5.2` - Client-side state management (`apps/dashboard/store/auth.ts`)
-- `react-hook-form ^7.50.1` + `@hookform/resolvers ^3.3.4` - Form handling in dashboard
-- Tailwind CSS 3.4 - Styling for dashboard and landing
+**Payments & Comms:**
+- `stripe@14.21` — billing subscriptions + webhook handler
+- `resend@3.2` — transactional email (magic links, welcome, proactive, flow alerts)
+- `@sentry/node@8.55` — error tracking and performance monitoring
+
+**Security & HTTP:**
+- `helmet@7.1` — HTTP security headers
+- `morgan@1.10` — HTTP request logging
+- `cors@2.8` — CORS handling
+- `bcryptjs@2.4` — password hashing
+- `jsonwebtoken@9.0` — JWT for dashboard users
+- `uuid@9.0` — UUID generation
+
+**Caching / Rate Limiting:**
+- `@upstash/redis@1.28` — serverless Redis HTTP client (`UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`)
+
+**File / Web Processing:**
+- `multer@2.1` — file upload for KB article ingest
+- `cheerio@1.2` — HTML parsing for KB URL crawl
+- `node-html-markdown@2.0` — HTML → Markdown conversion
+
+**Multilingual:**
+- Sarvam AI (`SARVAM_API_KEY`) — Indian language translation, STT, TTS (REST calls to `https://api.sarvam.ai`)
+
+**Dashboard Only:**
+- `zustand@4.5` — global auth state store
+- `react-hook-form@7.50` + `@hookform/resolvers@3.3` — form handling with Zod validation
+- `recharts@2.12` — analytics line/bar charts
+
+## AI Model Routing
+
+All LLM inference goes through **OpenRouter** at `https://openrouter.ai/api/v1`, authenticated with `OPENROUTER_API_KEY`. The OpenAI SDK is used as the client.
+
+Model selection logic in `apps/backend/src/services/agent/routing.ts`:
+- `openai/gpt-4o-mini` — default; verify turns, init with pre-configured action, low-confidence KB
+- `openai/gpt-4o` — when KB hit score ≥ 0.6
+
+Embeddings bypass OpenRouter and hit **OpenAI directly** (`text-embedding-3-small`, `OPENAI_API_KEY`).
+
+## Testing Frameworks
+
+**Backend unit / integration:**
+- Jest 29.7 + ts-jest 29.1, config at `apps/backend/jest.config.js` (not present — inferred from devDeps)
+- supertest 6.3 for HTTP integration tests
+- Test files: `apps/backend/src/__tests__/` (11 test files + helpers)
+
+**Dashboard E2E:**
+- Playwright 1.42, config at `apps/dashboard/playwright.config.ts`
+- Spec files: `apps/dashboard/e2e/` (3 specs)
+
+**AI Eval harness:**
+- Custom TypeScript runner at `apps/backend/tests/evals/` (`runner.ts`, `report.ts`, `index.ts`)
+- Run via `npm run eval` in backend workspace
+
+**Load tests:**
+- k6: `tests/load/k6.js` (HTTP) and `tests/load/k6-websocket.js` (WebSocket)
 
 ## Configuration
 
-**Environment:**
-- `DATABASE_URL` - Required; PostgreSQL connection string
-- `JWT_SECRET` - Required; signs dashboard auth tokens
-- `OPENAI_API_KEY` - Optional (disables AI features if absent); uses `openai` client
-- `STRIPE_SECRET_KEY` - Required for billing; warns on startup if missing
-- `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_GROWTH`, `STRIPE_PRICE_SCALE` - Stripe price IDs for paid plans
-- `RESEND_API_KEY` - Optional; email silently skipped if absent
-- `SARVAM_API_KEY` - Optional; enables Indian language translation/TTS layer
-- `ADMIN_SECRET` - Optional; admin routes return 503 if absent
-- `FRONTEND_URL` - CORS allow-list origin and upgrade URL construction
-- `PORT` - Defaults to 4000
-- `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` - Optional; Redis for rate limiting
+**Required env vars (validated at startup — missing → `process.exit(1)`):**
+- `DATABASE_URL` — PostgreSQL connection string
+- `JWT_SECRET` — dashboard JWT signing key
 
-**Build:**
-- `apps/backend/tsconfig.json` - target ES2020, commonjs modules, outDir `./dist`, paths alias `@/*`
-- `apps/dashboard/tsconfig.json` - target ES2017, esnext modules, Next.js plugin, paths alias `@/*`
-- `apps/widget/tsconfig.json` - target ES2017, ESNext modules, DOM lib
-- `apps/widget/vite.config.ts` - IIFE format, single bundle, outputs to `../../dist/widget/`
+**Key optional env vars:**
+- `OPENROUTER_API_KEY` — LLM inference (all chat completions)
+- `OPENAI_API_KEY` — embeddings only
+- `SENTRY_DSN` — error tracking
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` — billing
+- `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_GROWTH`, `STRIPE_PRICE_SCALE` — Stripe price IDs
+- `RESEND_API_KEY` — email
+- `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` — Redis for rate limiting
+- `REDIS_URL` — BullMQ queue connection (falls back to setTimeout crons if absent)
+- `SARVAM_API_KEY` — multilingual translation/STT/TTS
+- `ADMIN_SECRET` — admin-only routes
+- `CRON_ENABLED=false` — disable crons on replica instances
+- `FRONTEND_URL` — CORS allowlist + email deep links
 
-## Platform Requirements
+**Dashboard frontend:**
+- `NEXT_PUBLIC_API_URL` — backend URL (defaults to `http://localhost:4000`)
 
-**Development:**
-- Node.js 20+
-- PostgreSQL (local or remote; `DATABASE_URL` required)
-- npm 9+ (workspaces support)
+## CI/CD
 
-**Production:**
-- Deployment target: Railway (health check at `/health` mentions Render in comment; `morgan` uses `combined` log format for Railway log ingestion)
-- Widget output: static IIFE at `dist/widget/widget.iife.js` served from CDN or static hosting
-- Dashboard: standard Next.js deployment (Vercel or any Node host)
+- GitHub Actions: `.github/workflows/ci.yml`
+- Three parallel jobs: `backend` (type-check + unit tests with Postgres), `dashboard` (type-check + lint), `landing` (build)
+- Triggers: push to `main`/`master`/`develop`, PRs to `main`/`master`
+- Deployment: Railway (backend), Vercel (dashboard/landing) — not yet executed as of v1.0.0
 
 ---
 
-*Stack analysis: 2026-05-13*
+*Stack analysis: 2026-06-01*
