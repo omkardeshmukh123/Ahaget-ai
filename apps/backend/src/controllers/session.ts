@@ -12,6 +12,7 @@ import { detectLanguage, translateText, transcribeAudio, synthesizeSpeech, isSar
 import { getUserHistory } from '../services/userhistory';
 import { fetchSessionContext } from '../services/contextSources';
 import { logger } from '../utils/logger';
+import { assertPublicUrl } from '../utils/ipGuard';
 import { createEscalationTicket, notifyTeam } from '../services/escalation';
 import { AuthenticatedRequest } from '../types';
 
@@ -640,19 +641,24 @@ async function applyActionSideEffects(opts: {
         select: { escalationWebhook: true },
       });
       if (playbook?.escalationWebhook) {
-        fetch(playbook.escalationWebhook, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event: 'escalation_created',
-            ticketId: ticket.id,
-            userId: context.userId,
-            reason: action.reason,
-            trigger: action.trigger,
-            sessionId: session.id,
-            context,
-          }),
-        }).catch(() => {}); // fire-and-forget
+        try {
+          await assertPublicUrl(playbook.escalationWebhook);
+          fetch(playbook.escalationWebhook, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'escalation_created',
+              ticketId: ticket.id,
+              userId: context.userId,
+              reason: action.reason,
+              trigger: action.trigger,
+              sessionId: session.id,
+              context,
+            }),
+          }).catch(() => {}); // fire-and-forget
+        } catch (e) {
+          console.error('[webhook] Blocked private URL:', (e as Error).message);
+        }
       }
     }).catch((e) => console.error('[escalation] ticket creation failed:', e));
 
@@ -741,17 +747,22 @@ router.post('/heal', async (req: AuthenticatedRequest, res: Response) => {
 
     // Alert threshold: 3 failures in 24 h � avoids noise on one-off misses
     if (recentFailures >= 3) {
-      fetch(org.selectorAlertWebhook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: `?? Broken selector: \`${originalSelector}\` has failed ${recentFailures}� in the last 24 h on \`${page}\`. Update the step's actionConfig selector.`,
-          selector: originalSelector,
-          page,
-          failures: recentFailures,
-          stepId: stepId ?? null,
-        }),
-      }).catch(() => {}); // non-blocking � never interrupt the flow
+      try {
+        await assertPublicUrl(org.selectorAlertWebhook);
+        fetch(org.selectorAlertWebhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: `?? Broken selector: \`${originalSelector}\` has failed ${recentFailures}× in the last 24 h on \`${page}\`. Update the step's actionConfig selector.`,
+            selector: originalSelector,
+            page,
+            failures: recentFailures,
+            stepId: stepId ?? null,
+          }),
+        }).catch(() => {}); // non-blocking — never interrupt the flow
+      } catch (e) {
+        console.error('[webhook] Blocked private URL:', (e as Error).message);
+      }
     }
   }
 
@@ -1435,6 +1446,99 @@ router.post('/event', async (req: AuthenticatedRequest, res: Response) => {
 
 
   res.json({ advanced: true, nextStep: nextStep ?? null, milestone: isMilestone });
+});
+
+// --- POST /api/v1/session/mcp-resume -----------------------------------------
+// Called by the widget after receiving a `mcp_result` WebSocket push.
+// Retrieves the pending MCP job context + result from the DB, runs the
+// follow-up LLM turn, and returns the final agent action.
+router.post('/mcp-resume', async (req: AuthenticatedRequest, res: Response) => {
+  const { jobId } = req.body as { jobId?: string };
+  if (!jobId) {
+    res.status(400).json({ error: 'jobId required' });
+    return;
+  }
+
+  // Load the pending job (scoped to this org's API key)
+  const rows = await prisma.$queryRaw<Array<{
+    id: string;
+    org_id: string;
+    status: string;
+    mcp_result: unknown;
+    context: unknown;
+    error: string | null;
+  }>>`
+    SELECT id, org_id, status, mcp_result, context, error
+    FROM mcp_pending_jobs
+    WHERE id = ${jobId}
+      AND org_id = ${req.organization!.id}
+    LIMIT 1
+  `;
+
+  const job = rows[0];
+  if (!job) {
+    res.status(404).json({ error: 'Pending job not found' });
+    return;
+  }
+  if (job.status === 'pending') {
+    res.status(202).json({ status: 'pending', message: 'Job not complete yet' });
+    return;
+  }
+  if (job.status === 'error') {
+    res.status(502).json({ error: job.error ?? 'MCP tool call failed' });
+    return;
+  }
+
+  // Run the follow-up LLM turn with the stored result
+  const ctx = job.context as {
+    systemPrompt: string;
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+    toolsForStep: import('openai').default.Chat.ChatCompletionTool[];
+    model: string;
+    call: import('openai').default.Chat.ChatCompletionMessageToolCall;
+  };
+  if (!job.mcp_result) {
+    res.status(502).json({ error: 'MCP result missing' });
+    return;
+  }
+  const resultContent = job.mcp_result as Array<{ type: string; text: string }>;
+  const resultText = (Array.isArray(resultContent) ? resultContent : []).map((c) => c.text).join('\n');
+
+  const { openai: openaiClient } = await import('../services/agent/_openai');
+  const { withRetry } = await import('../utils/logger');
+  const { parseToolCall } = await import('../services/agent/tools');
+
+  const followUpMessages: import('openai').default.Chat.ChatCompletionMessageParam[] = [
+    ...ctx.messages,
+    { role: 'assistant' as const, content: null, tool_calls: [ctx.call] },
+    { role: 'tool' as const, tool_call_id: ctx.call.id, content: resultText },
+  ];
+
+  const followUp = await withRetry(
+    () => openaiClient().chat.completions.create({
+      model: ctx.model,
+      max_tokens: 1500,
+      temperature: 0,
+      tools: ctx.toolsForStep.filter((t: import('openai').default.Chat.ChatCompletionTool) => !t.function.name.startsWith('mcp__')),
+      tool_choice: 'required',
+      messages: [{ role: 'system', content: ctx.systemPrompt }, ...followUpMessages],
+    }),
+    { retries: 2, delayMs: 800, label: 'agent.mcp_resume' }
+  );
+
+  const fc = followUp.choices[0].message.tool_calls?.[0];
+  let action: import('../services/agent').AgentAction;
+  if (fc) {
+    const parsed = parseToolCall(fc.function.name, JSON.parse(fc.function.arguments));
+    action = parsed ?? { type: 'chat' as const, content: followUp.choices[0].message.content ?? 'Tool call completed.' };
+  } else {
+    action = { type: 'chat', content: followUp.choices[0].message.content ?? 'Tool call completed.' };
+  }
+
+  // Clean up the pending job
+  prisma.$executeRaw`DELETE FROM mcp_pending_jobs WHERE id = ${jobId}`.catch(() => {});
+
+  res.json({ action });
 });
 
 export default router;
