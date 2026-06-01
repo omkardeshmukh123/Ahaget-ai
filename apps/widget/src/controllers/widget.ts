@@ -895,6 +895,114 @@ export class AhagetWidget {
         });
         break;
       }
+
+      case 'tool_pending': {
+        // Show a "working on it" spinner bubble while the MCP job runs in the background
+        const pendingBubble = document.createElement('div');
+        pendingBubble.className = 'oai-bubble oai-bubble-assistant oai-streaming';
+        pendingBubble.textContent = `Working on it… (${action.toolName})`;
+        this.messagesEl.appendChild(pendingBubble);
+        this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+
+        const apiUrl = this.config.apiUrl ?? DEFAULT_CONFIG.apiUrl;
+        const wsUrl  = apiUrl.replace(/^https?/, (m) => (m === 'https' ? 'wss' : 'ws')) + '/ws';
+        const apiKey = this.config.apiKey;
+        const jobId  = action.jobId;
+
+        const ws = new WebSocket(wsUrl);
+        ws.onopen  = () => ws.send(JSON.stringify({ type: 'auth', apiKey }));
+        ws.onmessage = async (evt) => {
+          let msg: { type: string; jobId?: string; ready?: boolean; error?: string };
+          try { msg = JSON.parse(evt.data as string); } catch { return; }
+
+          if (msg.type !== 'mcp_result' || msg.jobId !== jobId) return;
+
+          ws.close();
+          pendingBubble.remove();
+
+          if (!msg.ready || msg.error) {
+            addMessage(this.messagesEl, `Tool call failed: ${msg.error ?? 'unknown error'}`, 'assistant');
+            this.isSending = false;
+            this.sendBtn.disabled = false;
+            this.inputEl.focus();
+            return;
+          }
+
+          // Fetch the follow-up action from the resume endpoint
+          try {
+            const resp = await fetch(`${apiUrl}/api/v1/session/mcp-resume`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+              body: JSON.stringify({ jobId }),
+            });
+            const data = await resp.json() as { action?: AgentAction; error?: string };
+            if (data.action) {
+              const resumeStream = document.createElement('div');
+              resumeStream.className = 'oai-bubble oai-bubble-assistant';
+              this.messagesEl.appendChild(resumeStream);
+              this.handleAgentAction(data.action, resumeStream, null);
+            } else {
+              addMessage(this.messagesEl, data.error ?? 'Tool call failed', 'assistant');
+              this.isSending = false;
+              this.sendBtn.disabled = false;
+              this.inputEl.focus();
+            }
+          } catch {
+            addMessage(this.messagesEl, 'Tool call failed — please try again.', 'assistant');
+            this.isSending = false;
+            this.sendBtn.disabled = false;
+            this.inputEl.focus();
+          }
+        };
+        // Polling fallback: if the WebSocket message is missed (race condition where
+        // the worker finishes before the WS authenticates), poll the resume endpoint.
+        const POLL_DELAY_MS = 35_000;
+        const pollTimer = setTimeout(async () => {
+          ws.close();
+          pendingBubble.remove();
+          try {
+            const resp = await fetch(`${apiUrl}/api/v1/session/mcp-resume`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+              body: JSON.stringify({ jobId }),
+            });
+            const data = await resp.json() as { action?: AgentAction; error?: string; status?: string };
+            if (data.action) {
+              const st = document.createElement('div');
+              st.className = 'oai-bubble oai-bubble-assistant';
+              this.messagesEl.appendChild(st);
+              this.handleAgentAction(data.action, st, null);
+            } else {
+              addMessage(this.messagesEl, data.error ?? 'Tool call timed out.', 'assistant');
+              this.isSending = false; this.sendBtn.disabled = false; this.inputEl.focus();
+            }
+          } catch {
+            addMessage(this.messagesEl, 'Tool call timed out. Please try again.', 'assistant');
+            this.isSending = false; this.sendBtn.disabled = false; this.inputEl.focus();
+          }
+        }, POLL_DELAY_MS);
+
+        // Clear the poll timer as soon as the WS message arrives
+        const origOnMessage = ws.onmessage!;
+        ws.onmessage = (evt) => { clearTimeout(pollTimer); origOnMessage.call(ws, evt); };
+
+        ws.onerror = () => {
+          clearTimeout(pollTimer);
+          ws.close();
+          pendingBubble.remove();
+          addMessage(this.messagesEl, 'Connection error. Please try again.', 'assistant');
+          this.isSending = false;
+          this.sendBtn.disabled = false;
+          this.inputEl.focus();
+        };
+        ws.onclose = () => {
+          // Unexpected close (not triggered by our own ws.close()): let the poll timer fire
+          // so the widget recovers via the fallback path above.
+        };
+
+        // Don't re-enable the send button yet — keep isSending=true until the result arrives
+        return;
+      }
     }
 
     this.isSending = false;
