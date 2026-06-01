@@ -8,7 +8,7 @@ import { AuthenticatedRequest } from '../types';
 
 // --- Redis client (optional) ------------------------------------------------
 let _redis: import('@upstash/redis').Redis | null = null;
-function getRedis(): import('@upstash/redis').Redis | null {
+export function getRedis(): import('@upstash/redis').Redis | null {
   if (_redis) return _redis;
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;

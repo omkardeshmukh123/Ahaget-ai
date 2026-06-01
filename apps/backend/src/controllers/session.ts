@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../utils/prisma';
 import { authenticateApiKey } from '../middleware/auth';
-import { getMtuUsage } from '../middleware/rateLimit';
+import { getMtuUsage, getRedis } from '../middleware/rateLimit';
 import { PLANS } from '../utils/plans';
 import { runAgentSafe, runAgentStream, runAgentGoal, runAgentPlan, GoalTurn, extractAndSaveMemory } from '../services/agent';
 import { loadRestContext, matchesRestEndpoint } from '../services/mcp';
@@ -941,32 +941,38 @@ router.post('/act', async (req: AuthenticatedRequest, res: Response) => {
   res.json({ action: localizedAction, messageId });
 });
 
-// --- In-memory rate limiter (per session, not per IP) ------------------------
-// Caps at 30 agent calls per 60-second window. Resets automatically.
-const actRateLimit = new Map<string, { count: number; windowStart: number }>();
+// --- Rate limiter (per session, not per IP) ----------------------------------
+// Caps at 30 agent calls per 60-second window.
+// Uses Upstash Redis INCR when configured; falls back to in-memory Map.
+const _actRateLimit = new Map<string, { count: number; windowStart: number }>();
 const ACT_MAX    = 30;
-const ACT_WINDOW = 60_000; // 1 minute
+const ACT_WINDOW = 60; // seconds
 
-function checkActRateLimit(sessionId: string): boolean {
-  const now   = Date.now();
-  const entry = actRateLimit.get(sessionId);
-
-  if (!entry || now - entry.windowStart > ACT_WINDOW) {
-    actRateLimit.set(sessionId, { count: 1, windowStart: now });
-    return true; // within limit
+async function checkActRateLimit(sessionId: string): Promise<boolean> {
+  const redis = getRedis();
+  if (redis) {
+    const key = `rl:act:${sessionId}`;
+    const count = await redis.incr(key);
+    if (count === 1) await redis.expire(key, ACT_WINDOW);
+    return count <= ACT_MAX;
   }
-
-  if (entry.count >= ACT_MAX) return false; // exceeded
-
+  // in-memory fallback for dev (single-process only)
+  const now   = Date.now();
+  const entry = _actRateLimit.get(sessionId);
+  if (!entry || now - entry.windowStart > ACT_WINDOW * 1000) {
+    _actRateLimit.set(sessionId, { count: 1, windowStart: now });
+    return true;
+  }
+  if (entry.count >= ACT_MAX) return false;
   entry.count++;
   return true;
 }
 
-// Purge stale entries every 5 minutes to prevent memory growth
+// Purge stale in-memory entries every 5 minutes
 setInterval(() => {
-  const cutoff = Date.now() - ACT_WINDOW * 2;
-  for (const [id, entry] of actRateLimit.entries()) {
-    if (entry.windowStart < cutoff) actRateLimit.delete(id);
+  const cutoff = Date.now() - ACT_WINDOW * 2000;
+  for (const [id, entry] of _actRateLimit.entries()) {
+    if (entry.windowStart < cutoff) _actRateLimit.delete(id);
   }
 }, 5 * 60_000);
 
@@ -1000,7 +1006,7 @@ router.post('/act/stream', async (req: AuthenticatedRequest, res: Response) => {
   }
 
   // -- Rate limit check ------------------------------------------------------
-  if (!checkActRateLimit(sessionId)) {
+  if (!await checkActRateLimit(sessionId)) {
     res.status(429).json({ error: 'Too many requests. Please slow down.' });
     return;
   }
