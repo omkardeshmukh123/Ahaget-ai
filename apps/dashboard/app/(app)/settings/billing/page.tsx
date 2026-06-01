@@ -49,6 +49,7 @@ function BillingPageInner() {
   const [status, setStatus] = useState<BillingStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -180,16 +181,57 @@ function BillingPageInner() {
 
           {/* Plan cards */}
           <div>
-            <h2 className="text-sm font-semibold text-slate-700 mb-3">Available plans</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-slate-700">Available plans</h2>
+              {/* Monthly / Annual toggle */}
+              <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
+                <button
+                  onClick={() => setBillingPeriod('monthly')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                    billingPeriod === 'monthly'
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Monthly
+                </button>
+                <button
+                  onClick={() => setBillingPeriod('annual')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    billingPeriod === 'annual'
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Annual
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full">
+                    Save 20%
+                  </span>
+                </button>
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
               {status.plans.map((plan) => {
                 const isCurrent = plan.current;
-                const priceIds: Record<string, string> = {
+                const monthlyPriceIds: Record<string, string> = {
                   starter: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER ?? '',
                   growth:  process.env.NEXT_PUBLIC_STRIPE_PRICE_GROWTH ?? '',
                   scale:   process.env.NEXT_PUBLIC_STRIPE_PRICE_SCALE ?? '',
                 };
-                const priceId = priceIds[plan.key];
+                const annualPriceIds: Record<string, string> = {
+                  starter: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_ANNUAL ?? '',
+                  growth:  process.env.NEXT_PUBLIC_STRIPE_PRICE_GROWTH_ANNUAL ?? '',
+                  scale:   process.env.NEXT_PUBLIC_STRIPE_PRICE_SCALE_ANNUAL ?? '',
+                };
+                const priceId = billingPeriod === 'annual'
+                  ? annualPriceIds[plan.key]
+                  : monthlyPriceIds[plan.key];
+                const displayPrice = billingPeriod === 'annual' && plan.annualMonthlyPrice > 0
+                  ? plan.annualMonthlyPrice
+                  : plan.price;
+                const annualSavings = plan.price > 0 && plan.annualMonthlyPrice > 0
+                  ? (plan.price - plan.annualMonthlyPrice) * 12
+                  : 0;
                 const isLoading = actionLoading === plan.key;
 
                 return (
@@ -210,10 +252,20 @@ function BillingPageInner() {
                       )}
                     </div>
 
-                    <p className="text-2xl font-bold text-slate-900 mb-1">
-                      {plan.price === 0 ? 'Free' : `$${plan.price}`}
-                      {plan.price > 0 && <span className="text-sm font-normal text-slate-400">/mo</span>}
+                    <p className="text-2xl font-bold text-slate-900 mb-0.5">
+                      {displayPrice === 0 ? 'Free' : `$${displayPrice}`}
+                      {displayPrice > 0 && <span className="text-sm font-normal text-slate-400">/mo</span>}
                     </p>
+                    {billingPeriod === 'annual' && annualSavings > 0 && (
+                      <p className="text-xs text-emerald-600 font-medium mb-1">
+                        Save ${annualSavings}/year
+                      </p>
+                    )}
+                    {billingPeriod === 'annual' && plan.annualMonthlyPrice > 0 && (
+                      <p className="text-xs text-slate-400 mb-1">
+                        ${plan.annualMonthlyPrice * 12} billed annually
+                      </p>
+                    )}
 
                     <div className="text-xs text-slate-500 mb-4 space-y-0.5">
                       <p>{plan.agentLimit === 0 ? 'Unlimited agents' : `${plan.agentLimit} agents`}</p>
@@ -247,13 +299,15 @@ function BillingPageInner() {
                         disabled={isLoading || !!actionLoading}
                         className="mt-auto w-full py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                       >
-                        {isLoading ? 'Redirecting…' : `Upgrade to ${plan.name}`}
+                        {isLoading
+                          ? 'Redirecting…'
+                          : `Upgrade to ${plan.name}${billingPeriod === 'annual' ? ' (annual)' : ''}`}
                       </button>
                     )}
 
                     {!isCurrent && plan.key !== 'free' && !priceId && (
                       <p className="mt-auto text-xs text-slate-400 text-center">
-                        Configure STRIPE_PRICE_{plan.key.toUpperCase()} in .env
+                        Configure STRIPE_PRICE_{plan.key.toUpperCase()}{billingPeriod === 'annual' ? '_ANNUAL' : ''} in .env
                       </p>
                     )}
 

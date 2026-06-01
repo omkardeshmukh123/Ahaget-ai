@@ -2,6 +2,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import UpgradeModal from '@/components/UpgradeModal';
+import CrispChat from '@/components/CrispChat';
 import { useAuthStore } from '@/store/auth';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -24,6 +26,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <main style={{ flex: 1, marginLeft: 220, padding: '36px 56px', minHeight: '100vh', background: '#F8F5FE', borderLeft: '1px solid rgba(138,43,226,0.08)' }}>
         {children}
       </main>
+      <UpgradeModal />
+      <CrispChat />
     </div>
   );
 }

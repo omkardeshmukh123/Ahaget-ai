@@ -8,6 +8,7 @@ const STEPS = [
   { key: 'description', label: 'Your product' },
   { key: 'install',     label: 'Install method' },
   { key: 'snippet',     label: 'Add snippet' },
+  { key: 'verify',      label: 'Verify' },
 ];
 
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {

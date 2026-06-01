@@ -90,9 +90,36 @@ export default function EscalationsPage() {
         ) : loading ? (
           <div style={{ padding: 48, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Loading…</div>
         ) : tickets.length === 0 ? (
-          <div style={{ padding: 64, textAlign: 'center' }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>✓</div>
-            <p style={{ fontWeight: 600, color: 'var(--on-surface)', margin: 0 }}>No {statusFilter.replace('_', ' ')} tickets</p>
+          <div style={{ padding: '72px 48px', textAlign: 'center' }}>
+            {statusFilter === 'open' ? (
+              <>
+                <div style={{ fontSize: 40, marginBottom: 16, lineHeight: 1 }}>🎉</div>
+                <p style={{ fontWeight: 700, fontSize: 16, color: 'var(--on-surface)', margin: '0 0 8px' }}>Inbox zero</p>
+                <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 24px', maxWidth: 360, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
+                  No open escalations. Escalations are created when the agent can't resolve a user's issue on its own — a healthy inbox means your flows are working.
+                </p>
+                <a
+                  href="/sessions"
+                  style={{
+                    display: 'inline-block', background: 'transparent', color: 'var(--muted)',
+                    textDecoration: 'none', padding: '8px 20px', borderRadius: 8,
+                    fontSize: 13, fontWeight: 600, border: '1px solid rgba(70,69,84,0.2)',
+                  }}
+                >
+                  View sessions →
+                </a>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 40, marginBottom: 16, lineHeight: 1 }}>✓</div>
+                <p style={{ fontWeight: 700, fontSize: 16, color: 'var(--on-surface)', margin: '0 0 8px' }}>
+                  No {statusFilter.replace('_', ' ')} tickets
+                </p>
+                <p style={{ color: 'var(--muted)', fontSize: 13, margin: 0 }}>
+                  {statusFilter === 'resolved' ? 'Resolved tickets will appear here once your team closes them.' : 'Tickets being worked on will appear here.'}
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>

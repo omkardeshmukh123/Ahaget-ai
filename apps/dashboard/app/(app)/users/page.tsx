@@ -217,8 +217,19 @@ export default function UsersPage() {
           ) : loading ? (
             <div className="text-sm text-slate-400 py-10 text-center">Loading…</div>
           ) : users.length === 0 ? (
-            <div className="text-sm text-slate-400 py-10 text-center">
-              No users yet. Users appear here when they interact with your widget.
+            <div className="py-20 px-12 text-center">
+              <div className="text-4xl mb-4 leading-none">👥</div>
+              <p className="font-bold text-base text-slate-800 mb-2">No users yet</p>
+              <p className="text-sm text-slate-400 mb-6 max-w-sm mx-auto leading-relaxed">
+                Users appear here once the widget is installed and someone visits your product. Install the snippet to start tracking.
+              </p>
+              <a
+                href="/getting-started/install"
+                className="inline-block bg-brand-600 text-white text-sm font-semibold px-5 py-2.5 rounded-lg no-underline hover:bg-brand-700 transition-colors"
+                style={{ background: '#8A2BE2', color: '#fff' }}
+              >
+                Install the widget →
+              </a>
             </div>
           ) : (
             <>

@@ -62,13 +62,9 @@ export default function SnippetPage() {
     router.push('/dashboard');
   };
 
-  const handleGoToDashboard = async () => {
+  const handleGoToDashboard = () => {
     setPolling(false);
-    setCompleting(true);
-    try {
-      await api.onboarding.complete();
-    } catch {}
-    router.push('/dashboard');
+    router.push('/getting-started/verify');
   };
 
   const aiPrompt = `Add the Ahaget widget to my ${domain ? `${domain} ` : ''}web app.
@@ -194,10 +190,9 @@ This script loads the Ahaget assistant widget asynchronously and initialises it 
             id="btn-go-to-dashboard"
             type="button"
             onClick={handleGoToDashboard}
-            disabled={completing}
-            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shadow-indigo-200 disabled:opacity-50"
+            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shadow-indigo-200"
           >
-            {completing ? 'Loading…' : 'Continue to Dashboard →'}
+            {'Continue →'}
           </button>
         ) : (
           <button

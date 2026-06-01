@@ -44,6 +44,11 @@ async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    if (res.status === 403 && body.code === 'PLAN_FEATURE_LOCKED' && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('plan:locked', {
+        detail: { feature: body.feature, currentPlan: body.currentPlan, upgradeUrl: body.upgradeUrl },
+      }));
+    }
     const msg = body.error ?? body.message ?? `Request failed: ${res.status}`;
     console.error('[api]', res.status, path, msg);
     throw new Error(msg);
@@ -122,6 +127,7 @@ export const api = {
     eval: () => apiFetch<AgentEvalMetrics>('/api/v1/analytics/eval'),
     chokePoints: (days = 30) =>
       apiFetch<ChokePointsResponse>(`/api/v1/analytics/choke-points?days=${days}`),
+    hasFirstSession: () => apiFetch<{ detected: boolean; count: number }>('/api/v1/analytics/has-first-session'),
   },
 
   config: {
@@ -758,6 +764,7 @@ export interface BillingPlan {
   key: string;
   name: string;
   price: number;
+  annualMonthlyPrice: number;
   limit: number;
   agentLimit: number;
   mtuLimit: number;

@@ -62,8 +62,23 @@ export default function ConversationsPage() {
         ) : loading ? (
           <div className="p-8 text-center text-slate-400 text-sm animate-pulse">Loading…</div>
         ) : filtered.length === 0 ? (
-          <div className="p-12 text-center">
-            <p className="text-slate-400 text-sm">No conversations yet. Embed the widget in your product to start capturing drop-offs.</p>
+          <div className="py-20 px-12 text-center">
+            <div className="text-4xl mb-4 leading-none">💬</div>
+            <p className="font-bold text-base text-slate-800 mb-2">No conversations yet</p>
+            <p className="text-sm text-slate-400 mb-6 max-w-sm mx-auto leading-relaxed">
+              {search
+                ? 'No conversations match your search. Try a different user ID or trigger.'
+                : 'Conversations appear here when the in-page assistant engages a user. Install the widget to start capturing sessions.'}
+            </p>
+            {!search && (
+              <a
+                href="/getting-started/install"
+                className="inline-block text-sm font-semibold px-5 py-2.5 rounded-lg no-underline transition-colors"
+                style={{ background: '#8A2BE2', color: '#fff' }}
+              >
+                Install the widget →
+              </a>
+            )}
           </div>
         ) : (
           <table className="w-full text-sm">

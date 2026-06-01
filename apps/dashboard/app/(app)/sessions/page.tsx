@@ -165,12 +165,28 @@ export default function SessionsPage() {
         ) : loading ? (
           <div style={{ padding: '48px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Loading…</div>
         ) : sessions.length === 0 ? (
-          <div style={{ padding: '64px', textAlign: 'center' }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>◎</div>
-            <p style={{ fontWeight: 600, color: 'var(--on-surface)', margin: 0 }}>No sessions found</p>
-            <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6 }}>
-              {q || from || to ? 'Try adjusting your filters.' : 'Sessions appear once users start interacting with your agent flows.'}
-            </p>
+          <div style={{ padding: '72px 48px', textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 16, lineHeight: 1 }}>◎</div>
+            <p style={{ fontWeight: 700, fontSize: 16, color: 'var(--on-surface)', margin: '0 0 8px' }}>No sessions found</p>
+            {q || from || to ? (
+              <p style={{ color: 'var(--muted)', fontSize: 13, margin: 0 }}>Try adjusting your filters.</p>
+            ) : (
+              <>
+                <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 24px', maxWidth: 340, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
+                  Sessions appear here once users start interacting with your agent flows. Create your first flow to get started.
+                </p>
+                <a
+                  href="/flows"
+                  style={{
+                    display: 'inline-block', background: '#8A2BE2', color: '#fff',
+                    textDecoration: 'none', padding: '9px 22px', borderRadius: 8,
+                    fontSize: 13, fontWeight: 600,
+                  }}
+                >
+                  Create a flow →
+                </a>
+              </>
+            )}
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
