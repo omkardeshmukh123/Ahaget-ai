@@ -1,4 +1,4 @@
-import { openai } from './_openai';
+import { chatWithFallback } from './_openai';
 import { prisma } from '../../utils/prisma';
 import { logger } from '../../utils/logger';
 
@@ -11,7 +11,7 @@ export async function summarizeHistory(
   messages: Array<{ role: 'user' | 'assistant'; content: string }>,
 ): Promise<string> {
   const result = await Promise.race([
-    openai().chat.completions.create({
+    chatWithFallback({
       model: 'openai/gpt-4o-mini',
       max_tokens: 150,
       temperature: 0,
@@ -68,7 +68,7 @@ export function extractAndSaveMemory(opts: {
   const recentMessages = conversationHistory.slice(-6);
 
   Promise.race([
-    openai().chat.completions.create({
+    chatWithFallback({
       model: 'openai/gpt-4o-mini',
       max_tokens: 200,
       temperature: 0,

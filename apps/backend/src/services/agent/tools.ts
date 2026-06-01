@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { Prisma } from '@prisma/client';
-import { openai } from './_openai';
+import { v4 as uuidv4 } from 'uuid';
+import { openai, chatWithFallback } from './_openai';
 import { AgentAction } from './types';
 import { executeApiCall, interpolate } from '../apicall';
 import { assertPublicUrl } from '../../utils/ipGuard';
@@ -8,6 +9,9 @@ import { loadRestContext, matchesRestEndpoint, resolveMcpCall, callMcpToolWithPo
 import { prisma } from '../../utils/prisma';
 import { logger, withRetry } from '../../utils/logger';
 import { extractJsonField } from '../../utils/streaming';
+import { getMcpQueue, isQueueEnabled } from '../../queues';
+import { JOBS } from '../../queues/jobTypes';
+const JOBS_MCP = JOBS.MCP_TOOL_CALL;
 
 // ─── Tool definitions ─────────────────────────────────────────────────────────
 
@@ -317,7 +321,7 @@ export async function executeCallApiTurn(
   ];
 
   const followUp = await withRetry(
-    () => openai().chat.completions.create({
+    () => chatWithFallback({
       model,
       max_tokens: 1500,
       temperature: 0,
@@ -352,6 +356,47 @@ export async function handleMcpCall(
     return { type: 'chat', content: 'Could not resolve MCP tool call.' };
   }
 
+  // ── Async path: queue the MCP call and return tool_pending immediately ──────
+  if (isQueueEnabled()) {
+    const mcpQueue = getMcpQueue();
+    if (mcpQueue) {
+      const jobId = uuidv4();
+      const { connector } = resolved;
+
+      // Persist context so the resume endpoint can run the follow-up LLM turn
+      await prisma.$executeRaw`
+        INSERT INTO mcp_pending_jobs (id, org_id, session_id, status, context, created_at, updated_at)
+        VALUES (
+          ${jobId},
+          ${meta.orgId},
+          ${meta.sessionId ?? null},
+          'pending',
+          ${JSON.stringify({ systemPrompt, messages, toolsForStep, model, call })}::jsonb,
+          NOW(),
+          NOW()
+        )
+      `;
+
+      await mcpQueue.add(JOBS_MCP, {
+        jobId,
+        orgId:         meta.orgId,
+        sessionId:     meta.sessionId,
+        connectorId:   connector.id,
+        connectorName: connector.name,
+        serverUrl:     connector.serverUrl,
+        authType:      connector.authType,
+        authValue:     connector.authValue,
+        mcpToolName:   resolved.mcpToolName,
+        args:          JSON.parse(call.function.arguments),
+        readOnly:      connector.readOnly,
+        allowedTools:  connector.allowedTools,
+      });
+
+      return { type: 'tool_pending', jobId, toolName: resolved.mcpToolName };
+    }
+  }
+
+  // ── Sync path (fallback when REDIS_URL not set) ──────────────────────────────
   const args = JSON.parse(call.function.arguments) as Record<string, unknown>;
   const result = await callMcpToolWithPoll(resolved.connector, resolved.mcpToolName, args, meta);
 
@@ -364,7 +409,7 @@ export async function handleMcpCall(
   ];
 
   const followUp = await withRetry(
-    () => openai().chat.completions.create({
+    () => chatWithFallback({
       model,
       max_tokens: 1500,
       temperature: 0,

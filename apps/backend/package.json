@@ -21,6 +21,7 @@
     "@types/multer": "^2.1.0",
     "@upstash/redis": "^1.28.0",
     "bcryptjs": "^2.4.3",
+    "bullmq": "^5.77.7",
     "cheerio": "^1.2.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",

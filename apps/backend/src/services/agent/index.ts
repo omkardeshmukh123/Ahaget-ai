@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import { OnboardingStep, Organization } from '@prisma/client';
 
-import { openai } from './_openai';
+import { openai, chatWithFallback, chatStreamWithFallback } from './_openai';
 import { AgentAction, PageContext, GoalTurn, GoalPlanPhase } from './types';
 import { AGENT_TOOLS, parseToolCall, extractStreamingText, truncateAtSentence, executeCallApiTurn, handleMcpCall } from './tools';
 import { buildSystemPrompt, buildDomSummary, loadInterfaceContext, sanitizeDomText } from './context';
@@ -191,7 +191,7 @@ export async function runAgent(opts: {
   const { model, systemPrompt, messages, toolsForStep, mcpBundles, collectedData } = await prepareAgentCall(opts);
 
   const response = await withRetry(
-    () => openai().chat.completions.create({
+    () => chatWithFallback({
       model,
       max_tokens: model === 'openai/gpt-4o-mini' ? 512 : 1500,
       temperature: 0,
@@ -241,7 +241,7 @@ export async function* runAgentStream(
 ): AsyncGenerator<{ type: 'word'; word: string } | { type: 'action'; action: AgentAction }> {
   const { model, systemPrompt, messages, toolsForStep, mcpBundles, collectedData } = await prepareAgentCall(opts);
 
-  const stream = await openai().chat.completions.create({
+  const stream = await chatStreamWithFallback({
     model,
     max_tokens: model === 'openai/gpt-4o-mini' ? 512 : 1500,
     temperature: 0,
@@ -367,7 +367,7 @@ export async function runAgentPlan(opts: {
   const systemPrompt = `You are Ahaget, planning a multi-step workflow inside "${org.name}".\nBreak the user's goal into 2–5 sequential, concrete phases. Each phase is one focused task completable on a single page or screen.\nPhase titles must be under 6 words and action-oriented (e.g. "Create company profile", "Add payment method").\n${pageHint}`.trim();
 
   const response = await withRetry(
-    () => openai().chat.completions.create({
+    () => chatWithFallback({
       model: 'openai/gpt-4o',
       max_tokens: 1024,
       temperature: 0,
@@ -533,7 +533,7 @@ export async function runAgentGoal(opts: {
 
   const rawResponse = await withRetry(
     () => Promise.race([
-      openai().chat.completions.create({
+      chatWithFallback({
         model: goalModel,
         max_tokens: 1500,
         temperature: 0,

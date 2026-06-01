@@ -8,7 +8,8 @@ export type AgentAction =
   | { type: 'chat'; content: string }
   | { type: 'goal_complete'; summary: string }
   | { type: 'degrade_to_manual'; instruction: string; reason: string }
-  | { type: 'suggest_upgrade'; plan: string; headline: string; pitch: string; upgradeUrl: string; flowId: string };
+  | { type: 'suggest_upgrade'; plan: string; headline: string; pitch: string; upgradeUrl: string; flowId: string }
+  | { type: 'tool_pending'; jobId: string; toolName: string };
 
 export interface PageContext {
   url: string;
