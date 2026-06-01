@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 
 import authRoutes from './controllers/auth';
+import ssoRoutes from './controllers/sso';
 import conversationsRoutes from './controllers/conversations';
 import eventsRoutes from './controllers/events';
 import analyticsRoutes from './controllers/analytics';
@@ -108,6 +109,7 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ─── REST routes ─────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/auth/sso', ssoRoutes);
 app.use('/api/v1/conversations', conversationsRoutes);
 app.use('/api/v1/events', eventsRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
