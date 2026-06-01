@@ -406,4 +406,166 @@ export async function sendProactiveEmail(params: {
   });
 }
 
+export async function sendUsageLimitEmail(params: {
+  to: string;
+  orgName: string;
+  mtuUsed: number;
+  mtuLimit: number;
+  threshold: 80 | 100;
+}) {
+  if (!resend) {
+    console.warn('[email] RESEND_API_KEY not set — skipping usage limit email');
+    return;
+  }
 
+  const pct = Math.round((params.mtuUsed / params.mtuLimit) * 100);
+  const billingUrl = `${DASHBOARD_URL}/settings/billing`;
+  const is100 = params.threshold === 100;
+
+  const headerBg = is100 ? '#ef4444' : '#f97316';
+  const subject = is100
+    ? `Your Ahaget widget has stopped serving new users`
+    : `You've used ${pct}% of your monthly user limit`;
+
+  await resend.emails.send({
+    from: FROM,
+    to: params.to,
+    subject,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="540" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+
+        <tr>
+          <td style="background:${headerBg};padding:24px 36px;">
+            <span style="color:#ffffff;font-size:18px;font-weight:700;">${is100 ? '🚫' : '⚠️'} ${is100 ? 'User limit reached' : 'Approaching user limit'} — ${params.orgName}</span>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:32px 36px;">
+            ${is100
+              ? `<p style="margin:0 0 16px;color:#1e293b;font-size:15px;line-height:1.6;">
+                  Your account has reached its <strong>${params.mtuLimit.toLocaleString()} Monthly Tracked User</strong> limit.
+                  New users visiting your site will <strong style="color:#ef4444;">no longer see the Ahaget widget</strong> until the next billing cycle or until you upgrade.
+                </p>`
+              : `<p style="margin:0 0 16px;color:#1e293b;font-size:15px;line-height:1.6;">
+                  You've used <strong>${params.mtuUsed.toLocaleString()} of ${params.mtuLimit.toLocaleString()} Monthly Tracked Users</strong> (${pct}%).
+                  If you reach 100%, new users won't see the Ahaget widget for the rest of the month.
+                </p>`}
+
+            <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;background:${is100 ? '#fef2f2' : '#fff7ed'};border:1px solid ${is100 ? '#fecaca' : '#fed7aa'};border-radius:8px;padding:16px 20px;">
+              <tr>
+                <td style="text-align:center;border-right:1px solid ${is100 ? '#fecaca' : '#fed7aa'};padding-right:20px;">
+                  <p style="margin:0;color:${is100 ? '#ef4444' : '#ea580c'};font-size:28px;font-weight:700;">${params.mtuUsed.toLocaleString()}</p>
+                  <p style="margin:4px 0 0;color:#9a3412;font-size:12px;">Users tracked</p>
+                </td>
+                <td style="text-align:center;padding-left:20px;">
+                  <p style="margin:0;color:${is100 ? '#ef4444' : '#ea580c'};font-size:28px;font-weight:700;">${pct}%</p>
+                  <p style="margin:4px 0 0;color:#9a3412;font-size:12px;">of ${params.mtuLimit.toLocaleString()} limit used</p>
+                </td>
+              </tr>
+            </table>
+
+            <a href="${billingUrl}" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;">
+              Upgrade plan →
+            </a>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:18px 36px;border-top:1px solid #e2e8f0;">
+            <p style="margin:0;color:#94a3b8;font-size:11px;">
+              Ahaget · You'll only receive this alert once per threshold per billing month.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  });
+}
+
+export async function sendPaymentFailedEmail(params: {
+  to: string;
+  orgName: string;
+  attemptCount: number;
+  invoiceUrl: string | null;
+}) {
+  if (!resend) {
+    console.warn('[email] RESEND_API_KEY not set — skipping payment failed email');
+    return;
+  }
+
+  const billingUrl = `${DASHBOARD_URL}/settings/billing`;
+  const ctaUrl = params.invoiceUrl ?? billingUrl;
+  const attemptNote = params.attemptCount > 1
+    ? `This is attempt ${params.attemptCount}. `
+    : '';
+
+  await resend.emails.send({
+    from: FROM,
+    to: params.to,
+    subject: `Action required: payment failed for ${params.orgName}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#ef4444;padding:32px 40px;">
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">Ahaget</h1>
+            <p style="margin:4px 0 0;color:#fecaca;font-size:13px;">Payment failed — action required</p>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:36px 40px;">
+            <p style="margin:0 0 16px;color:#1e293b;font-size:16px;">Hi there,</p>
+            <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">
+              We were unable to process your payment for <strong>${params.orgName}</strong>.
+              ${attemptNote}Please update your payment method to keep your account active.
+            </p>
+
+            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px 20px;margin-bottom:28px;">
+              <p style="margin:0;color:#991b1b;font-size:14px;line-height:1.6;">
+                If payment is not received, your account will be downgraded to the free plan and your active flows may be paused.
+              </p>
+            </div>
+
+            <a href="${ctaUrl}"
+               style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:9px;font-size:15px;font-weight:700;">
+              Update payment method →
+            </a>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:16px 36px;border-top:1px solid #e2e8f0;">
+            <p style="margin:0;color:#94a3b8;font-size:11px;line-height:1.6;">
+              Questions? Reply to this email or visit <a href="${billingUrl}" style="color:#6366f1;">your billing page</a>.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  });
+}
