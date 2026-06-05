@@ -10,6 +10,11 @@ import { encryptIfEnabled, decrypt } from '../utils/encrypt';
 const router = Router();
 router.use(authenticateJWT);
 
+const ws = (req: AuthenticatedRequest) => {
+  const id = req.headers['x-workspace-id'] as string | undefined;
+  return id ? { workspaceId: id } : {};
+};
+
 const SAFE_SELECT = {
   id: true, name: true, description: true, connectorType: true,
   serverUrl: true, authType: true, enabled: true,
@@ -41,7 +46,7 @@ const EndpointSchema = z.object({
 // ─── GET /api/v1/mcp — list connectors ───────────────────────────────────────
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const connectors = await prisma.mcpConnector.findMany({
-    where: { organizationId: req.user!.organizationId },
+    where: { organizationId: req.user!.organizationId, ...ws(req) },
     orderBy: { createdAt: 'asc' },
     select: SAFE_SELECT,
   });
@@ -128,6 +133,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
       organizationId: orgId,
       ...data,
       authValue: data.authValue ? encryptIfEnabled(data.authValue) : data.authValue,
+      ...ws(req),
     },
     select: SAFE_SELECT,
   });

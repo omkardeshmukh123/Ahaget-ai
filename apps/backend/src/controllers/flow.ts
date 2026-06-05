@@ -10,6 +10,11 @@ import { broadcastToOrgWidgets } from '../utils/websocket';
 const router = Router();
 router.use(authenticateJWT);
 
+const ws = (req: AuthenticatedRequest) => {
+  const id = req.headers['x-workspace-id'] as string | undefined;
+  return id ? { workspaceId: id } : {};
+};
+
 // ─── GET /api/v1/flow/templates — list built-in vertical templates ────────────
 router.get('/templates', (_req, res) => {
   // Strip step details to keep response small — dashboard only needs metadata for the picker
@@ -67,7 +72,7 @@ router.post('/from-template', async (req: AuthenticatedRequest, res: Response) =
 // ─── GET /api/v1/flow — list all flows for the org ───────────────────────────
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const flows = await prisma.onboardingFlow.findMany({
-    where: { organizationId: req.user!.organizationId },
+    where: { organizationId: req.user!.organizationId, ...ws(req) },
     include: { steps: { orderBy: { order: 'asc' } } },
     orderBy: { createdAt: 'asc' },
   });
@@ -105,6 +110,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
       description: description ?? '',
       flowType: flowType ?? 'onboarding',
       triggerCondition: (triggerCondition ?? {}) as Prisma.InputJsonValue,
+      ...ws(req),
     },
     include: { steps: true },
   });

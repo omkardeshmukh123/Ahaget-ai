@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import AhagetLogo from './AhagetLogo';
+import WorkspaceSwitcher from './WorkspaceSwitcher';
 
 const SECTIONS = [
   {
@@ -73,6 +74,9 @@ export default function Sidebar() {
             {org && <p style={{ fontSize: 10, color: '#9B8AB0', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130 }}>{org.name}</p>}
           </div>
         </div>
+
+        {/* Workspace switcher */}
+        <WorkspaceSwitcher />
 
         {/* CTA */}
         <button

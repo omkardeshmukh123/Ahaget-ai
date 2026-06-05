@@ -10,4 +10,5 @@ export interface AuthenticatedRequest extends Request {
   };
   organization?: Organization;
   requestId?: string;
+  workspaceId?: string; // resolved from X-Workspace-Id header
 }

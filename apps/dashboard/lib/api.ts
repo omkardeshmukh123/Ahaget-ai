@@ -22,6 +22,8 @@ async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   if (auth) {
     const token = getToken();
     if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    const wsId = typeof window !== 'undefined' ? localStorage.getItem('ahaget_workspace_id') : null;
+    if (wsId) (headers as Record<string, string>)['X-Workspace-Id'] = wsId;
   }
 
   let res: Response;

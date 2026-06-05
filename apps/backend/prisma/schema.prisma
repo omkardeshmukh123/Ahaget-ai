@@ -71,8 +71,32 @@ model Organization {
   referralsMade         ReferralConversion[] @relation("ReferralsMade")
   referralsReceived     ReferralConversion[] @relation("ReferralsReceived")
   webhooks              Webhook[]
+  workspaces            Workspace[]
 
   @@map("organizations")
+}
+
+// ─── Workspace (named product environment within an org) ──────────────────────
+// Scale plan feature: orgs can create multiple workspaces (e.g. one per product).
+// All orgs get exactly one default workspace created on registration.
+model Workspace {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String
+  isDefault      Boolean  @default(false) @map("is_default")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization         Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  onboardingFlows      OnboardingFlow[]
+  knowledgeBase        KnowledgeBaseArticle[]
+  mcpConnectors        McpConnector[]
+  contextSources       ContextSource[]
+  interfaceSnapshots   InterfacePageSnapshot[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("workspaces")
 }
 
 // ─── User (admin/member of the org who logs into dashboard) ────────────────
@@ -233,10 +257,12 @@ model OnboardingFlow {
   targetPlan          String?  @map("target_plan")    // e.g. 'growth', 'pro', 'enterprise'
   upgradeUrl          String?  @map("upgrade_url")    // deep link to checkout / billing page
   mrrPerConversion    Float?   @map("mrr_per_conversion") // estimated MRR value per attributed upgrade
+  workspaceId         String?  @map("workspace_id")   // null = default workspace
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace           Workspace?            @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   steps               OnboardingStep[]
   sessions            UserOnboardingSession[]
   triggerRules        TriggerRule[]
@@ -247,6 +273,7 @@ model OnboardingFlow {
 
   @@index([organizationId])
   @@index([organizationId, flowType])
+  @@index([workspaceId])
   @@map("onboarding_flows")
 }
 
@@ -509,13 +536,16 @@ model KnowledgeBaseArticle {
   syncStatus     String   @default("idle") @map("sync_status")   // idle | syncing | error
   syncedAt       DateTime? @map("synced_at")
   wordCount      Int      @default(0) @map("word_count")
+  workspaceId    String?  @map("workspace_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
   @@index([organizationId, pageUrlPattern])
+  @@index([workspaceId])
   @@map("knowledge_base_articles")
 }
 
@@ -537,14 +567,17 @@ model McpConnector {
   allowedTools   String[] @default([]) @map("allowed_tools") // empty = all tools allowed
   readOnly       Boolean  @default(false) @map("read_only")  // block write-verb tool calls
   allowInGoalMode Boolean @default(false) @map("allow_in_goal_mode")
+  workspaceId    String?  @map("workspace_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace      Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   restEndpoints  RestApiEndpoint[]
   contextSources  ContextSource[]
 
   @@index([organizationId])
+  @@index([workspaceId])
   @@map("mcp_connectors")
 }
 
@@ -588,14 +621,17 @@ model ContextSource {
   // What the agent sees
   contextKey     String   @map("context_key")
   allowedFields  String[] @default([]) @map("allowed_fields")
+  workspaceId    String?  @map("workspace_id")
 
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   connector      McpConnector? @relation(fields: [connectorId], references: [id], onDelete: SetNull)
+  workspace      Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
+  @@index([workspaceId])
   @@unique([organizationId, contextKey])
   @@map("context_sources")
 }
@@ -752,12 +788,15 @@ model InterfacePageSnapshot {
   annotatedCount Int      @default(0) @map("annotated_count")
   capturedAt     DateTime @default(now()) @map("captured_at")
   isActive       Boolean  @default(true) @map("is_active")
+  workspaceId    String?  @map("workspace_id")
 
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace?         @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   elements     InterfaceElement[]
 
   @@index([organizationId])
   @@index([organizationId, url])
+  @@index([workspaceId])
   @@map("interface_page_snapshots")
 }
 

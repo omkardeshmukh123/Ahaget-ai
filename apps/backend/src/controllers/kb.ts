@@ -23,6 +23,11 @@ import { AuthenticatedRequest } from '../types';
 
 const router = Router();
 
+const ws = (req: AuthenticatedRequest) => {
+  const id = req.headers['x-workspace-id'] as string | undefined;
+  return id ? { workspaceId: id } : {};
+};
+
 // ─── Multer — in-memory, 5 MB limit, text files only ─────────────────────────
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -72,7 +77,7 @@ router.use(authenticateJWT);
 // ─── GET /api/v1/kb ───────────────────────────────────────────────────────────
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const articles = await prisma.knowledgeBaseArticle.findMany({
-    where: { organizationId: req.user!.organizationId },
+    where: { organizationId: req.user!.organizationId, ...ws(req) },
     select: {
       id: true, title: true, tags: true,
       sourceType: true, sourceUrl: true,
@@ -132,6 +137,7 @@ router.post('/ingest-url', async (req: AuthenticatedRequest, res: Response) => {
       tags: tags ?? [],
       syncStatus: 'syncing',
       wordCount: 0,
+      ...ws(req),
     },
     select: { id: true, title: true, syncStatus: true, createdAt: true },
   });
@@ -193,6 +199,7 @@ router.post('/ingest-file', upload.single('file'), async (req: AuthenticatedRequ
       wordCount,
       syncStatus: 'idle',
       syncedAt: new Date(),
+      ...ws(req),
     },
     select: {
       id: true, title: true, tags: true,
@@ -234,6 +241,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
       wordCount,
       syncStatus: 'idle',
       syncedAt: new Date(),
+      ...ws(req),
     },
     select: {
       id: true, title: true, tags: true,

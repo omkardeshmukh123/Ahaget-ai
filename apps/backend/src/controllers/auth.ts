@@ -188,6 +188,9 @@ router.post('/register', async (req: Request, res: Response) => {
         organizationId: organization.id,
       },
     });
+    await tx.workspace.create({
+      data: { organizationId: organization.id, name: 'Default', isDefault: true },
+    });
     if (referringOrg) {
       await tx.referralConversion.create({
         data: {

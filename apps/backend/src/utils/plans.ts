@@ -13,6 +13,7 @@ export interface PlanFeatures {
   customRetention: boolean;   // Scale only
   sso: boolean;               // Scale only
   whiteLabel: boolean;        // Scale only
+  multiWorkspace: boolean;    // Scale only
   multilingual: boolean;      // All plans
 }
 
@@ -45,25 +46,25 @@ const FREE_GATES: PlanFeatures = {
   failureInbox: false, sessionReplay: false, agentHealth: false,
   emailEscalation: false, abExperiments: false, auditLog: false,
   guardrails: false, slackEscalation: false, customRetention: false,
-  sso: false, whiteLabel: false, multilingual: true,
+  sso: false, whiteLabel: false, multiWorkspace: false, multilingual: true,
 };
 const STARTER_GATES: PlanFeatures = {
   failureInbox: true, sessionReplay: true, agentHealth: true,
   emailEscalation: true, abExperiments: false, auditLog: false,
   guardrails: false, slackEscalation: false, customRetention: false,
-  sso: false, whiteLabel: false, multilingual: true,
+  sso: false, whiteLabel: false, multiWorkspace: false, multilingual: true,
 };
 const GROWTH_GATES: PlanFeatures = {
   failureInbox: true, sessionReplay: true, agentHealth: true,
   emailEscalation: true, abExperiments: true, auditLog: true,
   guardrails: true, slackEscalation: true, customRetention: false,
-  sso: false, whiteLabel: false, multilingual: true,
+  sso: false, whiteLabel: false, multiWorkspace: false, multilingual: true,
 };
 const SCALE_GATES: PlanFeatures = {
   failureInbox: true, sessionReplay: true, agentHealth: true,
   emailEscalation: true, abExperiments: true, auditLog: true,
   guardrails: true, slackEscalation: true, customRetention: true,
-  sso: true, whiteLabel: true, multilingual: true,
+  sso: true, whiteLabel: true, multiWorkspace: true, multilingual: true,
 };
 
 export const PLANS: Record<string, Plan> = {

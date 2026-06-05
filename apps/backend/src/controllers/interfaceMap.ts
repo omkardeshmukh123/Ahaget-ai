@@ -19,6 +19,11 @@ import { AuthenticatedRequest } from '../types';
 
 const router = Router();
 
+const ws = (req: AuthenticatedRequest) => {
+  const id = req.headers['x-workspace-id'] as string | undefined;
+  return id ? { workspaceId: id } : {};
+};
+
 // ─── Helper: fuzzy URL matcher ────────────────────────────────────────────────
 function urlMatches(storedUrl: string, liveUrl: string): boolean {
   const s = storedUrl.toLowerCase().replace(/\/$/, '');
@@ -134,6 +139,7 @@ router.post('/capture', authenticateApiKey, async (req: Request, res: Response) 
           elementCount:   elements.length,
           annotatedCount,
           elements: { create: elements.map(mapElement) },
+          workspaceId: (req.headers['x-workspace-id'] as string | undefined) ?? null,
         },
         include: {
           elements: { select: { id: true, tag: true, selector: true, text: true, elementType: true } },
@@ -214,7 +220,7 @@ router.get('/snapshots', async (req: AuthenticatedRequest, res: Response) => {
   const orgId = req.user!.organizationId;
   try {
     const snapshots = await prisma.interfacePageSnapshot.findMany({
-      where: { organizationId: orgId, isActive: true },
+      where: { organizationId: orgId, isActive: true, ...ws(req) },
       select: {
         id: true, url: true, title: true, stateLabel: true,
         framework: true, elementCount: true, annotatedCount: true,

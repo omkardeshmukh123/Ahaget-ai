@@ -12,6 +12,11 @@ import { assertPublicUrl } from '../utils/ipGuard';
 const router = Router();
 router.use(authenticateJWT);
 
+const ws = (req: AuthenticatedRequest) => {
+  const id = req.headers['x-workspace-id'] as string | undefined;
+  return id ? { workspaceId: id } : {};
+};
+
 const SAFE_SELECT = {
   id: true, name: true, description: true, enabled: true,
   connectorId: true, mcpToolName: true, mcpToolArgs: true,
@@ -53,7 +58,7 @@ function authHeaders(authType: string, authValue: string | null): Record<string,
 // ─── GET /api/v1/context-sources ─────────────────────────────────────────────
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   const sources = await prisma.contextSource.findMany({
-    where: { organizationId: req.user!.organizationId },
+    where: { organizationId: req.user!.organizationId, ...ws(req) },
     orderBy: { createdAt: 'asc' },
     select: SAFE_SELECT,
   });
@@ -66,7 +71,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   const orgId = req.user!.organizationId;
 
   const source = await prisma.contextSource.create({
-    data: { organizationId: orgId, ...data, mcpToolArgs: (data.mcpToolArgs ?? {}) as Prisma.InputJsonValue },
+    data: { organizationId: orgId, ...data, mcpToolArgs: (data.mcpToolArgs ?? {}) as Prisma.InputJsonValue, ...ws(req) },
     select: SAFE_SELECT,
   });
 
