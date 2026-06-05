@@ -3,7 +3,7 @@ services:
   - type: web
     name: ahaget-backend
     runtime: node
-    plan: starter
+    plan: free
     rootDir: apps/backend
     buildCommand: npm install --include=dev && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && node dist/index.js
@@ -81,7 +81,7 @@ services:
   - type: web
     name: ahaget-dashboard
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: >-
       npm install --include=dev --legacy-peer-deps &&
       npm run build --workspace=apps/dashboard &&
@@ -116,6 +116,6 @@ services:
 databases:
   # ─── PostgreSQL ───────────────────────────────────────────────────────────────
   - name: ahaget-db
-    plan: starter
+    plan: free
     databaseName: ahaget
     user: ahaget
