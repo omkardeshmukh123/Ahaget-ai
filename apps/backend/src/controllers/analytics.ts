@@ -944,7 +944,7 @@ router.get('/heal-stats', authenticateJWT, async (req: AuthenticatedRequest, res
     .map(([selector, v]) => ({ selector, ...v }));
 
   res.json({
-    summary: { totalActions: total, healedCount: healed, failedCount: failed, healRate: total > 0 ? +((healed / Math.max(total - stratDist['primary'] ?? 0, 1)) * 100).toFixed(1) : 100 },
+    summary: { totalActions: total, healedCount: healed, failedCount: failed, healRate: total > 0 ? +((healed / Math.max(total - (stratDist['primary'] || 0), 1)) * 100).toFixed(1) : 100 },
     topDriftingSelectors: topDrifting,
     strategyDistribution: stratDist,
     trend: trend.map(r => ({ date: r.date, healed: Number(r.healed), failed: Number(r.failed) })),
