@@ -6,7 +6,7 @@ import { fetchSessionContext, invalidateContextSourceCache } from '../services/c
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 
-jest.mock('../lib/prisma', () => ({
+jest.mock('../utils/prisma', () => ({
   prisma: {
     contextSource: { findMany: jest.fn() },
     mcpConnector:  { findUnique: jest.fn() },
@@ -17,7 +17,7 @@ jest.mock('../services/mcp', () => ({
   callMcpTool: jest.fn(),
 }));
 
-jest.mock('../lib/ipGuard', () => ({
+jest.mock('../utils/ipGuard', () => ({
   assertPublicUrl: jest.fn().mockResolvedValue(undefined),
 }));
 
