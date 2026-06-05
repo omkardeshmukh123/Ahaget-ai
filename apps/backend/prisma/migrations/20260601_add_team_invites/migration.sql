@@ -1,5 +1,5 @@
 -- CreateTable: team_invites
-CREATE TABLE "team_invites" (
+CREATE TABLE IF NOT EXISTS "team_invites" (
     "id"              TEXT NOT NULL,
     "organization_id" TEXT NOT NULL,
     "email"           TEXT NOT NULL,
@@ -13,11 +13,11 @@ CREATE TABLE "team_invites" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "team_invites_token_key" ON "team_invites"("token");
-
--- CreateIndex
-CREATE INDEX "team_invites_organization_id_idx" ON "team_invites"("organization_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "team_invites_token_key" ON "team_invites"("token");
+CREATE INDEX IF NOT EXISTS "team_invites_organization_id_idx" ON "team_invites"("organization_id");
 
 -- AddForeignKey
-ALTER TABLE "team_invites" ADD CONSTRAINT "team_invites_organization_id_fkey"
+DO $$ BEGIN
+  ALTER TABLE "team_invites" ADD CONSTRAINT "team_invites_organization_id_fkey"
     FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

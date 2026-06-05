@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "mcp_call_logs" (
+CREATE TABLE IF NOT EXISTS "mcp_call_logs" (
     "id"             TEXT NOT NULL,
     "organization_id" TEXT NOT NULL,
     "session_id"     TEXT,
@@ -17,15 +17,17 @@ CREATE TABLE "mcp_call_logs" (
 );
 
 -- AddCheckConstraint
-ALTER TABLE "mcp_call_logs" ADD CONSTRAINT "mcp_call_logs_call_type_check"
-  CHECK ("call_type" IN ('mcp', 'rest'));
+DO $$ BEGIN
+  ALTER TABLE "mcp_call_logs" ADD CONSTRAINT "mcp_call_logs_call_type_check"
+    CHECK ("call_type" IN ('mcp', 'rest'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "mcp_call_logs" ADD CONSTRAINT "mcp_call_logs_organization_id_fkey"
+DO $$ BEGIN
+  ALTER TABLE "mcp_call_logs" ADD CONSTRAINT "mcp_call_logs_organization_id_fkey"
     FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateIndex
-CREATE INDEX "mcp_call_logs_organization_id_created_at_idx" ON "mcp_call_logs"("organization_id", "created_at" DESC);
-
--- CreateIndex
-CREATE INDEX "mcp_call_logs_session_id_idx" ON "mcp_call_logs"("session_id");
+CREATE INDEX IF NOT EXISTS "mcp_call_logs_organization_id_created_at_idx" ON "mcp_call_logs"("organization_id", "created_at" DESC);
+CREATE INDEX IF NOT EXISTS "mcp_call_logs_session_id_idx" ON "mcp_call_logs"("session_id");

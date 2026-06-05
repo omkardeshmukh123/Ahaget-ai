@@ -1,6 +1,5 @@
 -- CreateTable: mcp_pending_jobs
--- Async MCP tool call jobs — stores context for follow-up after worker completes (pivot1 Month 2)
-CREATE TABLE "mcp_pending_jobs" (
+CREATE TABLE IF NOT EXISTS "mcp_pending_jobs" (
     "id"          TEXT NOT NULL,
     "org_id"      TEXT NOT NULL,
     "session_id"  TEXT,
@@ -15,10 +14,5 @@ CREATE TABLE "mcp_pending_jobs" (
 );
 
 -- CreateIndex
-CREATE INDEX "mcp_pending_jobs_org_id_status_idx" ON "mcp_pending_jobs"("org_id", "status");
-
--- CreateIndex
-CREATE INDEX "mcp_pending_jobs_created_at_idx" ON "mcp_pending_jobs"("created_at");
-
--- Cleanup index: remove pending jobs older than 1 hour in background
--- (handled by the session_sweep worker in production)
+CREATE INDEX IF NOT EXISTS "mcp_pending_jobs_org_id_status_idx" ON "mcp_pending_jobs"("org_id", "status");
+CREATE INDEX IF NOT EXISTS "mcp_pending_jobs_created_at_idx" ON "mcp_pending_jobs"("created_at");

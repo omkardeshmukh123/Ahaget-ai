@@ -1,6 +1,5 @@
 -- CreateTable: user_memories
--- Cross-session user memory store (pivot1 Month 1)
-CREATE TABLE "user_memories" (
+CREATE TABLE IF NOT EXISTS "user_memories" (
     "id"              TEXT NOT NULL,
     "organization_id" TEXT NOT NULL,
     "end_user_id"     TEXT NOT NULL,
@@ -12,15 +11,11 @@ CREATE TABLE "user_memories" (
     CONSTRAINT "user_memories_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE INDEX "user_memories_organization_id_end_user_id_idx" ON "user_memories"("organization_id", "end_user_id");
-
--- CreateIndex
-CREATE INDEX "user_memories_created_at_idx" ON "user_memories"("created_at");
+CREATE INDEX IF NOT EXISTS "user_memories_organization_id_end_user_id_idx" ON "user_memories"("organization_id", "end_user_id");
+CREATE INDEX IF NOT EXISTS "user_memories_created_at_idx" ON "user_memories"("created_at");
 
 -- CreateTable: agent_eval_logs
--- One row per agent turn; powers the 3 pivot1 KPIs (pivot1 Week 2)
-CREATE TABLE "agent_eval_logs" (
+CREATE TABLE IF NOT EXISTS "agent_eval_logs" (
     "id"                    TEXT NOT NULL,
     "organization_id"       TEXT NOT NULL,
     "session_id"            TEXT,
@@ -40,18 +35,12 @@ CREATE TABLE "agent_eval_logs" (
     CONSTRAINT "agent_eval_logs_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE INDEX "agent_eval_logs_organization_id_idx" ON "agent_eval_logs"("organization_id");
-
--- CreateIndex
-CREATE INDEX "agent_eval_logs_created_at_idx" ON "agent_eval_logs"("created_at");
-
--- CreateIndex
-CREATE INDEX "agent_eval_logs_organization_id_created_at_idx" ON "agent_eval_logs"("organization_id", "created_at");
+CREATE INDEX IF NOT EXISTS "agent_eval_logs_organization_id_idx" ON "agent_eval_logs"("organization_id");
+CREATE INDEX IF NOT EXISTS "agent_eval_logs_created_at_idx" ON "agent_eval_logs"("created_at");
+CREATE INDEX IF NOT EXISTS "agent_eval_logs_organization_id_created_at_idx" ON "agent_eval_logs"("organization_id", "created_at");
 
 -- CreateTable: branding_configs
--- Per-org widget branding (colours, position, idle threshold)
-CREATE TABLE "branding_configs" (
+CREATE TABLE IF NOT EXISTS "branding_configs" (
     "id"               TEXT NOT NULL,
     "organization_id"  TEXT NOT NULL,
     "primary_color"    TEXT NOT NULL DEFAULT '#6366f1',
@@ -69,9 +58,9 @@ CREATE TABLE "branding_configs" (
     CONSTRAINT "branding_configs_pkey" PRIMARY KEY ("id")
 );
 
--- CreateUniqueIndex
-CREATE UNIQUE INDEX "branding_configs_organization_id_key" ON "branding_configs"("organization_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "branding_configs_organization_id_key" ON "branding_configs"("organization_id");
 
--- AddForeignKey
-ALTER TABLE "branding_configs" ADD CONSTRAINT "branding_configs_organization_id_fkey"
+DO $$ BEGIN
+  ALTER TABLE "branding_configs" ADD CONSTRAINT "branding_configs_organization_id_fkey"
     FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

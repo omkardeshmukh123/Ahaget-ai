@@ -1,5 +1,5 @@
--- CreateTable: interface_page_snapshots
-CREATE TABLE "interface_page_snapshots" (
+-- CreateTable: interface_page_snapshots (idempotent)
+CREATE TABLE IF NOT EXISTS "interface_page_snapshots" (
     "id"              TEXT NOT NULL,
     "organization_id" TEXT NOT NULL,
     "url"             TEXT NOT NULL,
@@ -14,8 +14,8 @@ CREATE TABLE "interface_page_snapshots" (
     CONSTRAINT "interface_page_snapshots_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable: interface_elements
-CREATE TABLE "interface_elements" (
+-- CreateTable: interface_elements (idempotent)
+CREATE TABLE IF NOT EXISTS "interface_elements" (
     "id"                  TEXT NOT NULL,
     "snapshot_id"         TEXT NOT NULL,
     "tag"                 TEXT NOT NULL,
@@ -41,15 +41,31 @@ CREATE TABLE "interface_elements" (
     CONSTRAINT "interface_elements_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE INDEX "interface_page_snapshots_organization_id_idx" ON "interface_page_snapshots"("organization_id");
-CREATE INDEX "interface_page_snapshots_organization_id_url_idx" ON "interface_page_snapshots"("organization_id", "url");
-CREATE INDEX "interface_elements_snapshot_id_idx" ON "interface_elements"("snapshot_id");
-CREATE INDEX "interface_elements_snapshot_id_selector_idx" ON "interface_elements"("snapshot_id", "selector");
+-- CreateIndex (idempotent)
+CREATE INDEX IF NOT EXISTS "interface_page_snapshots_organization_id_idx" ON "interface_page_snapshots"("organization_id");
+CREATE INDEX IF NOT EXISTS "interface_page_snapshots_organization_id_url_idx" ON "interface_page_snapshots"("organization_id", "url");
+CREATE INDEX IF NOT EXISTS "interface_elements_snapshot_id_idx" ON "interface_elements"("snapshot_id");
+CREATE INDEX IF NOT EXISTS "interface_elements_snapshot_id_selector_idx" ON "interface_elements"("snapshot_id", "selector");
 
--- AddForeignKey
-ALTER TABLE "interface_page_snapshots" ADD CONSTRAINT "interface_page_snapshots_organization_id_fkey"
-    FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- AddForeignKey (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'interface_page_snapshots_organization_id_fkey'
+  ) THEN
+    ALTER TABLE "interface_page_snapshots" ADD CONSTRAINT "interface_page_snapshots_organization_id_fkey"
+      FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END;
+$$;
 
-ALTER TABLE "interface_elements" ADD CONSTRAINT "interface_elements_snapshot_id_fkey"
-    FOREIGN KEY ("snapshot_id") REFERENCES "interface_page_snapshots"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'interface_elements_snapshot_id_fkey'
+  ) THEN
+    ALTER TABLE "interface_elements" ADD CONSTRAINT "interface_elements_snapshot_id_fkey"
+      FOREIGN KEY ("snapshot_id") REFERENCES "interface_page_snapshots"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END;
+$$;

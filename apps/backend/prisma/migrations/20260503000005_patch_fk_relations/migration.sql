@@ -2,14 +2,30 @@
 -- and end_user_id FK to upsell_attributions
 
 -- proactive_messages: add FK for flow_id (was missing in 20260503000003)
-ALTER TABLE "proactive_messages"
-  ADD CONSTRAINT IF NOT EXISTS "proactive_messages_flow_id_fkey"
-    FOREIGN KEY ("flow_id") REFERENCES "onboarding_flows"("id") ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'proactive_messages_flow_id_fkey'
+  ) THEN
+    ALTER TABLE "proactive_messages"
+      ADD CONSTRAINT "proactive_messages_flow_id_fkey"
+        FOREIGN KEY ("flow_id") REFERENCES "onboarding_flows"("id") ON DELETE CASCADE;
+  END IF;
+END;
+$$;
 
 -- upsell_attributions: add FK for end_user_id (was missing in 20260503000004)
-ALTER TABLE "upsell_attributions"
-  ADD CONSTRAINT IF NOT EXISTS "upsell_attributions_end_user_id_fkey"
-    FOREIGN KEY ("end_user_id") REFERENCES "end_users"("id") ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'upsell_attributions_end_user_id_fkey'
+  ) THEN
+    ALTER TABLE "upsell_attributions"
+      ADD CONSTRAINT "upsell_attributions_end_user_id_fkey"
+        FOREIGN KEY ("end_user_id") REFERENCES "end_users"("id") ON DELETE CASCADE;
+  END IF;
+END;
+$$;
 
 -- trigger_rules: add updated_at trigger for auto-update (best practice)
 CREATE OR REPLACE FUNCTION update_updated_at_column()

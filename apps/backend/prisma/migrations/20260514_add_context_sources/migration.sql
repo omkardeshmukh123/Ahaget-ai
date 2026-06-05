@@ -1,8 +1,8 @@
 -- AddColumn: liveContextSnapshot on user_onboarding_sessions
-ALTER TABLE "user_onboarding_sessions" ADD COLUMN "live_context_snapshot" JSONB;
+ALTER TABLE "user_onboarding_sessions" ADD COLUMN IF NOT EXISTS "live_context_snapshot" JSONB;
 
 -- CreateTable: context_sources
-CREATE TABLE "context_sources" (
+CREATE TABLE IF NOT EXISTS "context_sources" (
     "id" TEXT NOT NULL,
     "organization_id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -22,16 +22,21 @@ CREATE TABLE "context_sources" (
 );
 
 -- CreateIndex
-CREATE INDEX "context_sources_organization_id_idx" ON "context_sources"("organization_id");
+CREATE INDEX IF NOT EXISTS "context_sources_organization_id_idx" ON "context_sources"("organization_id");
 
 -- AddForeignKey
-ALTER TABLE "context_sources" ADD CONSTRAINT "context_sources_organization_id_fkey"
+DO $$ BEGIN
+  ALTER TABLE "context_sources" ADD CONSTRAINT "context_sources_organization_id_fkey"
     FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- AddForeignKey
-ALTER TABLE "context_sources" ADD CONSTRAINT "context_sources_connector_id_fkey"
+DO $$ BEGIN
+  ALTER TABLE "context_sources" ADD CONSTRAINT "context_sources_connector_id_fkey"
     FOREIGN KEY ("connector_id") REFERENCES "mcp_connectors"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- UniqueConstraint: contextKey per org
-ALTER TABLE "context_sources" ADD CONSTRAINT "context_sources_org_context_key_key"
+DO $$ BEGIN
+  ALTER TABLE "context_sources" ADD CONSTRAINT "context_sources_org_context_key_key"
     UNIQUE ("organization_id", "context_key");
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

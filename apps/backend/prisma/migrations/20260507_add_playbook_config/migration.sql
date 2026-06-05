@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "playbook_configs" (
+CREATE TABLE IF NOT EXISTS "playbook_configs" (
     "id" TEXT NOT NULL,
     "organization_id" TEXT NOT NULL,
     "agent_name" TEXT NOT NULL DEFAULT 'AI Assistant',
@@ -18,8 +18,10 @@ CREATE TABLE "playbook_configs" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "playbook_configs_organization_id_key" ON "playbook_configs"("organization_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "playbook_configs_organization_id_key" ON "playbook_configs"("organization_id");
 
 -- AddForeignKey
-ALTER TABLE "playbook_configs" ADD CONSTRAINT "playbook_configs_organization_id_fkey"
+DO $$ BEGIN
+  ALTER TABLE "playbook_configs" ADD CONSTRAINT "playbook_configs_organization_id_fkey"
     FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

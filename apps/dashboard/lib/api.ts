@@ -11,7 +11,7 @@ interface FetchOptions extends RequestInit {
   auth?: boolean; // default true — attach JWT header
 }
 
-async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   const { auth = true, ...rest } = opts;
 
   const headers: HeadersInit = {
