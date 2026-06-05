@@ -100,7 +100,7 @@ export default function WidgetSettingsPage() {
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
+              <span className="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
               <div>
                 <p className="text-sm font-semibold text-slate-800">Add to your app</p>
                 <p className="text-xs text-slate-400">Paste before the closing &lt;/body&gt; tag</p>
@@ -109,7 +109,7 @@ export default function WidgetSettingsPage() {
             <button
               onClick={() => copy(fullSnippet, 'snippet')}
               disabled={!config}
-              className="text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+              className="text-xs font-medium bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
             >
               {copied === 'snippet' ? '✓ Copied' : 'Copy snippet'}
             </button>
@@ -128,7 +128,7 @@ export default function WidgetSettingsPage() {
         {/* Step 2 — API Key */}
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="flex items-start gap-3">
-            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+            <span className="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-slate-800 mb-0.5">Your API key</p>
               <p className="text-xs text-slate-400 mb-3">Keep this secret — it identifies your organisation.</p>
@@ -161,7 +161,7 @@ export default function WidgetSettingsPage() {
         {/* Step 3 — User ID */}
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="flex items-start gap-3">
-            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+            <span className="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
             <div>
               <p className="text-sm font-semibold text-slate-800 mb-0.5">Set userId & metadata</p>
               <p className="text-xs text-slate-400 mb-3">
@@ -220,7 +220,7 @@ export default function WidgetSettingsPage() {
                 { opt: 'position',       def: 'bottom-right', desc: '"bottom-right" or "bottom-left".' },
               ].map(({ opt, def, desc }) => (
                 <tr key={opt}>
-                  <td className="py-2 pr-4 font-mono text-indigo-700">{opt}</td>
+                  <td className="py-2 pr-4 font-mono text-brand-700">{opt}</td>
                   <td className="py-2 pr-4 font-mono text-slate-400">{def}</td>
                   <td className="py-2 text-slate-500">{desc}</td>
                 </tr>
@@ -239,7 +239,7 @@ export default function WidgetSettingsPage() {
               role="switch"
               aria-checked={alertConfig?.selectorAlertEnabled ?? false}
               onClick={() => setAlertConfig((prev) => prev ? { ...prev, selectorAlertEnabled: !prev.selectorAlertEnabled } : prev)}
-              className={`relative w-10 h-5 rounded-full transition-colors ${alertConfig?.selectorAlertEnabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+              className={`relative w-10 h-5 rounded-full transition-colors ${alertConfig?.selectorAlertEnabled ? 'bg-brand-600' : 'bg-slate-200'}`}
             >
               <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${alertConfig?.selectorAlertEnabled ? 'translate-x-5' : ''}`} />
             </button>
@@ -251,12 +251,12 @@ export default function WidgetSettingsPage() {
               value={alertWebhook}
               onChange={(e) => setAlertWebhook(e.target.value)}
               placeholder="https://hooks.slack.com/... or your endpoint"
-              className="flex-1 text-xs border border-slate-200 rounded-lg px-3 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="flex-1 text-xs border border-slate-200 rounded-lg px-3 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             />
             <button
               onClick={saveAlertConfig}
               disabled={alertSaving || !alertConfig}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-40"
+              className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-40"
             >
               {alertSaved ? '✓ Saved' : alertSaving ? 'Saving…' : 'Save'}
             </button>

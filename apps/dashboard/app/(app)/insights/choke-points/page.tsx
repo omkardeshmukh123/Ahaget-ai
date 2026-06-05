@@ -14,7 +14,7 @@ const TREND_CONFIG = {
   worsening: { icon: '↑', color: 'text-red-500',    label: 'worsening' },
   improving: { icon: '↓', color: 'text-green-600',  label: 'improving' },
   stable:    { icon: '→', color: 'text-slate-400',  label: 'stable'    },
-  new:       { icon: '★', color: 'text-indigo-500', label: 'new'       },
+  new:       { icon: '★', color: 'text-brand-500', label: 'new'       },
 } as const;
 
 type SeverityFilter = 'all' | ChokePoint['severity_label'];
@@ -84,7 +84,7 @@ export default function ChokePointsPage() {
               key={d}
               onClick={() => setDays(d)}
               className={`text-xs px-2.5 py-1.5 rounded-md font-medium transition-colors ${
-                days === d ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-100'
+                days === d ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'
               }`}
             >
               {d}d
@@ -161,7 +161,7 @@ export default function ChokePointsPage() {
                       </div>
                       <div className="flex items-center gap-1 text-xs text-slate-400 flex-wrap">
                         <span
-                          className="text-indigo-600 hover:underline cursor-pointer"
+                          className="text-brand-600 hover:underline cursor-pointer"
                           onClick={(e) => { e.stopPropagation(); router.push(`/flows/${cp.flow_id}?tab=analytics`); }}
                         >
                           {cp.flow_name}
@@ -212,7 +212,7 @@ export default function ChokePointsPage() {
                       </div>
                     )}
                     <button
-                      className="mt-3 text-xs text-indigo-600 hover:underline font-medium"
+                      className="mt-3 text-xs text-brand-600 hover:underline font-medium"
                       onClick={() => router.push(`/flows/${cp.flow_id}?tab=analytics`)}
                     >
                       Open flow analytics →

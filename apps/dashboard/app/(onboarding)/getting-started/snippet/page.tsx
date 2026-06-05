@@ -76,7 +76,7 @@ This script loads the Ahaget assistant widget asynchronously and initialises it 
 
   return (
     <div>
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mb-6 shadow-lg shadow-indigo-200">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-violet-600 flex items-center justify-center mb-6 shadow-lg shadow-brand-200">
         <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
@@ -84,7 +84,7 @@ This script loads the Ahaget assistant widget asynchronously and initialises it 
 
       <h1 className="text-2xl font-bold text-slate-900 mb-2">Add Ahaget to your website</h1>
       <p className="text-slate-500 text-[15px] leading-relaxed mb-7">
-        Paste this snippet before the closing <code className="text-indigo-600 font-mono text-sm">&lt;/body&gt;</code> tag on every page of your app.
+        Paste this snippet before the closing <code className="text-brand-600 font-mono text-sm">&lt;/body&gt;</code> tag on every page of your app.
       </p>
 
       {/* Code block */}
@@ -126,16 +126,16 @@ This script loads the Ahaget assistant widget asynchronously and initialises it 
       </div>
 
       {/* Copy prompt for AI coding agent */}
-      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-7">
+      <div className="bg-brand-50 border border-brand-100 rounded-xl p-4 mb-7">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <svg className="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-indigo-800 mb-0.5">Using an AI coding agent?</p>
-            <p className="text-xs text-indigo-600 leading-relaxed mb-2">Copy this prompt and paste it into Cursor, GitHub Copilot, or Claude.</p>
+            <p className="text-sm font-semibold text-brand-800 mb-0.5">Using an AI coding agent?</p>
+            <p className="text-xs text-brand-600 leading-relaxed mb-2">Copy this prompt and paste it into Cursor, GitHub Copilot, or Claude.</p>
             <button
               id="btn-copy-ai-prompt"
               type="button"
@@ -144,7 +144,7 @@ This script loads the Ahaget assistant widget asynchronously and initialises it 
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2500);
               }}
-              className="text-xs font-medium text-indigo-700 hover:text-indigo-800 underline underline-offset-2"
+              className="text-xs font-medium text-brand-700 hover:text-brand-800 underline underline-offset-2"
             >
               Copy AI prompt →
             </button>
@@ -190,7 +190,7 @@ This script loads the Ahaget assistant widget asynchronously and initialises it 
             id="btn-go-to-dashboard"
             type="button"
             onClick={handleGoToDashboard}
-            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shadow-indigo-200"
+            className="w-full py-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shadow-brand-200"
           >
             {'Continue →'}
           </button>

@@ -4,7 +4,7 @@ import { api, AuditLogEntry } from '@/lib/api';
 
 const ACTION_COLOR: Record<string, string> = {
   fill_form:   'bg-blue-50 text-blue-700',
-  click:       'bg-indigo-50 text-indigo-700',
+  click:       'bg-brand-50 text-brand-700',
   navigate:    'bg-violet-50 text-violet-700',
   highlight:   'bg-amber-50 text-amber-700',
   hover_tip:   'bg-teal-50 text-teal-700',

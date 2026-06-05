@@ -133,7 +133,7 @@ export default function SettingsGeneralPage() {
             onClick={() => setTab(key)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px ${
               tab === key
-                ? 'border-indigo-600 text-indigo-700'
+                ? 'border-brand-600 text-brand-700'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -153,7 +153,7 @@ export default function SettingsGeneralPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="My SaaS Company"
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 transition-all"
               />
             </div>
 
@@ -191,7 +191,7 @@ export default function SettingsGeneralPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
                 placeholder="Describe your product so the AI knows how to help your users…"
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-none"
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 transition-all resize-none"
               />
             </div>
 
@@ -199,7 +199,7 @@ export default function SettingsGeneralPage() {
               id="btn-settings-save"
               onClick={handleSave}
               disabled={saving}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
+              className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save changes'}
             </button>
@@ -214,7 +214,7 @@ export default function SettingsGeneralPage() {
           <input
             id="input-allowed-hosts"
             placeholder="acme.com, app.acme.com"
-            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400"
           />
           <p className="mt-1.5 text-xs text-slate-400">Comma-separated list of domains. Leave empty to allow all.</p>
         </div>
@@ -229,7 +229,7 @@ export default function SettingsGeneralPage() {
                 <button
                   id="btn-invite-member"
                   onClick={() => setShowInviteModal(true)}
-                  className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold"
+                  className="text-xs text-brand-600 hover:text-brand-700 font-semibold"
                 >
                   + Invite member
                 </button>
@@ -243,7 +243,7 @@ export default function SettingsGeneralPage() {
                 {members.map((m) => (
                   <div key={m.id} className="flex items-center justify-between py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-sm font-bold select-none">
+                      <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-sm font-bold select-none">
                         {(m.name ?? m.email)[0].toUpperCase()}
                       </div>
                       <div>
@@ -253,7 +253,7 @@ export default function SettingsGeneralPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                        m.role === 'owner' ? 'bg-indigo-50 text-indigo-700' :
+                        m.role === 'owner' ? 'bg-brand-50 text-brand-700' :
                         m.role === 'admin' ? 'bg-amber-50 text-amber-700' :
                         'bg-slate-100 text-slate-500'
                       }`}>{m.role}</span>
@@ -325,7 +325,7 @@ export default function SettingsGeneralPage() {
                   onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                   placeholder="teammate@company.com"
                   autoFocus
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400"
                 />
               </div>
               <div>
@@ -334,7 +334,7 @@ export default function SettingsGeneralPage() {
                   id="select-invite-role"
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value as 'member' | 'admin')}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 bg-white"
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 bg-white"
                 >
                   <option value="member">Member — view & use dashboard</option>
                   <option value="admin">Admin — can also manage settings & invite</option>
@@ -346,7 +346,7 @@ export default function SettingsGeneralPage() {
                 id="btn-send-invite"
                 onClick={handleInvite}
                 disabled={inviteSending || !inviteEmail}
-                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
+                className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
               >
                 {inviteSending ? 'Sending…' : 'Send invitation'}
               </button>

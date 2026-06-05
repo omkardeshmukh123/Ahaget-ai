@@ -80,7 +80,7 @@ export default function VerifyPage() {
           type="button"
           onClick={goToDashboard}
           disabled={completing}
-          className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shadow-indigo-200 disabled:opacity-50"
+          className="w-full py-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shadow-brand-200 disabled:opacity-50"
         >
           {completing ? 'Loading…' : 'Go to Dashboard →'}
         </button>
@@ -138,7 +138,7 @@ export default function VerifyPage() {
                 setTimedOut(true);
               }, TIMEOUT_MS);
             }}
-            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shadow-indigo-200"
+            className="w-full py-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shadow-brand-200"
           >
             Try again
           </button>
@@ -158,7 +158,7 @@ export default function VerifyPage() {
 
   return (
     <div>
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mb-6 shadow-lg shadow-indigo-200">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-violet-600 flex items-center justify-center mb-6 shadow-lg shadow-brand-200">
         <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -171,8 +171,8 @@ export default function VerifyPage() {
 
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-            <div className="w-4 h-4 rounded-full bg-indigo-400 animate-pulse" />
+          <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
+            <div className="w-4 h-4 rounded-full bg-brand-400 animate-pulse" />
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-700">Listening for sessions…</p>

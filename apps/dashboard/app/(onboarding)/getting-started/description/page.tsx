@@ -55,7 +55,7 @@ export default function DescriptionPage() {
             placeholder="We're a B2B SaaS that helps engineering teams track deployment metrics. Our main features are a CI/CD dashboard, rollback tools, and incident management…"
             rows={5}
             autoFocus
-            className="w-full px-4 py-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all text-slate-900 resize-none leading-relaxed"
+            className="w-full px-4 py-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 transition-all text-slate-900 resize-none leading-relaxed"
           />
           <p className="mt-1.5 text-xs text-slate-400 text-right">{description.length} chars</p>
         </div>
@@ -73,7 +73,7 @@ export default function DescriptionPage() {
             id="btn-create-workspace"
             type="submit"
             disabled={!description.trim() || loading}
-            className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 py-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shadow-brand-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Creating workspace…' : 'Create workspace'}
           </button>

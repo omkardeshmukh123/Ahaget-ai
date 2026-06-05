@@ -42,8 +42,8 @@ export default function AcceptInvitePage() {
   if (status === 'loading') {
     return (
       <div className="text-center">
-        <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-5">
-          <svg className="w-7 h-7 text-indigo-600 animate-spin" fill="none" viewBox="0 0 24 24">
+        <div className="w-14 h-14 rounded-2xl bg-brand-50 flex items-center justify-center mx-auto mb-5">
+          <svg className="w-7 h-7 text-brand-600 animate-spin" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
           </svg>
@@ -65,7 +65,7 @@ export default function AcceptInvitePage() {
         <p className="text-slate-500 text-sm mb-6">
           This invitation link is invalid or has expired. Ask your team admin to send a new one.
         </p>
-        <a href="/login" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+        <a href="/login" className="text-sm text-brand-600 hover:text-brand-700 font-medium">
           ← Back to sign in
         </a>
       </div>
@@ -75,8 +75,8 @@ export default function AcceptInvitePage() {
   return (
     <>
       <div className="mb-7 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-4">
-          <svg className="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="w-14 h-14 rounded-2xl bg-brand-50 flex items-center justify-center mx-auto mb-4">
+          <svg className="w-7 h-7 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </div>
@@ -97,7 +97,7 @@ export default function AcceptInvitePage() {
             placeholder="Jane Smith"
             required
             autoFocus
-            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
+            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 transition-all"
           />
         </div>
         <div>
@@ -110,7 +110,7 @@ export default function AcceptInvitePage() {
             placeholder="At least 8 characters"
             required
             minLength={8}
-            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
+            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 transition-all"
           />
         </div>
 
@@ -122,7 +122,7 @@ export default function AcceptInvitePage() {
           id="btn-accept-invite"
           type="submit"
           disabled={status === 'submitting'}
-          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 mt-2"
+          className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 mt-2"
         >
           {status === 'submitting' ? 'Creating account…' : 'Accept invitation'}
         </button>
@@ -130,7 +130,7 @@ export default function AcceptInvitePage() {
 
       <p className="text-center text-xs text-slate-400 mt-5">
         Already have an account?{' '}
-        <a href="/login" className="text-indigo-600 hover:text-indigo-700 font-medium">Sign in</a>
+        <a href="/login" className="text-brand-600 hover:text-brand-700 font-medium">Sign in</a>
       </p>
     </>
   );

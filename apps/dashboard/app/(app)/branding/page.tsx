@@ -25,7 +25,7 @@ export default function BrandingPage() {
   const [loading, setLoading]   = useState(true);
   const [saving, setSaving]     = useState(false);
   const [toast, setToast]       = useState('');
-  const [activeTab, setActiveTab] = useState<'theme' | 'entry' | 'sidebar'>('theme');
+  const [activeTab, setActiveTab] = useState<'theme'>('theme');
 
   useEffect(() => {
     api.branding.get()
@@ -83,17 +83,9 @@ export default function BrandingPage() {
         <div className="flex-1 space-y-5">
           {/* Tabs */}
           <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
-            {(['theme', 'entry', 'sidebar'] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setActiveTab(t)}
-                className={`text-sm font-medium px-4 py-1.5 rounded-lg capitalize transition-all ${
-                  activeTab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {t === 'entry' ? 'Entry points' : t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
-            ))}
+            <button className="text-sm font-medium px-4 py-1.5 rounded-lg capitalize transition-all bg-white text-slate-900 shadow-sm">
+              Theme
+            </button>
           </div>
 
           {activeTab === 'theme' && (
@@ -130,7 +122,7 @@ export default function BrandingPage() {
                     type="text"
                     value={config.primaryColor}
                     onChange={(e) => setConfig((c) => ({ ...c, primaryColor: e.target.value }))}
-                    className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                    className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400"
                   />
                 </div>
               </div>
@@ -165,7 +157,7 @@ export default function BrandingPage() {
                       onClick={() => setConfig((c) => ({ ...c, position: pos }))}
                       className={`flex-1 py-2.5 rounded-xl border text-sm font-medium transition-all ${
                         config.position === pos
-                          ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
+                          ? 'border-brand-400 bg-brand-50 text-brand-700'
                           : 'border-slate-200 text-slate-600 hover:border-slate-300'
                       }`}
                     >
@@ -188,7 +180,7 @@ export default function BrandingPage() {
                   step={1000}
                   value={config.idleThreshold}
                   onChange={(e) => setConfig((c) => ({ ...c, idleThreshold: Number(e.target.value) }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400"
                 />
                 <p className="text-xs text-slate-400 mt-1">{(config.idleThreshold / 1000).toFixed(0)} seconds</p>
               </div>
@@ -211,7 +203,7 @@ export default function BrandingPage() {
             <button
               onClick={handleSave}
               disabled={saving || !isDirty}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
+              className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save changes'}
             </button>

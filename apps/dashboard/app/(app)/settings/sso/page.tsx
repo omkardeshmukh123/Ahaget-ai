@@ -88,7 +88,7 @@ export default function SsoPage() {
               <button
                 onClick={openAdminPortal}
                 disabled={actionLoading}
-                className="rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition"
+                className="rounded-lg bg-brand-600 hover:bg-brand-500 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition"
               >
                 {actionLoading ? 'Opening…' : 'Edit IdP Configuration'}
               </button>
@@ -111,7 +111,7 @@ export default function SsoPage() {
             <button
               onClick={openAdminPortal}
               disabled={actionLoading}
-              className="rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition"
+              className="rounded-lg bg-brand-600 hover:bg-brand-500 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition"
             >
               {actionLoading ? 'Opening…' : 'Configure SSO'}
             </button>

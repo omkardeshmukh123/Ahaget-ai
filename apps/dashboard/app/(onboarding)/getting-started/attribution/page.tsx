@@ -56,16 +56,16 @@ export default function AttributionPage() {
             onClick={() => setSelected(opt.value)}
             className={`w-full flex items-center gap-4 px-5 py-4 rounded-xl border-2 text-left transition-all ${
               selected === opt.value
-                ? 'border-indigo-500 bg-indigo-50 shadow-sm'
-                : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/40'
+                ? 'border-brand-500 bg-brand-50 shadow-sm'
+                : 'border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50/40'
             }`}
           >
             <span className="text-xl">{opt.icon}</span>
-            <span className={`text-sm font-medium ${selected === opt.value ? 'text-indigo-800' : 'text-slate-700'}`}>
+            <span className={`text-sm font-medium ${selected === opt.value ? 'text-brand-800' : 'text-slate-700'}`}>
               {opt.label}
             </span>
             {selected === opt.value && (
-              <div className="ml-auto w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center">
+              <div className="ml-auto w-5 h-5 rounded-full bg-brand-600 flex items-center justify-center">
                 <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                 </svg>
@@ -89,7 +89,7 @@ export default function AttributionPage() {
           type="button"
           onClick={handleContinue}
           disabled={!selected || loading}
-          className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 py-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shadow-brand-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Saving…' : 'Continue'}
         </button>

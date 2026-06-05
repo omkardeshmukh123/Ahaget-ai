@@ -189,7 +189,7 @@ export default function FlowEditorPage() {
             onClick={() => switchTab(tab)}
             className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
               activeTab === tab
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-brand-600 text-brand-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -767,7 +767,7 @@ function AnalyticsTab({
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-slate-400">#{step.order + 1}</span>
                       <span className="text-sm font-medium text-slate-800">{step.stepTitle}</span>
-                      {step.isMilestone && <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-medium">Milestone</span>}
+                      {step.isMilestone && <span className="text-xs bg-brand-100 text-brand-700 px-1.5 py-0.5 rounded font-medium">Milestone</span>}
                       {isWorst && <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium">Worst drop-off ⚠</span>}
                     </div>
                     <div className="flex items-center gap-3 text-xs">
@@ -780,7 +780,7 @@ function AnalyticsTab({
                   </div>
                   <div className="relative h-3.5 bg-slate-200 rounded-full overflow-hidden">
                     <div className="absolute left-0 top-0 h-full bg-slate-300 rounded-full" style={{ width: `${startedPct}%` }} />
-                    <div className={`absolute left-0 top-0 h-full rounded-full ${isWorst ? 'bg-red-400' : 'bg-indigo-500'}`} style={{ width: `${completedPct}%` }} />
+                    <div className={`absolute left-0 top-0 h-full rounded-full ${isWorst ? 'bg-red-400' : 'bg-brand-500'}`} style={{ width: `${completedPct}%` }} />
                   </div>
                 </div>
               );
@@ -798,7 +798,7 @@ function AnalyticsTab({
               <button
                 key={d}
                 onClick={() => onChangeDays(d)}
-                className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${timelineDays === d ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+                className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${timelineDays === d ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
               >
                 {d}d
               </button>

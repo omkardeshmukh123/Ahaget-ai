@@ -19,7 +19,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       {/* Right — preview panel */}
-      <div className="hidden lg:flex flex-1 flex-col justify-center items-center bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 relative overflow-hidden px-12">
+      <div className="hidden lg:flex flex-1 flex-col justify-center items-center bg-gradient-to-br from-brand-700 via-brand-500 to-brand-600 relative overflow-hidden px-12">
         {/* Background orbs */}
         <div className="absolute top-[-20%] right-[-10%] w-96 h-96 rounded-full bg-white opacity-5 blur-3xl" />
         <div className="absolute bottom-[-10%] left-[-15%] w-80 h-80 rounded-full bg-white opacity-5 blur-3xl" />
@@ -47,7 +47,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               </div>
             </div>
             <div className="flex gap-2 ml-11">
-              <button className="bg-white text-indigo-700 text-xs font-semibold px-3.5 py-1.5 rounded-lg hover:bg-white/90 transition-colors">
+              <button className="bg-white text-brand-700 text-xs font-semibold px-3.5 py-1.5 rounded-lg hover:bg-white/90 transition-colors">
                 Yes, help me →
               </button>
               <button className="bg-white/10 text-white/80 text-xs font-medium px-3.5 py-1.5 rounded-lg border border-white/10">

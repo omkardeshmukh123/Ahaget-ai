@@ -16,7 +16,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
   const currentStep = STEPS.findIndex((s) => pathname?.includes(s.key));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-brand-50/30">
       {/* Header */}
       <header className="border-b border-slate-200/60 bg-white/80 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -36,9 +36,9 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
                     <div
                       className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                         done
-                          ? 'bg-indigo-600 text-white'
+                          ? 'bg-brand-600 text-white'
                           : active
-                          ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-300'
+                          ? 'bg-brand-100 text-brand-700 ring-2 ring-brand-300'
                           : 'bg-slate-100 text-slate-400'
                       }`}
                     >
@@ -50,12 +50,12 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
                         i + 1
                       )}
                     </div>
-                    <span className={`text-xs font-medium hidden sm:inline ${active ? 'text-indigo-700' : 'text-slate-400'}`}>
+                    <span className={`text-xs font-medium hidden sm:inline ${active ? 'text-brand-700' : 'text-slate-400'}`}>
                       {step.label}
                     </span>
                   </div>
                   {i < STEPS.length - 1 && (
-                    <div className={`w-6 h-px ${done ? 'bg-indigo-300' : 'bg-slate-200'}`} />
+                    <div className={`w-6 h-px ${done ? 'bg-brand-300' : 'bg-slate-200'}`} />
                   )}
                 </div>
               );
