@@ -147,9 +147,7 @@ function Navbar() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <a href="/" className="flex items-center gap-2.5 group">
-            <svg width="32" height="32" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" className="group-hover:opacity-90 transition-opacity duration-300">
-              <path fill="#8A2BE2" fillRule="evenodd" clipRule="evenodd" d="M48.6 36A24 24 0 1 0 38 48.8L38 36ZM43 21A11 11 0 1 0 21 21A11 11 0 1 0 43 21Z"/>
-            </svg>
+            <img src="/logo-mark.png" alt="Ahaget" width={32} height={32} className="group-hover:opacity-90 transition-opacity duration-300" style={{objectFit:'contain'}} />
             <span className="text-white font-bold text-xl tracking-tight">Ahaget</span>
           </a>
 
@@ -1166,9 +1164,7 @@ function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <a href="/" className="flex items-center gap-2.5 mb-4">
-              <svg width="28" height="28" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill="#8A2BE2" fillRule="evenodd" clipRule="evenodd" d="M48.6 36A24 24 0 1 0 38 48.8L38 36ZM43 21A11 11 0 1 0 21 21A11 11 0 1 0 43 21Z"/>
-              </svg>
+              <img src="/logo-mark.png" alt="Ahaget" width={28} height={28} style={{objectFit:'contain'}} />
               <span className="text-white font-bold text-lg">Ahaget</span>
             </a>
             <p className="text-white/40 text-sm leading-relaxed mb-4">
