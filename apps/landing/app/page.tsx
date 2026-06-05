@@ -133,7 +133,7 @@ function Navbar() {
     { label: 'Features', href: '#features' },
     { label: 'How It Works', href: '#how-it-works' },
     { label: 'Pricing', href: '#pricing' },
-    { label: 'Docs', href: 'https://docs.ahaget.ai' },
+    { label: 'Docs', href: '/docs' },
   ];
 
   return (
@@ -350,7 +350,7 @@ function HeroSection() {
             <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-6 border border-[#8A2BE2]/30 animate-fade-in">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-sm text-white/70 font-medium">
-                AI-powered user lifecycle — now in beta
+                v1.1.0 — now live 🎉
               </span>
             </div>
 
@@ -841,8 +841,8 @@ const plans = [
   },
   {
     name: 'Starter',
-    price: '$99',
-    priceInr: '₹7,999',
+    price: '$29',
+    priceInr: '₹1,999',
     period: 'per month',
     description: 'For growing SaaS products ready to automate user success.',
     highlight: false,
@@ -859,8 +859,8 @@ const plans = [
   },
   {
     name: 'Growth',
-    price: '$299',
-    priceInr: '₹24,999',
+    price: '$59',
+    priceInr: '₹4,999',
     period: 'per month',
     description: 'For scale-ups that want full AI automation across every user.',
     highlight: true,
@@ -879,8 +879,8 @@ const plans = [
   },
   {
     name: 'Scale',
-    price: '$999',
-    priceInr: '₹79,999',
+    price: '$179',
+    priceInr: '₹14,999',
     period: 'per month',
     description: 'Enterprise-grade for high-volume SaaS businesses.',
     highlight: false,
@@ -898,10 +898,11 @@ const plans = [
   },
 ];
 
+
 function PricingSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false);
-  const [billing, setBilling] = useState<'usd' | 'inr'>('usd');
+  const [billing, setBilling] = useState<'usd' | 'inr'>('inr');
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -1023,8 +1024,8 @@ function PricingSection() {
         {/* Compare note */}
         <p className="text-center text-white/30 text-sm mt-8">
           All plans include SSL, 99.9% uptime SLA, and GDPR compliance. &nbsp;
-          <a href="#" className="text-[#B06CF5] hover:text-[#C490F7] underline underline-offset-2">
-            Compare all features →
+          <a href="/docs" className="text-[#B06CF5] hover:text-[#C490F7] underline underline-offset-2">
+            View full documentation →
           </a>
         </p>
       </div>
@@ -1121,39 +1122,39 @@ function Footer() {
       links: [
         { label: 'Features', href: '#features' },
         { label: 'Pricing', href: '#pricing' },
-        { label: 'Changelog', href: '#' },
-        { label: 'Roadmap', href: '#' },
-        { label: 'Status', href: '#' },
+        { label: 'Changelog', href: '/changelog' },
+        { label: 'Roadmap', href: '/roadmap' },
+        { label: 'Status', href: 'https://status.ahaget.ai', external: true },
       ],
     },
     {
       heading: 'Developers',
       links: [
-        { label: 'Documentation', href: '#' },
-        { label: 'API Reference', href: '#' },
-        { label: 'SDKs', href: '#' },
-        { label: 'Examples', href: '#' },
-        { label: 'GitHub', href: '#' },
+        { label: 'Documentation', href: '/docs' },
+        { label: 'API Reference', href: '/docs#api-reference' },
+        { label: 'SDKs', href: '/docs#sdks' },
+        { label: 'Examples', href: '/docs#examples' },
+        { label: 'GitHub', href: 'https://github.com/ahaget', external: true },
       ],
     },
     {
       heading: 'Company',
       links: [
-        { label: 'About', href: '#' },
-        { label: 'Blog', href: '#' },
-        { label: 'Careers', href: '#' },
-        { label: 'Press', href: '#' },
+        { label: 'About', href: '/about' },
+        { label: 'Blog', href: '/blog' },
+        { label: 'Careers', href: '/careers' },
+        { label: 'Press', href: '/about#press' },
         { label: 'Contact', href: 'mailto:hello@ahaget.ai' },
       ],
     },
     {
       heading: 'Legal',
       links: [
-        { label: 'Privacy Policy', href: '#' },
-        { label: 'Terms of Service', href: '#' },
-        { label: 'GDPR', href: '#' },
-        { label: 'Security', href: '#' },
-        { label: 'Cookie Policy', href: '#' },
+        { label: 'Privacy Policy', href: '/privacy' },
+        { label: 'Terms of Service', href: '/terms' },
+        { label: 'GDPR', href: '/privacy#gdpr' },
+        { label: 'Security', href: '/security' },
+        { label: 'Cookie Policy', href: '/privacy#cookies' },
       ],
     },
   ];
@@ -1173,13 +1174,13 @@ function Footer() {
             </p>
             <div className="flex gap-3">
               {/* Twitter */}
-              <a href="#" className="w-8 h-8 glass rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 transition-colors border border-white/[0.08]">
+              <a href="https://twitter.com/ahaget_ai" target="_blank" rel="noopener noreferrer" className="w-8 h-8 glass rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 transition-colors border border-white/[0.08]">
                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.737l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
               </a>
               {/* LinkedIn */}
-              <a href="#" className="w-8 h-8 glass rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 transition-colors border border-white/[0.08]">
+              <a href="https://linkedin.com/company/ahaget" target="_blank" rel="noopener noreferrer" className="w-8 h-8 glass rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 transition-colors border border-white/[0.08]">
                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
                   <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                 </svg>
@@ -1196,6 +1197,7 @@ function Footer() {
                   <li key={link.label}>
                     <a
                       href={link.href}
+                      {...('external' in link && link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                       className="text-white/40 hover:text-white text-sm transition-colors duration-200"
                     >
                       {link.label}
