@@ -20,6 +20,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [error, setError] = useState('');
+  const [slowLoad, setSlowLoad] = useState(false);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({
     resolver: zodResolver(schema),
@@ -27,12 +28,17 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: Form) => {
     setError('');
+    setSlowLoad(false);
+    const slowTimer = setTimeout(() => setSlowLoad(true), 4000);
     try {
       const res = await api.auth.register(data);
+      clearTimeout(slowTimer);
       setAuth(res.token, res.user, res.organization);
       // New users always go through the onboarding wizard
       router.push('/getting-started/workspace');
     } catch (e: unknown) {
+      clearTimeout(slowTimer);
+      setSlowLoad(false);
       setError(e instanceof Error ? e.message : 'Registration failed');
     }
   };
@@ -93,8 +99,17 @@ export default function RegisterPage() {
           disabled={isSubmitting}
           className="w-full py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-60"
         >
-          {isSubmitting ? 'Creating account…' : 'Get started free'}
+          {isSubmitting
+            ? slowLoad
+              ? '⏳ Server warming up…'
+              : 'Creating account…'
+            : 'Get started free'}
         </button>
+        {isSubmitting && slowLoad && (
+          <p className="text-center text-xs text-slate-400 mt-2">
+            Our server is waking up — this usually takes under 30 seconds.
+          </p>
+        )}
       </form>
 
       <p className="text-center text-sm text-slate-500 mt-6">

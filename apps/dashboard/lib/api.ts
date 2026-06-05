@@ -28,9 +28,16 @@ export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promis
 
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, { ...rest, headers });
-  } catch (networkErr) {
-    const msg = `Network error — is the backend running? (${(networkErr as Error).message})`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+    res = await fetch(`${API_URL}${path}`, { ...rest, headers, signal: controller.signal });
+    clearTimeout(timeoutId);
+  } catch (networkErr: unknown) {
+    const err = networkErr as Error;
+    const isTimeout = err.name === 'AbortError';
+    const msg = isTimeout
+      ? 'Request timed out — the server may be starting up. Please try again in a few seconds.'
+      : `Network error — is the backend running? (${err.message})`;
     console.error('[api]', path, msg);
     throw new Error(msg);
   }
