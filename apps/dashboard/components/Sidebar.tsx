@@ -22,6 +22,7 @@ const SECTIONS = [
       { href: '/conversations', label: 'Conversations', icon: <ChatIcon /> },
       { href: '/sessions',      label: 'Sessions',      icon: <SessionIcon /> },
       { href: '/escalations',   label: 'Escalations',   icon: <EscalationIcon /> },
+      { href: '/failures',      label: 'Failures',      icon: <FailureIcon /> },
       { href: '/insights',      label: 'Insights',      icon: <InsightIcon /> },
       { href: '/insights/choke-points', label: 'Choke Points', icon: <AlertTriangleIcon /> },
       { href: '/users',         label: 'Users',         icon: <UsersIcon /> },
@@ -243,6 +244,15 @@ function WebhookIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 000-6 3 3 0 00-3 3c0 .24.04.47.09.7L8.04 9.81A3 3 0 005 9a3 3 0 000 6 3 3 0 003.04-2.81l7.12 4.16c-.05.21-.08.43-.08.65a3 3 0 003 3 3 3 0 000-6z"/>
+    </svg>
+  );
+}
+function FailureIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="15" y1="9" x2="9" y2="15"/>
+      <line x1="9" y1="9" x2="15" y2="15"/>
     </svg>
   );
 }
