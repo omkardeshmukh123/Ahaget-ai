@@ -40,10 +40,16 @@ export function createSidePanel(root: HTMLElement): HTMLDivElement {
 
     <div id="oai-header">
       <div id="oai-header-top">
-        <div id="oai-avatar">?</div>
+        <div id="oai-avatar">
+          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;">
+            <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle"
+              font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+              font-size="18" font-weight="800" fill="white" letter-spacing="-1">A</text>
+          </svg>
+        </div>
         <div id="oai-header-text">
-          <p id="oai-header-title">Ahaget</p>
-          <p id="oai-header-sub">Your AI employee · Ahaget</p>
+          <p id="oai-header-title">Ahaget Assistant</p>
+          <p id="oai-header-sub">AI employee · always on</p>
         </div>
       </div>
       <div id="oai-steps-nav"></div>

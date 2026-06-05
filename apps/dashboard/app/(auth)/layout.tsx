@@ -34,8 +34,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {/* Fake assistant widget preview */}
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-5 mb-8 text-left shadow-2xl">
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0 overflow-hidden">
-                <AhagetLogo size={22} variant="dark" />
+              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
+                  <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle"
+                    fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+                    fontSize="16" fontWeight="800" fill="white">A</text>
+                </svg>
               </div>
               <div className="flex-1">
                 <p className="text-white text-sm font-medium mb-1">Ahaget Assistant</p>
