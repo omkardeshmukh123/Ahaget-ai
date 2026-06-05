@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 
 const DASHBOARD_URL =
-  process.env.NEXT_PUBLIC_DASHBOARD_URL || 'https://app.ahaget.ai';
+  process.env.NEXT_PUBLIC_DASHBOARD_URL || 'https://ahaget-dashboard.onrender.com';
 const SIGNUP_URL = `${DASHBOARD_URL}/register`;
+const LOGIN_URL  = `${DASHBOARD_URL}/login`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ICONS (inline SVGs — no external icon library needed)
@@ -167,7 +168,7 @@ function Navbar() {
           {/* CTA */}
           <div className="hidden md:flex items-center gap-3">
             <a
-              href={DASHBOARD_URL}
+              href={LOGIN_URL}
               className="text-white/60 hover:text-white text-sm font-medium transition-colors duration-200"
             >
               Sign in
