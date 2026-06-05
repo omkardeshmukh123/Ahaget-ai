@@ -187,17 +187,6 @@ export default function BrandingPage() {
             </div>
           )}
 
-          {activeTab === 'entry' && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-5">
-              <p className="text-sm text-slate-500">Entry point configuration coming soon — control how the widget badge appears on your site.</p>
-            </div>
-          )}
-
-          {activeTab === 'sidebar' && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-5">
-              <p className="text-sm text-slate-500">Sidebar customisation coming soon — control the layout and sections of the in-app assistant panel.</p>
-            </div>
-          )}
 
           <div className="flex items-center gap-3 pb-8">
             <button
