@@ -896,4 +896,59 @@ router.get('/has-first-session', authenticateJWT, async (req: AuthenticatedReque
   res.json({ detected: count > 0, count });
 });
 
+// ─── GET /api/v1/analytics/heal-stats ────────────────────────────────────────
+router.get('/heal-stats', authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
+  const orgId = req.user!.organizationId;
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const [logs, trend] = await Promise.all([
+    prisma.selectorHealLog.findMany({
+      where: { organizationId: orgId },
+      select: { strategy: true, originalSelector: true, page: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 2000,
+    }),
+    prisma.$queryRaw<{ date: string; healed: bigint; failed: bigint }[]>`
+      SELECT DATE("created_at") as date,
+             COUNT(*) FILTER (WHERE strategy <> 'failed') as healed,
+             COUNT(*) FILTER (WHERE strategy = 'failed')  as failed
+      FROM selector_heal_logs
+      WHERE organization_id = ${orgId}
+        AND created_at >= ${since}
+      GROUP BY DATE("created_at")
+      ORDER BY date ASC
+    `,
+  ]);
+
+  const total = logs.length;
+  const failed = logs.filter(l => l.strategy === 'failed').length;
+  const healed = total - failed - logs.filter(l => l.strategy === 'primary').length;
+
+  const stratDist: Record<string, number> = {};
+  for (const l of logs) stratDist[l.strategy] = (stratDist[l.strategy] ?? 0) + 1;
+
+  // Top drifting = selectors with the most non-primary / failed entries
+  const driftMap = new Map<string, { failures: number; lastPage: string; lastSeen: Date }>();
+  for (const l of logs) {
+    if (l.strategy === 'primary') continue;
+    const entry = driftMap.get(l.originalSelector);
+    if (!entry || l.createdAt > entry.lastSeen) {
+      driftMap.set(l.originalSelector, { failures: (entry?.failures ?? 0) + 1, lastPage: l.page, lastSeen: l.createdAt });
+    } else {
+      entry.failures++;
+    }
+  }
+  const topDrifting = [...driftMap.entries()]
+    .sort((a, b) => b[1].failures - a[1].failures)
+    .slice(0, 10)
+    .map(([selector, v]) => ({ selector, ...v }));
+
+  res.json({
+    summary: { totalActions: total, healedCount: healed, failedCount: failed, healRate: total > 0 ? +((healed / Math.max(total - stratDist['primary'] ?? 0, 1)) * 100).toFixed(1) : 100 },
+    topDriftingSelectors: topDrifting,
+    strategyDistribution: stratDist,
+    trend: trend.map(r => ({ date: r.date, healed: Number(r.healed), failed: Number(r.failed) })),
+  });
+});
+
 export default router;

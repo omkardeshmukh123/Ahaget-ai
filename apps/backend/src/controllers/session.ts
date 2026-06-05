@@ -50,6 +50,34 @@ async function localizeAction(
   return action;
 }
 
+// --- Helper: fingerprint lookup for pre-configured step selectors -------------
+// Returns stored fingerprint signals so the widget resolver can heal stale selectors
+// that aren't present in the current live DOM scan.
+async function fetchActionConfigFingerprint(orgId: string, selector: string) {
+  const el = await prisma.interfaceElement.findFirst({
+    where: { snapshot: { organizationId: orgId, isActive: true }, selector },
+    select: { text: true, ariaLabel: true, placeholder: true, name: true, dataTestId: true, classes: true },
+  }).catch(() => null);
+  if (!el) return null;
+  return {
+    text:        el.text       || undefined,
+    ariaLabel:   el.ariaLabel  || undefined,
+    placeholder: el.placeholder || undefined,
+    name:        el.name       || undefined,
+    dataTestId:  el.dataTestId || undefined,
+    classes:     el.classes.length ? el.classes : undefined,
+  };
+}
+
+// --- Helper: enrich currentStep with fingerprint if it has an actionConfig selector --
+async function enrichStep<T extends { actionConfig: unknown }>(step: T, orgId: string): Promise<T> {
+  const cfg = step.actionConfig as Record<string, unknown> | null;
+  if (!cfg?.selector) return step;
+  const fingerprint = await fetchActionConfigFingerprint(orgId, cfg.selector as string);
+  if (!fingerprint) return step;
+  return { ...step, actionConfig: { ...cfg, fingerprint } };
+}
+
 // --- Helper: get or create end user ------------------------------------------
 async function getOrCreateEndUser(orgId: string, userId: string, metadata: Record<string, unknown>) {
   return prisma.endUser.upsert({
@@ -123,7 +151,8 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  const currentStep = session.flow.steps.find((s) => s.id === session.currentStepId) ?? session.flow.steps[0];
+  const rawStep = session.flow.steps.find((s) => s.id === session.currentStepId) ?? session.flow.steps[0];
+  const currentStep = await enrichStep(rawStep, req.organization!.id);
   const completedStepIds = session.stepProgress
     .filter((p) => p.status === 'completed')
     .map((p) => p.stepId);
@@ -368,7 +397,10 @@ router.post('/start', async (req: AuthenticatedRequest, res: Response) => {
     .filter((p) => p.status === 'completed')
     .map((p) => p.stepId);
 
-  const currentStep = flow.steps.find((s) => s.id === session!.currentStepId) ?? flow.steps[0];
+  const currentStep = await enrichStep(
+    flow.steps.find((s) => s.id === session!.currentStepId) ?? flow.steps[0],
+    req.organization!.id
+  );
 
   // Check if returning user (has any other sessions for this org)
   const otherSessionCount = await prisma.userOnboardingSession.count({
@@ -795,6 +827,14 @@ router.post('/heal', async (req: AuthenticatedRequest, res: Response) => {
         console.error('[webhook] Blocked private URL:', (e as Error).message);
       }
     }
+  }
+
+  // Auto-update interface map so future sessions get the healed selector directly
+  if (strategy !== 'failed' && usedSelector) {
+    prisma.interfaceElement.updateMany({
+      where: { snapshot: { organizationId: org.id, isActive: true }, selector: originalSelector },
+      data: { selector: usedSelector, updatedAt: new Date() },
+    }).catch(() => {}); // non-blocking
   }
 
   res.json({ logged: true });

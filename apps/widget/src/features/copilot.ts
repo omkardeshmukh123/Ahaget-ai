@@ -2,8 +2,8 @@
 // Manages the onboarding session, communicates with /api/v1/session/* endpoints,
 // and drives the goal-oriented UI.
 
-import { scanPage, buildSemanticSummary } from '../utils/scanner';
-import { resolveFromIndex, HealStrategy } from '../utils/resolver';
+import { scanPage, buildSemanticSummary, ScannedElement } from '../utils/scanner';
+import { resolveFromIndex, resolveElement, HealStrategy } from '../utils/resolver';
 import { spotlight, beacon, arrowCallout, multiHighlight, ringOnly, removeSpotlight, removeBeacon, removeArrow, removeMulti, hoverTip, removeHoverTips } from '../utils/highlighter';
 import { animatedFillFields } from '../utils/cursor';
 
@@ -74,11 +74,29 @@ export class CopilotManager {
   private onActionCallbacks: Array<(action: AgentAction) => void> = [];
   private onSessionUpdateCallbacks: Array<(session: CopilotSession) => void> = [];
   private _hoverTipCleanups: Array<() => void> = [];
+  // Remote fingerprints for pre-configured step selectors (loaded from session response)
+  private _remoteFingerprints: Map<string, Partial<ScannedElement>> = new Map();
 
   clearHoverTips(): void {
     this._hoverTipCleanups.forEach((fn) => fn());
     this._hoverTipCleanups = [];
     removeHoverTips();
+  }
+
+  // Resolve a selector using live index first, then remote fingerprint fallback
+  private resolveSelector(selector: string) {
+    const fromIndex = resolveFromIndex(selector);
+    if (fromIndex) return fromIndex;
+    const hints = this._remoteFingerprints.get(selector);
+    if (hints) return resolveElement(selector, hints as ScannedElement);
+    return null;
+  }
+
+  private storeSessionFingerprints(session: CopilotSession) {
+    const cfg = session.currentStep?.actionConfig as Record<string, unknown> | null;
+    if (cfg?.selector && cfg?.fingerprint) {
+      this._remoteFingerprints.set(cfg.selector as string, cfg.fingerprint as Partial<ScannedElement>);
+    }
   }
 
   // ─── Local session cache ────────────────────────────────────────────────────
@@ -257,6 +275,7 @@ export class CopilotManager {
       if (data.session) {
         const fresh: CopilotSession = { ...data.session, isReturning: data.isReturning ?? false };
         this.session = fresh;
+        this.storeSessionFingerprints(fresh);
         if (fresh.status === 'completed') {
           this.evictCache(userId);
         } else {
@@ -559,7 +578,7 @@ export class CopilotManager {
       // Build a resolved map: selector → value, healing as we go
       const resolvedFields: Record<string, string> = {};
       for (const [selector, value] of Object.entries(fields)) {
-        const result = resolveFromIndex(selector);
+        const result = this.resolveSelector(selector);
         if (!result) {
           this.reportHeal({ originalSelector: selector, strategy: 'failed', actionType });
           continue;
@@ -590,7 +609,7 @@ export class CopilotManager {
 
     if (actionType === 'click') {
       const selector = payload.selector as string;
-      const result = resolveFromIndex(selector);
+      const result = this.resolveSelector(selector);
 
       if (!result) {
         this.reportHeal({ originalSelector: selector, strategy: 'failed', actionType });
@@ -633,7 +652,7 @@ export class CopilotManager {
       const selector = payload.selector as string;
       const waitForSel = payload.waitForSelector as string | undefined;
       if (selector) {
-        const result = resolveFromIndex(selector);
+        const result = this.resolveSelector(selector);
         if (!result) {
           this.reportHeal({ originalSelector: selector, strategy: 'failed', actionType });
           return;
@@ -661,7 +680,7 @@ export class CopilotManager {
 
       // For single-element highlight modes, resolve the selector
       if (mode !== 'multi') {
-        const result = resolveFromIndex(selector);
+        const result = this.resolveSelector(selector);
         if (!result) {
           this.reportHeal({ originalSelector: selector, strategy: 'failed', actionType });
           return;
@@ -706,7 +725,7 @@ export class CopilotManager {
       const text = payload.text as string;
       const tipColor = (payload.color as string) || undefined;
       if (selector && text) {
-        const result = resolveFromIndex(selector);
+        const result = this.resolveSelector(selector);
         if (result) {
           if (result.healed) this.reportHeal({ originalSelector: selector, usedSelector: result.usedSelector, strategy: result.strategy, actionType });
           const cleanup = hoverTip(result.usedSelector ?? selector, text, tipColor);

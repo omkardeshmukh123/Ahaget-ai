@@ -25,6 +25,7 @@ const SECTIONS = [
       { href: '/failures',      label: 'Failures',      icon: <FailureIcon /> },
       { href: '/insights',      label: 'Insights',      icon: <InsightIcon /> },
       { href: '/insights/choke-points', label: 'Choke Points', icon: <AlertTriangleIcon /> },
+      { href: '/flows/drift',           label: 'Selector Drift', icon: <HealIcon /> },
       { href: '/users',         label: 'Users',         icon: <UsersIcon /> },
       { href: '/expansion',     label: 'Expansion MRR', icon: <ExpansionIcon /> },
     ],
@@ -244,6 +245,13 @@ function WebhookIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 000-6 3 3 0 00-3 3c0 .24.04.47.09.7L8.04 9.81A3 3 0 005 9a3 3 0 000 6 3 3 0 003.04-2.81l7.12 4.16c-.05.21-.08.43-.08.65a3 3 0 003 3 3 3 0 000-6z"/>
+    </svg>
+  );
+}
+function HealIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
     </svg>
   );
 }

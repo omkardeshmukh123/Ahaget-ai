@@ -49,7 +49,7 @@ async function prepareAgentCall(opts: {
   const hasActionConfig = !!(actionConfig && Object.keys(actionConfig).length > 0);
 
   const actionHint = hasActionConfig
-    ? `\nPRE-CONFIGURED ACTION (use these exact values with execute_page_action):\n- type: "${step.actionType || 'highlight'}"\n${actionConfig!.selector ? `- selector: "${actionConfig!.selector}"\n` : ''}${actionConfig!.url ? `- url: "${actionConfig!.url}"\n` : ''}${actionConfig!.fields ? `- fields: ${JSON.stringify(actionConfig!.fields)} (replace empty strings with values from collectedData or user answer)\n` : ''}`
+    ? `\nPRE-CONFIGURED ACTION:\n- type: "${step.actionType || 'highlight'}"\n${actionConfig!.selector ? `- selector: "${actionConfig!.selector}" (use this if it appears in LIVE PAGE ELEMENTS — otherwise find the closest matching element by label, placeholder, or visible text)\n` : ''}${actionConfig!.url ? `- url: "${actionConfig!.url}"\n` : ''}${actionConfig!.fields ? `- fields: ${JSON.stringify(actionConfig!.fields)} (replace empty strings with values from collectedData or user answer)\n` : ''}`
     : '';
 
   const domSummary = pageContext ? buildDomSummary(pageContext) : '';
