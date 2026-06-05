@@ -83,12 +83,8 @@ services:
     runtime: node
     plan: free
     rootDir: apps/dashboard
-    buildCommand: >-
-      npm install --include=dev --legacy-peer-deps &&
-      npm run build &&
-      cp -r .next/static .next/standalone/.next/static &&
-      (cp -r public .next/standalone/public || true)
-    startCommand: node .next/standalone/server.js
+    buildCommand: npm install --legacy-peer-deps && npm run build
+    startCommand: npm start
     healthCheckPath: /
     envVars:
       - key: NODE_ENV
